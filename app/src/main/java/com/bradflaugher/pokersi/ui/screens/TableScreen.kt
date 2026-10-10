@@ -42,6 +42,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
+import com.bradflaugher.pokersi.ui.pixel.cardDescription
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.toSize
@@ -193,6 +202,7 @@ fun TableScreen(
                         ActionArea(state, callbacks, run)
                     }
                 }
+                TableAnnouncer(state)
                 BubbleLayer(state, spots, compact = !m.big, wide = m.wide)
                 BannerLayer(state, screenWidth, spots, m.wide)
                 ConfettiBurst(state.celebrate.takeIf { it > 0 && state.banner?.humanWon == true }, Modifier.fillMaxSize().zIndex(5f))
@@ -210,7 +220,7 @@ private const val SPOT_HUMAN = -2
 private fun TableHeader(state: TableUiState, callbacks: TableCallbacks) {
     val p = PixelTheme.palette
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        PixelButton("II", callbacks.onPause, Modifier.size(44.dp, 42.dp), variant = PixelButtonVariant.Gray, textStyle = PixelType.Small)
+        PixelButton("II", callbacks.onPause, Modifier.size(48.dp, 48.dp).semantics { contentDescription = "Pause" }, variant = PixelButtonVariant.Gray, textStyle = PixelType.Small)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             PixelText(state.variant.displayName.uppercase(), style = PixelType.Small, color = p.yellow, maxLines = 1)
             val blinds = state.blinds
@@ -271,8 +281,10 @@ private fun OpponentSeat(seat: SeatUi, m: TableMetrics, state: TableUiState, mod
         else -> p.inkSoft
     }
     val dim = seat.folded || seat.busted
+    val spoken = seatDescription(seat)
     Column(
         modifier
+            .clearAndSetSemantics { contentDescription = spoken }
             .alpha(if (dim) 0.55f else 1f)
             .drawBehind {
                 val w = size.width.toInt(); val h = size.height.toInt()
@@ -312,6 +324,50 @@ private fun OpponentSeat(seat: SeatUi, m: TableMetrics, state: TableUiState, mod
             else -> Box(Modifier.height(16.dp))
         }
     }
+}
+
+/** What TalkBack says for an opponent's seat: who, chips, what they did, what they show and say. */
+internal fun seatDescription(seat: SeatUi): String = buildList {
+    add(seat.profile?.spoken ?: seat.name)
+    if (seat.isBoss) add("boss")
+    if (seat.isDealer) add("dealer")
+    when {
+        seat.busted -> add("busted")
+        seat.chipsHidden -> add("chips hidden")
+        else -> add("${formatChips(seat.chips)} chips")
+    }
+    if (seat.bet > 0) add("bet ${formatChips(seat.bet)}")
+    seat.net?.takeIf { it != 0 && !seat.chipsHidden }?.let { add(if (it > 0) "won ${formatChips(it)}" else "lost ${formatChips(-it)}") }
+    when {
+        seat.folded -> add("folded")
+        seat.allIn -> add("all in")
+        seat.thinking -> add("thinking")
+        seat.isToAct -> add("to act")
+    }
+    seat.lastAction?.takeIf { !seat.folded && !seat.allIn }?.let { add("last action ${it.lowercase()}") }
+    val shown = seat.cards.mapNotNull { it.card }
+    if (shown.isNotEmpty()) add("shows " + shown.joinToString(", ") { cardDescription(it, faceUp = true) })
+    seat.shownHand?.let { add(it) }
+    if (seat.isWinner) add("winner")
+    seat.chatter?.takeIf { it.isNotBlank() && !seat.chatterStreaming }?.let { add("says: $it") }
+}.joinToString(", ")
+
+/**
+ * Reads the table's news aloud for TalkBack: the latest history line (who bet,
+ * who folded, who won) and the showdown banner, as a polite live region.
+ */
+@Composable
+private fun TableAnnouncer(state: TableUiState) {
+    val news = listOfNotNull(state.log.lastOrNull(), state.banner?.let { b -> listOfNotNull(b.text, b.subtitle).joinToString(". ") })
+        .joinToString(". ")
+    Box(
+        Modifier
+            .size(1.dp)
+            .semantics {
+                liveRegion = LiveRegionMode.Polite
+                contentDescription = news
+            },
+    )
 }
 
 @Composable
@@ -507,7 +563,7 @@ private fun HumanArea(state: TableUiState, m: TableMetrics, callbacks: TableCall
                     PixelText(made.uppercase(), style = PixelType.LabelBold.copy(fontSize = 12.sp), color = if (me.isWinner) p.yellow else p.cardCream, maxLines = 1)
                 }
             }
-            LedCounter(me.chips, label = "CREDIT", color = LedColor.Red, minDigits = 5, segmentUnits = if (m.big) 2 else 1)
+            LedCounter(me.chips, label = "CREDIT", color = LedColor.Red, minDigits = 5, segmentUnits = if (m.big) 2 else 1, contentDescription = "Your chips ${formatChips(me.chips)}")
         }
         Box(Modifier.fillMaxWidth().padding(top = if (state.variant.isDraw) 18.dp else 8.dp, bottom = 6.dp), contentAlignment = Alignment.Center) {
             Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -660,7 +716,16 @@ fun PixelSlider(fraction: Float, onFraction: (Float) -> Unit, modifier: Modifier
     val unit = LocalPixelUnit.current
     Canvas(
         modifier
-            .height(30.dp)
+            // A 48dp touch target around the 30dp track and knob.
+            .height(48.dp)
+            .semantics {
+                contentDescription = "Raise amount"
+                progressBarRangeInfo = ProgressBarRangeInfo(fraction.coerceIn(0f, 1f), 0f..1f)
+                setProgress { f ->
+                    onFraction(f.coerceIn(0f, 1f))
+                    true
+                }
+            }
             .pointerInput(Unit) {
                 fun report(x: Float) = onFraction((x / size.width).coerceIn(0f, 1f))
                 awaitEachGesture {
@@ -673,16 +738,18 @@ fun PixelSlider(fraction: Float, onFraction: (Float) -> Unit, modifier: Modifier
                 }
             },
     ) {
-        val w = size.width.toInt(); val h = size.height.toInt()
+        val w = size.width.toInt()
+        val h = 30.dp.roundToPx()
+        val top = (size.height.toInt() - h) / 2
         val trackH = unit * 4
-        val ty = (h - trackH) / 2
+        val ty = top + (h - trackH) / 2
         pxBox(0, ty, w, trackH, unit, p.ink, p.inkSoft)
         val knobW = unit * 7
         val x = ((w - knobW) * fraction.coerceIn(0f, 1f)).toInt()
         pxRect(unit, ty + unit, x + knobW / 2, trackH - 2 * unit, p.green)
-        pxBox(x, 0, knobW, h, unit, p.ink, p.yellow)
-        pxRect(x + unit, unit, knobW - 2 * unit, unit, Color.White)
-        pxRect(x + unit * 3, unit * 3, unit, h - unit * 6, p.goldDark)
+        pxBox(x, top, knobW, h, unit, p.ink, p.yellow)
+        pxRect(x + unit, top + unit, knobW - 2 * unit, unit, Color.White)
+        pxRect(x + unit * 3, top + unit * 3, unit, h - unit * 6, p.goldDark)
     }
 }
 

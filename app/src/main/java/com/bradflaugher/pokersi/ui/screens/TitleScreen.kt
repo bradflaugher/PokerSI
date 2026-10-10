@@ -19,6 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,6 +45,7 @@ class TitleCallbacks(
     val onModels: () -> Unit = {},
     val onHowTo: () -> Unit = {},
     val onSettings: () -> Unit = {},
+    val onStats: () -> Unit = {},
 )
 
 /**
@@ -112,7 +115,10 @@ private fun TitleMarquee(modifier: Modifier = Modifier) {
 @Composable
 private fun CardFan(size: androidx.compose.ui.unit.Dp = 54.dp) {
     val cards = Card.parseList("Ts Js Qs Ks As")
-    Box(Modifier.fillMaxWidth().height(size * 1.75f).padding(top = 6.dp), contentAlignment = Alignment.Center) {
+    Box(
+        Modifier.fillMaxWidth().height(size * 1.75f).padding(top = 6.dp).clearAndSetSemantics { contentDescription = "A royal flush in spades" },
+        contentAlignment = Alignment.Center,
+    ) {
         cards.forEachIndexed { i, c ->
             val k = i - 2
             AnimatedPixelCard(
@@ -143,10 +149,12 @@ private fun TitleMenu(hasSavedRun: Boolean, callbacks: TitleCallbacks, dailyLabe
         PixelButton(if (hasSavedRun) "NEW TOUR" else "POKER TOUR", callbacks.onRunMode, Modifier.weight(1f), variant = PixelButtonVariant.Pink, textStyle = PixelType.Small)
         PixelButton(dailyLabel, callbacks.onDaily, Modifier.weight(1f), variant = PixelButtonVariant.Bet, textStyle = PixelType.Small)
     }
-    Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-        PixelButton("MODELS", callbacks.onModels, Modifier.weight(1f), variant = PixelButtonVariant.Hold, textStyle = PixelType.Small)
-        PixelButton("HOW TO", callbacks.onHowTo, Modifier.weight(1f), variant = PixelButtonVariant.Gray, textStyle = PixelType.Small)
-        PixelButton("SETUP", callbacks.onSettings, Modifier.weight(1f), variant = PixelButtonVariant.Gray, textStyle = PixelType.Small)
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        val small = PixelType.Small.copy(fontSize = 9.sp)
+        PixelButton("MODELS", callbacks.onModels, Modifier.weight(1.1f), variant = PixelButtonVariant.Hold, textStyle = small)
+        PixelButton("STATS", callbacks.onStats, Modifier.weight(1f), variant = PixelButtonVariant.Gray, textStyle = small)
+        PixelButton("HOW TO", callbacks.onHowTo, Modifier.weight(1f), variant = PixelButtonVariant.Gray, textStyle = small)
+        PixelButton("SETUP", callbacks.onSettings, Modifier.weight(1f), variant = PixelButtonVariant.Gray, textStyle = small)
     }
 }
 

@@ -44,4 +44,7 @@ data class OpponentProfile(
     val catchphrase: String,
     /** How they talk, for the LLM ("a pirate: says arr and matey"). Empty means the model picks. */
     val voice: String = "",
-)
+) {
+    /** What TalkBack says for this character: "Lady Dot, rock". */
+    val spoken: String get() = "$name, ${style.name.lowercase()}"
+}

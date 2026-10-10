@@ -3,6 +3,7 @@ package com.bradflaugher.pokersi.ui
 import android.app.Application
 import android.content.Context
 import androidx.compose.runtime.mutableStateListOf
+import androidx.core.content.edit
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.bradflaugher.pokersi.AppServices
@@ -13,6 +14,7 @@ import com.bradflaugher.pokersi.game.Pacing
 import com.bradflaugher.pokersi.game.PrefsRunSaver
 import com.bradflaugher.pokersi.game.QuickGameSetup
 import com.bradflaugher.pokersi.game.Settings
+import com.bradflaugher.pokersi.game.Stats
 import com.bradflaugher.pokersi.run.RunPhase
 import com.bradflaugher.pokersi.run.RunState
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,7 +26,7 @@ import java.time.LocalDate
 import kotlin.random.Random
 
 /** The app's screens. */
-enum class Screen { Title, Picker, Table, Run, Models, HowTo, Settings }
+enum class Screen { Title, Picker, Table, Run, Models, HowTo, Settings, Stats }
 
 /** Holds settings, the saved run, the game picker and the one [GameController]. */
 class PokerViewModel(app: Application) : AndroidViewModel(app) {
@@ -32,8 +34,14 @@ class PokerViewModel(app: Application) : AndroidViewModel(app) {
     val settings = Settings(prefs)
     val runSaver = PrefsRunSaver(prefs)
     val daily = DailyRecord(prefs)
+    val stats = Stats(prefs)
     val brains = AppServices.brains(app)
-    val controller = GameController(viewModelScope, brains, Pacing(), settings.speed, runSaver = runSaver)
+    val controller = GameController(viewModelScope, brains, Pacing(), settings.speed, runSaver = runSaver, recorder = stats)
+
+    private val _tips = MutableStateFlow(!prefs.getBoolean(KEY_TIPS_SEEN, false))
+
+    /** The first-run tips are showing over the title screen. */
+    val tips: StateFlow<Boolean> = _tips.asStateFlow()
 
     /** The back stack; the last entry is showing. */
     val backStack = mutableStateListOf(Screen.Title)
@@ -44,8 +52,31 @@ class PokerViewModel(app: Application) : AndroidViewModel(app) {
     init {
         // Today's daily tour: played, finished, best result (for the title screen).
         viewModelScope.launch {
-            controller.run.collect { ui -> ui?.state?.let(daily::update) }
+            controller.run.collect { ui ->
+                ui?.state?.let {
+                    daily.update(it)
+                    stats.runChanged(it)
+                }
+            }
         }
+    }
+
+    // ---------------------------------------------------------------- tips
+
+    /** SETTINGS > SHOW TIPS: back to the title screen, tips up. */
+    fun showTips() {
+        toTitle()
+        _tips.value = true
+    }
+
+    fun dismissTips() {
+        _tips.value = false
+        prefs.edit { putBoolean(KEY_TIPS_SEEN, true) }
+    }
+
+    /** Screenshot and test launches start without the tips, and still see them next launch. */
+    fun skipTips() {
+        _tips.value = false
     }
 
     fun go(screen: Screen) {
@@ -84,7 +115,7 @@ class PokerViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---------------------------------------------------------------- run
 
-    fun newRun() = openRun(RunState.new(Random.nextLong()))
+    fun newRun() = openRun(RunState.new(Random.nextLong()), started = true)
 
     /** Today's daily tour: picks up a saved one in progress instead of dealing it again. */
     fun dailyRun() {
@@ -93,7 +124,7 @@ class PokerViewModel(app: Application) : AndroidViewModel(app) {
         if (saved != null && saved.daily && saved.seed == RunState.dailySeed(today) && saved.phase != RunPhase.GAME_OVER) {
             openRun(saved)
         } else {
-            openRun(RunState.daily(today))
+            openRun(RunState.daily(today), started = true)
         }
     }
 
@@ -102,7 +133,8 @@ class PokerViewModel(app: Application) : AndroidViewModel(app) {
         openRun(saved)
     }
 
-    private fun openRun(state: RunState) {
+    private fun openRun(state: RunState, started: Boolean = false) {
+        if (started) stats.tourStarted()
         controller.startRun(state)
         backStack.removeAll { it == Screen.Run }
         go(Screen.Run)
@@ -114,5 +146,9 @@ class PokerViewModel(app: Application) : AndroidViewModel(app) {
 
     override fun onCleared() {
         controller.stop()
+    }
+
+    private companion object {
+        const val KEY_TIPS_SEEN = "tips_seen"
     }
 }

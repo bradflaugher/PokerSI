@@ -111,6 +111,8 @@ data class SettingsUi(
     val cardSway: Boolean = true,
     val speed: GameSpeed = GameSpeed.NORMAL,
     val hasSavedRun: Boolean = false,
+    /** BuildConfig.VERSION_NAME, for the ABOUT panel. */
+    val version: String = "dev",
 )
 
 class SettingsCallbacks(
@@ -120,6 +122,13 @@ class SettingsCallbacks(
     val onCardSway: (Boolean) -> Unit = {},
     val onSpeed: (GameSpeed) -> Unit = {},
     val onResetRun: () -> Unit = {},
+    val onShowTips: () -> Unit = {},
+    // The links (Links.kt) say whether something could open them.
+    val onShare: () -> Boolean = { true },
+    val onRate: () -> Boolean = { true },
+    val onFeedback: () -> Boolean = { true },
+    val onPrivacy: () -> Boolean = { true },
+    val onSource: () -> Boolean = { true },
     val onBack: () -> Unit = {},
 )
 
@@ -159,12 +168,47 @@ fun SettingsScreen(settings: SettingsUi, callbacks: SettingsCallbacks, modifier:
                         }
                     }
                 }
+                PixelPanel(Modifier.readable(), title = "HELP", style = PanelStyle.Dark, paddingUnits = 2) {
+                    SmallButton("SHOW TIPS", callbacks.onShowTips, Modifier.fillMaxWidth(), variant = PixelButtonVariant.Hold)
+                }
+                AboutPanel(settings.version, callbacks)
                 PixelText(
                     "NO ADS. NO ACCOUNTS. NO ANALYTICS.\nTHE NETWORK IS ONLY USED TO DOWNLOAD MODELS YOU PICK.",
                     style = PixelType.Label.copy(fontSize = 10.sp), color = p.gray, textAlign = TextAlign.Center, shadowUnits = 0,
                 )
                 VGap(12.dp)
             }
+        }
+    }
+}
+
+/**
+ * Share, rate, feedback, privacy and source: passive links, only ever opened
+ * from here. Never a prompt or the review API (see AGENTS.md).
+ */
+@Composable
+private fun AboutPanel(version: String, callbacks: SettingsCallbacks) {
+    val p = PixelTheme.palette
+    var notice by remember { mutableStateOf<String?>(null) }
+    fun open(link: () -> Boolean, missing: String) {
+        notice = if (link()) null else missing
+    }
+    PixelPanel(Modifier.readable(), title = "ABOUT", paddingUnits = 2) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                PixelText("POKER S.I.", Modifier.weight(1f), style = PixelType.Small, color = p.yellow)
+                PixelText("VERSION ${version.uppercase()}", style = PixelType.Label.copy(fontSize = 11.sp), color = p.cardCream, shadowUnits = 0)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SmallButton("SHARE", { open(callbacks.onShare, "NOTHING CAN SHARE") }, Modifier.weight(1f), variant = PixelButtonVariant.Pink)
+                SmallButton("RATE ON PLAY", { open(callbacks.onRate, "NO STORE OR BROWSER") }, Modifier.weight(1f), variant = PixelButtonVariant.Bet)
+            }
+            SmallButton("FEEDBACK / REPORT A BUG", { open(callbacks.onFeedback, "NO BROWSER FOUND") }, Modifier.fillMaxWidth())
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SmallButton("PRIVACY", { open(callbacks.onPrivacy, "NO BROWSER FOUND") }, Modifier.weight(1f))
+                SmallButton("SOURCE", { open(callbacks.onSource, "NO BROWSER FOUND") }, Modifier.weight(1f))
+            }
+            notice?.let { PixelText(it, style = PixelType.Small.copy(fontSize = 9.sp), color = p.red) }
         }
     }
 }

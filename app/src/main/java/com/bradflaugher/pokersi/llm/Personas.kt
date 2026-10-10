@@ -156,7 +156,7 @@ object Personas {
         "Wears sunglasses at night.", "Hums show tunes when nervous.", "Counts chips out loud.",
         "Keeps a pet goldfish in a pocket bowl.", "Believes socks bring luck.", "Has never seen a royal flush.",
         "Talks to their cards.", "Once won a pie-eating contest.", "Taps the table twice before every bet.",
-        "Is secretly afraid of jokers.", "Snacks on pickles.", "Brought a lucky potato.",
+        "Is secretly afraid of clowns.", "Snacks on pickles.", "Brought a lucky potato.",
     )
 
     /** Regulars with fixed personalities. */

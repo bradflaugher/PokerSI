@@ -60,6 +60,18 @@ download a model.
   overlay, LED digits and chiptune bleeps.
 - **Private.** No account, no ads, no analytics. The only network use is
   downloading a model you pick, from Hugging Face.
+- **Stats.** Lifetime hands played and won, win rate, biggest pot, your
+  favorite game, Poker Tour bests and the best hand you've ever held,
+  dealt out as pixel cards. They stay on the phone; RESET STATS wipes them.
+- **First-run tips.** One screen on first launch says what nobody would
+  guess (the AI lives on your phone, MODELS, the two modes, HOLD, pause).
+  A tap dismisses it; SETTINGS > SHOW TIPS brings it back.
+- **Accessible.** TalkBack reads cards ("Ace of hearts, held"), opponents
+  (name, chips, last action, what they say), the pot and your chips, and
+  announces each action at the table.
+- **No nagging.** Share, rate on Google Play, send feedback (a GitHub
+  issue), the privacy policy and the source code are plain links under
+  SETTINGS > ABOUT, never a prompt.
 
 ## The games
 

@@ -128,6 +128,8 @@ class GameController(
     private val agentTimeoutMs: Long = 45_000,
     /** Quick games: a busted opponent's seat is taken by a newcomer after this many hands (null: never). */
     private val replaceBustedAfterHands: Int? = 1,
+    /** Lifetime stats: told about each hand the human finishes (never in autopilot). */
+    private val recorder: HandRecorder? = null,
 ) {
     private val _table = MutableStateFlow(TableUiState())
     val table: StateFlow<TableUiState> = _table.asStateFlow()
@@ -574,6 +576,7 @@ class GameController(
         thinkingSeat = null
         streamingSeat = null
         if ((h.result?.collected?.get(0) ?: 0) > 0) celebrate++
+        if (autopilot == null) recorder?.handFinished(h)
         phase = TablePhase.HandOver
         publish()
     }

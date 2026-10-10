@@ -9,6 +9,15 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
+    <!-- Not a permission: lets SHARE PokerSI check that something can take plain text
+         before it opens the share sheet (Links.kt). -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+            <data android:mimeType="text/plain" />
+        </intent>
+    </queries>
+
     <!-- Touch is optional: a Chromebook with only a keyboard and mouse can play.
          Without this, Play assumes a touchscreen is required. -->
     <uses-feature

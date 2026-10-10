@@ -31,6 +31,9 @@ import com.bradflaugher.pokersi.run.RunStats
 import com.bradflaugher.pokersi.run.TableProgress
 import com.bradflaugher.pokersi.run.TableSpec
 import com.bradflaugher.pokersi.engine.HandCategory
+import com.bradflaugher.pokersi.engine.HandEvaluator
+import com.bradflaugher.pokersi.game.BestHand
+import com.bradflaugher.pokersi.game.LifetimeStats
 import com.bradflaugher.pokersi.ui.pixel.PixelTheme
 
 /** A named screen in a scripted state, for screenshot tests and store screenshots. */
@@ -255,6 +258,23 @@ object ScreenshotScenes {
         return RunUiState(state, RunScreen.Intro, opponents = runProfiles(state))
     }
 
+    // ---------------------------------------------------------------- records
+
+    /** A few weeks of play: a royal flush on the books, Hold'em the favorite. */
+    fun lifetimeStats(): LifetimeStats {
+        val royal = HandEvaluator.evaluate(Card.parseList("Ah Kh Qh Jh Th 4c 2d"))
+        return LifetimeStats(
+            handsPlayed = 1284,
+            handsWon = 437,
+            biggestPot = 18_450,
+            bestHand = BestHand.of(royal, GameVariant.TEXAS_HOLDEM),
+            handsByGame = mapOf(GameVariant.TEXAS_HOLDEM to 702, GameVariant.OMAHA to 311, GameVariant.FIVE_CARD_DRAW to 271),
+            toursStarted = 23,
+            bestTour = 8,
+            dailyBest = 6,
+        )
+    }
+
     // ---------------------------------------------------------------- the list
 
     val all: List<Scene> = listOf(
@@ -273,6 +293,15 @@ object ScreenshotScenes {
         Scene("run_choose") { PixelTheme { ChooseTableScreen(chooseTable(), {}, {}) } },
         Scene("run_over") { PixelTheme { RunOverScreen(RunUiState(wallRun(RunPhase.GAME_OVER), RunScreen.GameOver), victory = false, onNewRun = {}, onMenu = {}) } },
         Scene("how_to_play") { PixelTheme { HowToPlayScreen({}) } },
+        Scene("stats") { PixelTheme { StatsScreen(lifetimeStats(), onReset = {}, onBack = {}) } },
+        Scene("tips") {
+            PixelTheme {
+                androidx.compose.foundation.layout.Box {
+                    TitleScreen("HOUSE BOT", hasSavedRun = false, callbacks = TitleCallbacks())
+                    TipsOverlay(onDismiss = {})
+                }
+            }
+        },
         Scene("settings") { PixelTheme { SettingsScreen(SettingsUi(hasSavedRun = true), SettingsCallbacks()) } },
         Scene("models") { PixelTheme { ModelsContent(ModelsScenes.scene(), ModelsScenes.noActions) } },
     )

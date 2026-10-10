@@ -34,6 +34,7 @@ class GameControllerTest {
         brains: OpponentBrains = HouseOnlyBrains,
         replaceAfter: Int? = 1,
         pacing: Pacing = Pacing.Instant,
+        recorder: HandRecorder? = null,
     ) = GameController(
         scope = backgroundScope,
         brains = brains,
@@ -45,6 +46,7 @@ class GameControllerTest {
         houseBotIterations = 40,
         agentTimeoutMs = 5_000,
         replaceBustedAfterHands = replaceAfter,
+        recorder = recorder,
     )
 
     private fun agentOf(block: suspend (DecisionContext, (String) -> Unit) -> AgentReply) = object : PlayerAgent {
@@ -77,6 +79,32 @@ class GameControllerTest {
 
     private fun config(variant: GameVariant = GameVariant.TEXAS_HOLDEM, opponents: Int = 2, seed: Long = 7L) =
         QuickGameConfig(variant, OpponentGenerator.table(seed, opponents), startingStack = 1000, seed = seed)
+
+    @Test
+    fun everyFinishedHandIsRecordedOnce() = runTest {
+        val hands = mutableListOf<com.bradflaugher.pokersi.engine.Hand>()
+        val c = controller(recorder = { hands += it })
+        c.startQuick(config(opponents = 2, seed = 5L))
+        drive(c) { c.table.value.handNumber >= 4 && c.table.value.phase == TablePhase.HandOver }
+        c.stop()
+        assertTrue("hands recorded", hands.size >= 4)
+        assertTrue("only finished hands", hands.all { it.isFinished })
+        assertEquals("each hand once", hands.size, hands.map { it.handNumber }.toSet().size)
+        val stats = hands.mapNotNull { HandRecord.from(it) }.fold(LifetimeStats()) { s, r -> s.withHand(r) }
+        assertEquals(hands.size, stats.handsPlayed)
+        assertEquals(GameVariant.TEXAS_HOLDEM, stats.favoriteGame)
+    }
+
+    @Test
+    fun autopilotHandsAreNotRecorded() = runTest {
+        var recorded = 0
+        val c = controller(autopilot = HouseBot(BotStyle.BALANCED, seed = 2, iterations = 30, talk = false), recorder = { recorded++ })
+        c.startQuick(config(opponents = 1, seed = 9L))
+        runCurrent()
+        assertTrue(c.table.value.handNumber > 0)
+        assertEquals(0, recorded)
+        c.stop()
+    }
 
     @Test
     fun humanInputDrivesTheHand() = runTest {

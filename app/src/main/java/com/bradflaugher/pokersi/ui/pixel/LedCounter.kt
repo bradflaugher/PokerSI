@@ -16,6 +16,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import kotlin.math.abs
 import kotlin.math.log10
 import kotlin.math.max
@@ -27,7 +29,7 @@ enum class LedColor { Red, Amber, Green }
  * A 7-segment LED counter, like a cabinet's CREDIT and BET windows. Lit
  * segments glow; unlit ones stay faintly visible. When [value] changes the
  * digits roll to the new number (fast for small changes, longer for big
- * ones) and burn brighter while rolling, Balatro chip-count style.
+ * ones) and burn brighter while rolling, like a cabinet tallying a payout.
  *
  * @param minDigits leading digits shown as dark ghosts.
  * @param segmentUnits thickness of one segment in chrome pixels.
@@ -41,6 +43,8 @@ fun LedCounter(
     minDigits: Int = 6,
     segmentUnits: Int = 2,
     sound: Sfx? = null,
+    /** What TalkBack reads ("Pot 410"): the label and the value by default. */
+    contentDescription: String? = label?.let { "${it.lowercase().replaceFirstChar(Char::uppercase)} $value" },
 ) {
     val p = LocalPixelPalette.current
     val unit = LocalPixelUnit.current
@@ -71,7 +75,8 @@ fun LedCounter(
     val wPx = (digits * 5 + (digits - 1) * 2 + 4) * lp
     val hPx = (9 + 4) * lp
     val density = LocalDensity.current
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(with(density) { unit.toDp() })) {
+    val spoken = Modifier.clearAndSetSemantics { if (contentDescription != null) this.contentDescription = contentDescription }
+    Column(modifier.then(spoken), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(with(density) { unit.toDp() })) {
         if (label != null) PixelText(label, style = PixelType.Small, color = p.yellow)
         Canvas(Modifier.size(with(density) { (wPx + 2 * unit).toDp() }, with(density) { (hPx + 2 * unit).toDp() })) {
             // Bezel.

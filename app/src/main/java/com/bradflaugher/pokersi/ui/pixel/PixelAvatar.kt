@@ -12,6 +12,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -36,6 +40,8 @@ fun PixelAvatar(
     size: Dp = 64.dp,
     background: Boolean = true,
     blink: Boolean = true,
+    /** What TalkBack says ("Lady Dot, rock"); null leaves the face to its caption. */
+    contentDescription: String? = null,
 ) {
     val palette = LocalPixelPalette.current
     var closed by remember { mutableStateOf(false) }
@@ -51,8 +57,12 @@ fun PixelAvatar(
         }
     }
     val art = AvatarArt.image(seed, mood, background, closed && mood != Mood.Shocked, palette)
+    val spoken = if (contentDescription == null) Modifier else Modifier.semantics {
+        this.contentDescription = contentDescription
+        role = Role.Image
+    }
     Canvas(
-        modifier.layout { m, _ ->
+        modifier.then(spoken).layout { m, _ ->
             val px = integerScale(size.toPx(), AvatarArt.SIZE) * AvatarArt.SIZE
             val pl = m.measure(Constraints.fixed(px, px))
             layout(px, px) { pl.place(0, 0) }

@@ -16,6 +16,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -148,7 +150,7 @@ fun OpponentLineup(opponents: List<OpponentProfile>, modifier: Modifier = Modifi
     val p = PixelTheme.palette
     FlowRow(modifier.readable(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         opponents.forEachIndexed { i, o ->
-            Column(Modifier.width(avatar + 32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Column(Modifier.width(avatar + 32.dp).clearAndSetSemantics { contentDescription = o.spoken }, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 PixelAvatar(o.avatarSeed, if (bossFirst && i == 0) Mood.Angry else Mood.Neutral, size = avatar)
                 PixelText(o.name.uppercase(), style = PixelType.LabelBold.copy(fontSize = nameSize(o.name, 10f)), color = if (bossFirst && i == 0) p.hotPink else p.yellow, textAlign = TextAlign.Center, maxLines = 2)
                 PixelText(o.style.name.uppercase(), style = PixelType.Label.copy(fontSize = 9.sp), color = p.cardCream, textAlign = TextAlign.Center, shadowUnits = 0)

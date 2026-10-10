@@ -55,6 +55,15 @@ import com.bradflaugher.pokersi.ui.screens.TableCallbacks
 import com.bradflaugher.pokersi.ui.screens.TableScreen
 import com.bradflaugher.pokersi.ui.screens.TitleCallbacks
 import com.bradflaugher.pokersi.ui.screens.TitleScreen
+import com.bradflaugher.pokersi.ui.screens.StatsScreen
+import com.bradflaugher.pokersi.ui.screens.TipsOverlay
+import com.bradflaugher.pokersi.BuildConfig
+import com.bradflaugher.pokersi.Links
+import com.bradflaugher.pokersi.openWeb
+import com.bradflaugher.pokersi.rateApp
+import com.bradflaugher.pokersi.sendFeedback
+import com.bradflaugher.pokersi.shareApp
+import androidx.compose.ui.platform.LocalContext
 
 private object NoHaptics : HapticFeedback {
     override fun performHapticFeedback(hapticFeedbackType: HapticFeedbackType) = Unit
@@ -89,6 +98,11 @@ fun PokerSiApp(vm: PokerViewModel) {
                     Screen.Models -> ModelsScreen(onBack = { vm.back() })
                     Screen.HowTo -> HowToPlayScreen(onBack = { vm.back() })
                     Screen.Settings -> SettingsRoute(vm)
+                    Screen.Stats -> StatsScreen(
+                        vm.stats.stats.collectAsStateWithLifecycle().value,
+                        onReset = vm.stats::reset,
+                        onBack = { vm.back() },
+                    )
                 }
                 BackHandler(enabled = vm.backStack.size > 1 && vm.backStack.last() !in setOf(Screen.Table, Screen.Run)) { vm.back() }
             }
@@ -101,6 +115,7 @@ private fun TitleRoute(vm: PokerViewModel) {
     val label by vm.brains.label.collectAsStateWithLifecycle()
     val saved by vm.runSaver.saved.collectAsStateWithLifecycle()
     val daily by vm.daily.result.collectAsStateWithLifecycle()
+    val tips by vm.tips.collectAsStateWithLifecycle()
     TitleScreen(
         brainLabel = label,
         hasSavedRun = saved,
@@ -113,8 +128,10 @@ private fun TitleRoute(vm: PokerViewModel) {
             onModels = { vm.go(Screen.Models) },
             onHowTo = { vm.go(Screen.HowTo) },
             onSettings = { vm.go(Screen.Settings) },
+            onStats = { vm.go(Screen.Stats) },
         ),
     )
+    if (tips) TipsOverlay(onDismiss = vm::dismissTips)
 }
 
 @Composable
@@ -143,7 +160,9 @@ private fun SettingsRoute(vm: PokerViewModel) {
         cardSway = s.cardSway.collectAsStateWithLifecycle().value,
         speed = s.speed.collectAsStateWithLifecycle().value,
         hasSavedRun = vm.runSaver.saved.collectAsStateWithLifecycle().value,
+        version = BuildConfig.VERSION_NAME,
     )
+    val context = LocalContext.current
     SettingsScreen(
         ui,
         SettingsCallbacks(
@@ -153,6 +172,12 @@ private fun SettingsRoute(vm: PokerViewModel) {
             onCardSway = s::setCardSway,
             onSpeed = s::setSpeed,
             onResetRun = vm::resetRun,
+            onShowTips = vm::showTips,
+            onShare = context::shareApp,
+            onRate = context::rateApp,
+            onFeedback = context::sendFeedback,
+            onPrivacy = { context.openWeb(Links.PRIVACY_POLICY_URL) },
+            onSource = { context.openWeb(Links.SOURCE_URL) },
             onBack = { vm.back() },
         ),
     )

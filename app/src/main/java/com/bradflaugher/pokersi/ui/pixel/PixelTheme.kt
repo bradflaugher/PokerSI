@@ -13,7 +13,7 @@ import kotlin.math.roundToInt
 
 /**
  * The PokerSI palette: a 90s video poker cabinet (royal blue, black,
- * yellow/red/white text) crossed with Balatro (cream cards, hot accents).
+ * yellow/red/white text) crossed with a modern pixel card game (cream cards, hot accents).
  * Every color in the design system comes from here.
  */
 @Immutable

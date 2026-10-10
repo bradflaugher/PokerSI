@@ -41,7 +41,7 @@ import kotlin.random.Random
 
 /**
  * Shakes the element when [trigger] changes (not on first composition):
- * a quick decaying jitter, the Balatro "that hit hard" feel. Use on a
+ * a quick decaying jitter, the arcade "that hit hard" feel. Use on a
  * screen root for screen shake.
  */
 fun Modifier.shake(trigger: Any?, strength: Dp = 8.dp, durationMillis: Int = 420): Modifier = composed {
@@ -66,7 +66,7 @@ fun Modifier.shake(trigger: Any?, strength: Dp = 8.dp, durationMillis: Int = 420
 }
 
 /**
- * A big Balatro-style announcement ("FULL HOUSE!") that pops in with an
+ * A big arcade announcement ("FULL HOUSE!") that pops in with an
  * overshooting scale bounce and a wobble when [visible] becomes true.
  * Chunky pixel text with an 8-way ink outline and a hard drop shadow on a
  * bevelled ribbon.

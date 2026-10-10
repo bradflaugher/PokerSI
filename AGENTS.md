@@ -27,6 +27,14 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
   fork that LM Playground uses (upstream plus `fd:N` file-descriptor paths,
   so models picked through the Storage Access Framework load without a copy).
 - `app/src/main/java/com/bradflaugher/pokersi/`
+  - `Links.kt` — Share app, Rate on Google Play, Send feedback (a new
+    GitHub issue), the privacy policy and the source code: intents to the
+    share sheet, Play Store and browser, never a network call. A missing
+    handler returns false instead of crashing.
+  - `game/` — `GameController` (runs a table for the UI), settings, the
+    saved run, the daily record and `Stats` (lifetime records for the
+    STATS screen, fed by `GameController` at each hand's end), all in
+    SharedPreferences.
   - `engine/` — the poker. **Pure Kotlin, no `android.*` imports**, fully
     unit-tested. Cards and seeded decks, the hand evaluator (high hands,
     best 5 of N, Omaha's exactly-two rule, short-deck ranking), every
@@ -43,8 +51,11 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
   - `ui/` — Compose. The pixel design system (`ui/pixel/`: fonts, palette,
     `PixelCard`, buttons, LED digits, green felt, CRT overlay, procedural
     pixel avatars, chiptune sound), and the screens: title, game picker,
-    table, run tour, models, how-to-play, settings.
-- `app/src/test/` — JVM unit tests (engine, run, prompt/grammar/parser).
+    table, run tour, models, how-to-play, settings, stats, and the
+    first-run tips overlay (`Tips.kt`).
+- `app/src/test/` — JVM unit tests (engine, run, prompt/grammar/parser,
+  stats, links). `InvariantsTest` checks the rules below that a compiler
+  can't.
 - `tools/` — `icon/gen_icon.py` (launcher icon), `screenshots/`
   (Play/README screenshots and captions).
 
@@ -67,7 +78,20 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
 - **Fair dealing.** Decks are shuffled with a seeded `kotlin.random.Random`;
   agents only ever see a `DecisionContext` of what their seat may know.
 - Network is used only to download models the user chooses, from Hugging
-  Face. No analytics, no ads, no accounts. Rating is a passive menu item.
+  Face. No analytics, no ads, no accounts.
+- Rating is a passive item (SETTINGS > ABOUT > RATE opens the Play
+  listing), never a prompt, reminder or the in-app review API. No "please
+  share" nags, and no email addresses in the app: feedback goes to GitHub
+  issues. `InvariantsTest` checks this, the permissions and that only the
+  launcher activity is exported.
+- The first-run tips must never block: one tap anywhere or Back dismisses
+  them, and SETTINGS > SHOW TIPS brings them back. Launching with the
+  boolean extra `com.bradflaugher.pokersi.SKIP_TIPS` skips them for that
+  launch (screenshots and tests use it).
+- Accessible to TalkBack: cards, avatars, LED counters and opponent seats
+  carry content descriptions, the table announces its news in a live
+  region, and every action button is at least 48dp tall.
+- Poker on a green table, not a deck-builder: no Jokers, no shop.
 - Keep the engine pure: all Android code lives outside `engine/` and `run/`.
 
 ## Build, test, release

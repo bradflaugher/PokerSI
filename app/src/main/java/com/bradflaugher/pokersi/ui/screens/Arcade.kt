@@ -80,19 +80,27 @@ fun ArcadeScreen(
     val p = PixelTheme.palette
     CrtOverlay(modifier.fillMaxSize()) {
         FeltBackground(Modifier.fillMaxSize(), colors = felt) {
-            BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
-                // Tablets: the phone layout, scaled up, reads far better than a sea of space.
-                val scale = minOf(maxWidth / 411.dp, maxHeight / 731.dp, maxHeight / 411.dp).coerceIn(1f, 1.6f)
-                val density = LocalDensity.current
-                if (scale > 1.05f) {
-                    val scaled = Density(density.density * scale, density.fontScale)
-                    CompositionLocalProvider(LocalDensity provides scaled, LocalPixelUnit provides pixelUnitFor(scaled.density)) {
-                        Box(Modifier.fillMaxSize(), content = content)
-                    }
-                } else {
-                    Box(Modifier.fillMaxSize(), content = content)
-                }
+            TabletScaled(Modifier.fillMaxSize().safeDrawingPadding(), content)
+        }
+    }
+}
+
+/**
+ * Tablets: the phone layout, scaled up, reads far better than a sea of space.
+ * Every screen (and the tips overlay) lays out [content] at phone density, scaled.
+ */
+@Composable
+fun TabletScaled(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
+    BoxWithConstraints(modifier) {
+        val scale = minOf(maxWidth / 411.dp, maxHeight / 731.dp, maxHeight / 411.dp).coerceIn(1f, 1.6f)
+        val density = LocalDensity.current
+        if (scale > 1.05f) {
+            val scaled = Density(density.density * scale, density.fontScale)
+            CompositionLocalProvider(LocalDensity provides scaled, LocalPixelUnit provides pixelUnitFor(scaled.density)) {
+                Box(Modifier.fillMaxSize(), content = content)
             }
+        } else {
+            Box(Modifier.fillMaxSize(), content = content)
         }
     }
 }
@@ -107,14 +115,14 @@ fun ArcadeTopBar(title: String, onBack: (() -> Unit)?, modifier: Modifier = Modi
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         if (onBack != null) {
-            PixelButton("<", onBack, Modifier.size(48.dp, 46.dp).semantics { contentDescription = "Back" }, variant = PixelButtonVariant.Gray, textStyle = PixelType.Heading)
+            PixelButton("<", onBack, Modifier.size(48.dp, 48.dp).semantics { contentDescription = "Back" }, variant = PixelButtonVariant.Gray, textStyle = PixelType.Heading)
         }
         PixelText(title, Modifier.weight(1f), style = PixelType.Title.copy(fontSize = 18.sp), color = p.yellow, shadowUnits = 2, maxLines = 2)
         trailing()
     }
 }
 
-/** A small, compact cabinet button (44dp tall). */
+/** A small, compact cabinet button (48dp tall: the smallest comfortable touch target). */
 @Composable
 fun SmallButton(
     text: String,
@@ -124,7 +132,7 @@ fun SmallButton(
     enabled: Boolean = true,
     sound: Sfx? = Sfx.Blip,
 ) {
-    PixelButton(text, onClick, modifier.height(44.dp), variant = variant, enabled = enabled, textStyle = PixelType.Small, sound = sound)
+    PixelButton(text, onClick, modifier.height(48.dp), variant = variant, enabled = enabled, textStyle = PixelType.Small, sound = sound)
 }
 
 /** A pixel tag: colored notched pill with small arcade caps. */
@@ -177,7 +185,7 @@ fun <T> ChoiceRow(
             PixelButton(
                 label(o),
                 { onSelect(o) },
-                Modifier.weight(1f).height(44.dp),
+                Modifier.weight(1f).height(48.dp),
                 variant = if (o == selected) PixelButtonVariant.Bet else PixelButtonVariant.Gray,
                 textStyle = PixelType.Small,
             )

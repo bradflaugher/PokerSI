@@ -103,7 +103,7 @@ fun renderToPng(
  * Robolectric's package manager so the app manifest doesn't need the
  * ui-test-manifest artifact.
  */
-private fun registerComponentActivity() {
+internal fun registerComponentActivity() {
     val app = ApplicationProvider.getApplicationContext<Application>()
     val info = ActivityInfo().apply {
         name = ComponentActivity::class.java.name

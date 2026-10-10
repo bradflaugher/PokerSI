@@ -15,6 +15,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
@@ -84,7 +86,7 @@ fun PickerScreen(setup: QuickGameSetup, callbacks: PickerCallbacks, modifier: Mo
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally)) {
                             setup.opponents.forEach { o ->
-                                Column(Modifier.width(72.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Column(Modifier.width(72.dp).clearAndSetSemantics { contentDescription = o.spoken }, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                     PixelAvatar(o.avatarSeed, Mood.Smug, size = 48.dp)
                                     PixelText(o.name.uppercase(), style = PixelType.LabelBold.copy(fontSize = nameSize(o.name, 9f)), color = p.yellow, textAlign = TextAlign.Center, maxLines = 2)
                                     PixelText(o.style.name.uppercase(), style = PixelType.Label.copy(fontSize = 8.sp), color = p.cardCream, textAlign = TextAlign.Center, shadowUnits = 0, maxLines = 2)

@@ -14,6 +14,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        if (intent.getBooleanExtra(EXTRA_SKIP_TIPS, false)) vm.skipTips()
         setContent { PokerSiApp(vm) }
+    }
+
+    companion object {
+        /** `am start --ez com.bradflaugher.pokersi.SKIP_TIPS true`: open without the first-run tips. */
+        const val EXTRA_SKIP_TIPS = "com.bradflaugher.pokersi.SKIP_TIPS"
     }
 }

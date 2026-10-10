@@ -32,6 +32,8 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
@@ -82,9 +84,16 @@ fun PixelCard(
 ) {
     val palette = LocalPixelPalette.current
     val glowPulse = glowPulse(highlighted)
-    Canvas(modifier.pixelCardSize(size)) {
+    val spoken = cardDescription(card, faceUp, held)
+    Canvas(modifier.pixelCardSize(size).semantics { contentDescription = spoken }) {
         drawPixelCard(card, faceUp, palette, held, highlighted, glowPulse.value, dimmed, mirrored = false)
     }
+}
+
+/** What TalkBack says for a card: "Ace of hearts", "face-down card", "Queen of spades, held". */
+fun cardDescription(card: Card?, faceUp: Boolean, held: Boolean = false): String {
+    val base = if (faceUp && card != null) "${card.rank.label} of ${card.suit.label}" else "face-down card"
+    return if (held) "$base, held" else base
 }
 
 @Composable
@@ -150,7 +159,7 @@ fun DrawScope.drawPixelCard(
 }
 
 /**
- * [PixelCard] with Balatro-style juice:
+ * [PixelCard] with arcade juice:
  * - **flip**: changing [faceUp] turns the card over in 3D (rotationY), with a
  *   little scale pop at the halfway point;
  * - **deal**: on first appearance it slides in from [dealFrom] (an offset
@@ -233,10 +242,12 @@ fun AnimatedPixelCard(
         }
     } else Modifier
 
+    val spoken = cardDescription(card, faceUp, held)
     Box(
         modifier
             .pixelCardSize(widthDp)
             .then(click)
+            .semantics { contentDescription = spoken }
             .graphicsLayer {
                 val d = deal.value
                 val from = dealFrom ?: DpOffset.Zero
