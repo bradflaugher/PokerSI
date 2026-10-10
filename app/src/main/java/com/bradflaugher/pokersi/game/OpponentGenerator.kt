@@ -23,7 +23,7 @@ object OpponentGenerator {
         name = persona.name,
         avatarSeed = persona.seed,
         style = BotStyle(
-            name = persona.name,
+            name = styleLabel(persona),
             tightness = persona.tightness.toDouble(),
             aggression = persona.aggression.toDouble(),
             bluffing = persona.bluffiness * 0.35,
@@ -33,6 +33,14 @@ object OpponentGenerator {
         catchphrase = persona.catchphrase,
         voice = persona.voice,
     )
+
+    /** The name of the House Bot preset closest to the persona's traits ("Nit", "Maniac"...). */
+    private fun styleLabel(persona: Persona): String = BotStyle.ALL.minBy {
+        val t = it.tightness - persona.tightness
+        val a = it.aggression - persona.aggression
+        val b = it.bluffing - persona.bluffiness * 0.35
+        t * t + a * a + b * b
+    }.name
 
     /** [count] opponents with distinct names, from [seed]. */
     fun table(seed: Long, count: Int): List<OpponentProfile> = Personas.table(seed, count).map(::fromPersona)

@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * (timeout, bad output) to it so a hand never stalls.
  */
 interface OpponentBrains {
-    /** Short status for the table header, e.g. "QWEN 3 1.7B" or "HOUSE BOT (no model)". */
+    /** Short status for the table header, e.g. "QWEN 3 1.7B" or "HOUSE BOT". */
     val label: StateFlow<String>
 
     fun agentFor(seat: Int, opponent: OpponentProfile, fallback: PlayerAgent): PlayerAgent
@@ -25,7 +25,7 @@ interface OpponentBrains {
 
 /** Every seat is played by the built-in House Bot. */
 object HouseOnlyBrains : OpponentBrains {
-    private val _label = MutableStateFlow("HOUSE BOT (no model)")
+    private val _label = MutableStateFlow("HOUSE BOT")
     override val label: StateFlow<String> = _label.asStateFlow()
 
     override fun agentFor(seat: Int, opponent: OpponentProfile, fallback: PlayerAgent): PlayerAgent = fallback

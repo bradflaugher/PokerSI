@@ -422,3 +422,13 @@ class GameControllerTest {
         c.stop()
     }
 }
+
+class SecondPersonTest {
+    @org.junit.Test
+    fun youGetsSecondPersonVerbs() {
+        org.junit.Assert.assertEquals("You call 105", secondPerson("You calls 105"))
+        org.junit.Assert.assertEquals("You raise to 300 and are all-in", secondPerson("You raises to 300 and is all-in"))
+        org.junit.Assert.assertEquals("Mo calls 105", secondPerson("Mo calls 105"))
+        org.junit.Assert.assertEquals("Youngblood calls 5", secondPerson("Youngblood calls 5"))
+    }
+}

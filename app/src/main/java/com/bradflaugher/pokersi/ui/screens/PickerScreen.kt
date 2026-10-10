@@ -86,7 +86,7 @@ fun PickerScreen(setup: QuickGameSetup, callbacks: PickerCallbacks, modifier: Mo
                             setup.opponents.forEach { o ->
                                 Column(Modifier.width(72.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                     PixelAvatar(o.avatarSeed, Mood.Smug, size = 48.dp)
-                                    PixelText(o.name.uppercase(), style = PixelType.LabelBold.copy(fontSize = 9.sp), color = p.yellow, textAlign = TextAlign.Center, maxLines = 2)
+                                    PixelText(o.name.uppercase(), style = PixelType.LabelBold.copy(fontSize = nameSize(o.name, 9f)), color = p.yellow, textAlign = TextAlign.Center, maxLines = 2)
                                     PixelText(o.style.name.uppercase(), style = PixelType.Label.copy(fontSize = 8.sp), color = p.cardCream, textAlign = TextAlign.Center, shadowUnits = 0, maxLines = 2)
                                 }
                             }

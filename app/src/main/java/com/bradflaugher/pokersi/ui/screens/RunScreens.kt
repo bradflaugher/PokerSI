@@ -150,7 +150,7 @@ fun OpponentLineup(opponents: List<OpponentProfile>, modifier: Modifier = Modifi
         opponents.forEachIndexed { i, o ->
             Column(Modifier.width(avatar + 32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 PixelAvatar(o.avatarSeed, if (bossFirst && i == 0) Mood.Angry else Mood.Neutral, size = avatar)
-                PixelText(o.name.uppercase(), style = PixelType.LabelBold.copy(fontSize = 10.sp), color = if (bossFirst && i == 0) p.hotPink else p.yellow, textAlign = TextAlign.Center, maxLines = 2)
+                PixelText(o.name.uppercase(), style = PixelType.LabelBold.copy(fontSize = nameSize(o.name, 10f)), color = if (bossFirst && i == 0) p.hotPink else p.yellow, textAlign = TextAlign.Center, maxLines = 2)
                 PixelText(o.style.name.uppercase(), style = PixelType.Label.copy(fontSize = 9.sp), color = p.cardCream, textAlign = TextAlign.Center, shadowUnits = 0)
             }
         }

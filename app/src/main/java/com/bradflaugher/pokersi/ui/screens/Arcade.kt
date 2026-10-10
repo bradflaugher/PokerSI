@@ -44,6 +44,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bradflaugher.pokersi.ui.pixel.CrtOverlay
@@ -243,4 +244,13 @@ fun MenuColumn(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
 internal fun DrawScope.pxBox(x: Int, y: Int, w: Int, h: Int, u: Int, ink: Color, fill: Color) {
     notchedRect(x, y, w, h, u, 1, ink)
     pxRect(x + u, y + u, w - 2 * u, h - 2 * u, fill)
+}
+
+/**
+ * Font size for a name under an avatar: [base] sp, smaller when the longest
+ * word wouldn't fit on one line, so pixel names never break mid-word.
+ */
+fun nameSize(name: String, base: Float): TextUnit {
+    val longest = name.split(' ').maxOf { it.length }
+    return (if (longest <= 7) base else base * 7f / longest).coerceAtLeast(6f).sp
 }

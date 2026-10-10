@@ -67,9 +67,9 @@ CAPTIONS = {
         ("table_draw", "HOLD AND\nDRAW", "Five-Card Draw, with real cabinet HOLD buttons"),
         ("picker", "SIX GAMES,\nONE CABINET", "Hold'em, Omaha, Draw, Stud, Short Deck, Pineapple"),
         ("table_showdown", "FULL HOUSE!", "...and the trash talk to go with it"),
-        ("run_boss_table", "BEAT THE\nBOSS", "Run mode: rising blinds, bosses with a twist"),
+        ("run_boss_table", "BEAT THE\nBOSS", "Poker Tour: rising blinds, bosses with a twist"),
+        ("run_choose", "PICK YOUR\nNEXT TABLE", "Low stakes, high stakes, or the boss"),
         ("models", "BRING YOUR\nOWN BRAIN", "Download a tiny model, or load your own GGUF"),
-        ("how_to_play", "NEW TO\nPOKER?", "Every game and every hand, explained"),
         ("title", "INSERT\nCOIN", "No ads. No account. No real money."),
     ],
     "tablet": [
@@ -77,7 +77,7 @@ CAPTIONS = {
         ("picker", "SIX GAMES,\nONE CABINET", "Hold'em, Omaha, Draw, Stud, Short Deck, Pineapple"),
         ("table_draw", "HOLD AND\nDRAW", "Five-Card Draw, with real cabinet HOLD buttons"),
         ("table_showdown", "FULL HOUSE!", "...and the trash talk to go with it"),
-        ("run_boss_table", "BEAT THE\nBOSS", "Run mode: rising blinds, bosses with a twist"),
+        ("run_boss_table", "BEAT THE\nBOSS", "Poker Tour: rising blinds, bosses with a twist"),
         ("models", "BRING YOUR\nOWN BRAIN", "Download a tiny model, or load your own GGUF"),
     ],
 }
@@ -90,6 +90,7 @@ README_SHOTS = {
     "draw": ("phone", "table_draw"),
     "showdown": ("phone", "table_showdown"),
     "boss": ("phone", "run_boss_table"),
+    "tour": ("phone", "run_choose"),
     "models": ("phone", "models"),
     "tablet": ("tab10", "table_holdem"),
 }
@@ -311,7 +312,7 @@ def feature_graphic():
                "label:Poker vs. a tiny AI that lives on your phone", tagline)
         tags = tmp / "tags.png"
         magick("-background", "none", "-fill", GOLD, "-font", LABEL, "-pointsize", 20,
-               "label:SIX GAMES  *  RUN MODE  *  NO ADS  *  NO ACCOUNT", tags)
+               "label:SIX GAMES  *  POKER TOUR  *  NO ADS  *  NO ACCOUNT", tags)
         stripe, stripe_pad = marquee(tmp, 900, 0.6)
         magick(
             bg,

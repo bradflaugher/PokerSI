@@ -40,7 +40,7 @@ class LlmBrains(private val engine: LlamaEngine, scope: CoroutineScope) : Oppone
     }
 
     companion object {
-        const val HOUSE_LABEL = "HOUSE BOT (no model)"
+        const val HOUSE_LABEL = "HOUSE BOT"
     }
 }
 

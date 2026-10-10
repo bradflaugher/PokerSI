@@ -92,7 +92,7 @@ object TableStates {
             blinds = BlindLevel(hand.stakes.smallBlind, hand.stakes.bigBlind, hand.stakes.ante),
             madeHand = made,
             madeCategory = category,
-            log = hand.history.takeLast(4),
+            log = hand.history.takeLast(4).map(::secondPerson),
             celebrate = celebrate,
             brainLabel = extras.brainLabel,
             silentOpponents = extras.silent,
@@ -128,3 +128,20 @@ object TableStates {
 
 /** "1,250" style grouping for chip counts. */
 fun formatChips(amount: Int): String = String.format(java.util.Locale.US, "%,d", amount)
+
+private val THIRD_TO_SECOND = mapOf(
+    "calls" to "call", "checks" to "check", "folds" to "fold", "raises" to "raise", "bets" to "bet",
+    "draws" to "draw", "stands" to "stand", "posts" to "post", "brings" to "bring", "completes" to "complete",
+    "wins" to "win", "shows" to "show", "discards" to "discard", "is" to "are", "has" to "have",
+    "collects" to "collect", "tosses" to "toss", "takes" to "take", "splits" to "split",
+)
+
+/** The engine narrates in the third person; "You calls 40" reads better as "You call 40". */
+internal fun secondPerson(line: String): String {
+    val prefix = GameController.PLAYER_NAME + " "
+    if (!line.startsWith(prefix)) return line
+    val rest = line.removePrefix(prefix)
+    val verb = rest.substringBefore(' ')
+    val fixed = THIRD_TO_SECOND[verb]?.let { it + rest.removePrefix(verb) } ?: rest
+    return prefix + fixed.replace(" and is all-in", " and are all-in")
+}

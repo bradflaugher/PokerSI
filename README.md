@@ -9,7 +9,7 @@ language model running **on the device** with
 video poker cabinet on a green card table: chunky 8-bit cards, lamp-lit
 pixel felt, CRT scanlines, marquee lights, LED pot counters, HOLD
 buttons, and a table of quirky characters who bet, bluff and talk trash.
-Six variants, a roguelite Run mode, and no network at all unless you
+Six variants, a Poker Tour mode, and no network at all unless you
 download a model.
 
 <div align="center">
@@ -25,8 +25,14 @@ download a model.
   </tr>
   <tr>
     <td align="center" width="33%"><img src="docs/screenshots/showdown.png" alt="A full house wins the showdown"><p><em><b>Showdown</b> — full house!</em></p></td>
-    <td align="center" width="33%"><img src="docs/screenshots/boss.png" alt="Run mode boss table"><p><em><b>Run mode</b> — a boss table: The Wall never folds</em></p></td>
+    <td align="center" width="33%"><img src="docs/screenshots/boss.png" alt="Poker Tour boss table"><p><em><b>Poker Tour</b> — a boss table: The Wall never folds</em></p></td>
     <td align="center" width="33%"><img src="docs/screenshots/models.png" alt="Models screen"><p><em><b>Models</b> — download one, or bring your own GGUF</em></p></td>
+  </tr>
+  <tr>
+    <td align="center" colspan="3">
+      <img src="docs/screenshots/tour.png" alt="Poker Tour: choose your next table" width="33%">
+      <p><em><b>Poker Tour</b> — pick your next table: low stakes, high stakes, or the boss</em></p>
+    </td>
   </tr>
 </table>
 

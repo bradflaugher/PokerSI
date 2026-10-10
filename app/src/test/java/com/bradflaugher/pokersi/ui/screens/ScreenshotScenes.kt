@@ -41,7 +41,7 @@ class Scene(val name: String, val content: @Composable () -> Unit)
  * dealt from stacked decks and played to an interesting spot.
  */
 object ScreenshotScenes {
-    private const val HOUSE = "HOUSE BOT (no model)"
+    private const val HOUSE = "HOUSE BOT"
 
     private val BOB = OpponentProfile("Byte-Sized Bob", 42L, BotStyle.LOOSE_CANNON, "Learned poker from a fortune cookie.", "Beep boop, pay up.")
     private val DOT = OpponentProfile("Lady Dot", 1337L, BotStyle.ROCK, "Counts cards. Mostly up to seven.", "Trust the process.")
