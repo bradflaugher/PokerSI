@@ -73,7 +73,10 @@ data class LegalActions(
     }
 }
 
-/** One other seat as the acting seat sees it. */
+/**
+ * One seat as the acting seat sees it. [DecisionContext.seats] lists every
+ * seat dealt into the hand, the acting seat included (its own cards visible).
+ */
 data class SeatView(
     val seat: Int,
     val name: String,
