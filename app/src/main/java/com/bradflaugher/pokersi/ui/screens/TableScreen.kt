@@ -46,6 +46,7 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.toSize
 import com.bradflaugher.pokersi.engine.HandCategory
+import com.bradflaugher.pokersi.ui.pixel.FeltColors
 import com.bradflaugher.pokersi.ui.pixel.PayRow
 import com.bradflaugher.pokersi.ui.pixel.PayTable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -151,7 +152,7 @@ fun TableScreen(
     modifier: Modifier = Modifier,
     run: RunUiState? = null,
 ) {
-    ArcadeScreen(modifier, swirl = FeltSwirl) {
+    ArcadeScreen(modifier, felt = FeltColors.Table) {
         BoxWithConstraints(Modifier.fillMaxSize().shake(state.celebrate.takeIf { it > 0 }, strength = 10.dp)) {
             val m = tableMetrics(
                 maxWidth, maxHeight, state.opponents.size,

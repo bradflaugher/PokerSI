@@ -27,6 +27,7 @@ import com.bradflaugher.pokersi.game.RunUiState
 import com.bradflaugher.pokersi.game.formatChips
 import com.bradflaugher.pokersi.run.Risk
 import com.bradflaugher.pokersi.run.TableSpec
+import com.bradflaugher.pokersi.ui.pixel.FeltColors
 import com.bradflaugher.pokersi.ui.pixel.BigBanner
 import com.bradflaugher.pokersi.ui.pixel.ConfettiBurst
 import com.bradflaugher.pokersi.ui.pixel.LedColor
@@ -90,7 +91,7 @@ fun RunIntroScreen(run: RunUiState, onPlay: () -> Unit, onBack: () -> Unit, modi
     val state = run.state
     val spec = state.table
     val boss = spec.boss
-    ArcadeScreen(modifier, swirl = if (boss != null) listOf(Color(0xFF1A0420), p.purpleDark, p.suitRed) else null) {
+    ArcadeScreen(modifier, felt = FeltColors.Table) {
         Column(Modifier.fillMaxSize()) {
             ArcadeTopBar(if (state.daily) "DAILY TOUR" else "POKER TOUR", onBack) {
                 LedCounter(state.playerChips, label = "CHIPS", color = LedColor.Amber, minDigits = 4, segmentUnits = 1)
@@ -267,7 +268,7 @@ fun RunOverScreen(run: RunUiState, victory: Boolean, onNewRun: () -> Unit, onMen
     val p = PixelTheme.palette
     val state = run.state
     val s = state.stats
-    ArcadeScreen(modifier, swirl = if (victory) null else listOf(Color(0xFF12040C), p.redDark, p.purpleDark)) {
+    ArcadeScreen(modifier) {
         if (victory) ConfettiBurst(Unit, Modifier.fillMaxSize())
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),

@@ -109,7 +109,7 @@ class DesignShowcaseScreenshotTest {
         sections.forEach { (name, body) ->
             renderToPng(out(name), 1080, 1300, 420) {
                 PixelTheme {
-                    SwirlBackground(Modifier.fillMaxSize()) {
+                    FeltBackground(Modifier.fillMaxSize()) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) { body() }
                     }
                 }
@@ -118,7 +118,7 @@ class DesignShowcaseScreenshotTest {
     }
 
     @Test
-    fun swirlStatic() = renderToPng(out("swirl"), 540, 960, 420) {
-        PixelTheme { Box(Modifier.fillMaxSize()) { CrtOverlay(Modifier.fillMaxSize()) { SwirlBackground(Modifier.fillMaxSize()) } } }
+    fun felt() = renderToPng(out("felt"), 540, 960, 420) {
+        PixelTheme { Box(Modifier.fillMaxSize()) { CrtOverlay(Modifier.fillMaxSize()) { FeltBackground(Modifier.fillMaxSize()) } } }
     }
 }

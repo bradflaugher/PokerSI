@@ -60,27 +60,15 @@ data class PixelPalette(
     val ledRed: Color = Color(0xFFFF2B2B),
     val ledAmber: Color = Color(0xFFFFB21E),
     val ledGreen: Color = Color(0xFF3DFF6E),
-    // Swirl backdrop (three paint colors, dark to light).
-    val swirlA: Color = Color(0xFF0B0E3A),
-    val swirlB: Color = Color(0xFF1F3BD1),
-    val swirlC: Color = Color(0xFFCF2274),
 ) {
     companion object {
         val Default = PixelPalette()
-
-        /** A greener table variant for the swirl, e.g. for the table screen. */
-        val Felt = PixelPalette(
-            swirlA = Color(0xFF052A2A),
-            swirlB = Color(0xFF0E7A64),
-            swirlC = Color(0xFF7A2CF2),
-        )
     }
 }
 
 /**
  * How the design system animates. [Static] freezes idle animations
- * (sway, marquee chase, swirl) and uses the CPU swirl fallback instead of
- * the AGSL shader: screenshot tests and `@Preview`s use it so every render is
+ * (sway, marquee chase, blinking): screenshot tests and `@Preview`s use it so every render is
  * deterministic.
  */
 enum class PixelRenderMode { Animated, Static }

@@ -26,8 +26,8 @@ they play depends on the device.
 Testers played every variant (Texas Hold'em, Pot-Limit Omaha, Five-Card
 Draw, Seven-Card Stud, Short Deck and Crazy Pineapple), against House Bot
 with no model loaded and against the on-device AI after downloading a
-model, and tried Run mode through several tables, a boss and the Joker
-shop. They also loaded their own GGUF model files from a folder.
+model, and tried Run mode through several tables, a boss and the choice of
+next table. They also loaded their own GGUF model files from a folder.
 
 ### 4. Provide a summary of the feedback that you received from testers. Include how you collected the feedback.
 
@@ -46,7 +46,7 @@ PokerSI is a poker game with six variants where every opponent is a
 character with its own personality, played by a small language model that
 runs entirely on the phone. They bet, bluff and talk trash, and nothing
 about the game leaves the device. A roguelite Run mode (tables of rising
-stakes, boss opponents with rule twists, a shop of perks, seeded and daily
+stakes, boss opponents with rule twists, a choice of next table, seeded and daily
 runs) makes it endlessly replayable. It works with no download at all
 against the built-in House Bot, and players who want the AI download a
 small model in the app or load their own GGUF files. It's free, with no
@@ -72,7 +72,7 @@ menu item only, and it sends nothing anywhere except model downloads.]**
 poker engine has a large automated test suite: the hand evaluator against
 every hand ranking (including Omaha's exactly-two rule and Short Deck's
 order), each variant's betting, side pots and showdowns, Run mode's
-tables, bosses and shop, and the parser that turns the AI's reply into a
+tables, bosses and table choices, and the parser that turns the AI's reply into a
 legal action. Every change has to pass it and Android lint before it can
 be merged. If the AI ever fails to answer in time, House Bot takes the
 seat for that decision, so a slow phone or a bad model can't stall a hand.

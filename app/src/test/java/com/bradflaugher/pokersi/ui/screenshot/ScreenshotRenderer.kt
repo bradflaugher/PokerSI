@@ -49,7 +49,7 @@ val screenshotDir: File = File(System.getProperty("pokersi.screenshotDir") ?: "b
  * to [file]. Must be called from a Robolectric test (see [ScreenshotTest]).
  *
  * Shaders and infinite animations: the pixel design system is switched to
- * [PixelRenderMode.Static] (static swirl fallback, no idle sway), so every
+ * [PixelRenderMode.Static] (no idle sway or blinking), so every
  * render is deterministic. Pass [renderMode] to override.
  */
 @OptIn(ExperimentalTestApi::class)
