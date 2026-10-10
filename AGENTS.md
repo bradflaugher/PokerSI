@@ -54,8 +54,10 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
   face, personality) played by the loaded model. Each decision is a fresh,
   self-contained prompt: persona + rules + what that seat can see + legal
   actions + the seat's current made hand in words (tiny models can't read
-  poker hands reliably). The reply is constrained by a GBNF grammar to
-  `{"say": "...", "action": "...", "amount": N}` (or a discard list), then
+  poker hands reliably), its strength, and a one-word piece of advice the
+  persona may ignore. The reply is constrained by a GBNF grammar to
+  `{"action": "...", "amount": N, "say": "..."}` (or a discard list),
+  decision first so a small model can't talk itself out of it, then
   clamped to a legal action by `LegalActions.coerce`. If generation fails
   or times out, `HouseBot` decides instead and the hand carries on.
 - **No model? Still playable.** With no model loaded, opponents are played
