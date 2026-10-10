@@ -155,6 +155,12 @@ tasks.withType<Test>().configureEach {
     // under app/build/outputs/roborazzi/. See ui/pixel/ScreenshotRenderer in test.
     systemProperty("roborazzi.test.record", "true")
     systemProperty("robolectric.pixelCopyRenderMode", "hardware")
+    // Store screenshots (StoreScreenshotTest) render only with -Pstore or
+    // POKERSI_STORE_SHOTS set, into <repo>/build/screenshots/; see
+    // tools/screenshots/shoot.py. Plain `test` skips them.
+    if (providers.gradleProperty("store").isPresent || providers.environmentVariable("POKERSI_STORE_SHOTS").isPresent) {
+        systemProperty("pokersi.storeShotsDir", rootProject.layout.buildDirectory.dir("screenshots").get().asFile.absolutePath)
+    }
     maxHeapSize = "4g"
     // Robolectric reaches into FileDescriptor internals (fonts, bitmaps) on JDK 17+.
     jvmArgs(
