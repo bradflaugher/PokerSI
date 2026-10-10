@@ -89,7 +89,7 @@ how-to-play screen covers each game and the hand rankings.
 
 ## Poker Tour
 
-A roguelite ladder of poker tables (the Run mode):
+A ladder of poker tables of rising stakes:
 
 - **Escalating tables.** Win each table's chip target within its hand
   limit (or bust everyone) to clear it. Your chips carry over from table
@@ -122,7 +122,7 @@ Open **Models** from the title screen.
   [llama.cpp-android](https://github.com/andriydruk/llama.cpp-android)
   fork), so a multi-gigabyte model is never copied. Small instruction-tuned
   models (roughly 0.5B to 4B parameters, Q4 quantized) are the sweet spot.
-- **No model?** House Bot plays. You can play every game and a whole Run
+- **No model?** House Bot plays. You can play every game and a whole tour
   without ever downloading anything.
 
 The AI needs a reasonably recent 64-bit phone with a few gigabytes of free
