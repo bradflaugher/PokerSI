@@ -129,6 +129,8 @@ android {
 
     testOptions {
         unitTests.isReturnDefaultValues = true
+        // Robolectric screenshot tests (ui/) need the merged resources: fonts, strings.
+        unitTests.isIncludeAndroidResources = true
     }
 
     // Play reads the dependency list from the bundle; the sideloaded APK doesn't
@@ -149,6 +151,16 @@ tasks.withType<Test>().configureEach {
         events("failed")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
     }
+    // Screenshot tests (Roborazzi + Robolectric native graphics) write PNGs
+    // under app/build/outputs/roborazzi/. See ui/pixel/ScreenshotRenderer in test.
+    systemProperty("roborazzi.test.record", "true")
+    systemProperty("robolectric.pixelCopyRenderMode", "hardware")
+    maxHeapSize = "4g"
+    // Robolectric reaches into FileDescriptor internals (fonts, bitmaps) on JDK 17+.
+    jvmArgs(
+        "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED",
+        "--add-opens=java.base/java.io=ALL-UNNAMED",
+    )
 }
 
 dependencies {
@@ -168,4 +180,11 @@ dependencies {
     implementation(libs.serialization.json)
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)
+    testImplementation(platform(libs.compose.bom))
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.androidx.test.junit)
+    testImplementation(libs.compose.ui.test.junit4)
 }
