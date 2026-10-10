@@ -28,7 +28,12 @@ import kotlinx.coroutines.delay
 import kotlin.math.PI
 import kotlin.math.sin
 
-enum class BubbleTail { BottomStart, BottomEnd, TopStart, None }
+enum class BubbleTail {
+    BottomStart, BottomEnd, TopStart, TopEnd, None;
+
+    internal val onTop: Boolean get() = this == TopStart || this == TopEnd
+    internal val atEnd: Boolean get() = this == BottomEnd || this == TopEnd
+}
 
 /**
  * A pixel speech bubble for table talk. New text types out like a
@@ -43,6 +48,7 @@ fun SpeechBubble(
     thinking: Boolean = false,
     tail: BubbleTail = BubbleTail.BottomStart,
     charsPerSecond: Int = 40,
+    textStyle: androidx.compose.ui.text.TextStyle = PixelType.Body,
 ) {
     val p = LocalPixelPalette.current
     val unit = LocalPixelUnit.current
@@ -72,8 +78,8 @@ fun SpeechBubble(
             .drawBehind {
                 val w = size.width.toInt()
                 val h = size.height.toInt() - tailH
-                val top = if (tail == BubbleTail.TopStart) tailH else 0
-                val bodyH = if (tail == BubbleTail.TopStart) size.height.toInt() - tailH else h
+                val top = if (tail.onTop) tailH else 0
+                val bodyH = if (tail.onTop) size.height.toInt() - tailH else h
                 // Hard shadow, outline, fill, bottom shade.
                 notchedRect(unit, top + unit, w - unit, bodyH - unit, unit, 2, p.ink.copy(alpha = 0.4f))
                 notchedRect(0, top, w - unit, bodyH - unit, unit, 2, p.ink)
@@ -84,8 +90,8 @@ fun SpeechBubble(
             .padding(
                 start = with(density) { (unit * 4).toDp() },
                 end = with(density) { (unit * 5).toDp() },
-                top = with(density) { (unit * 3 + if (tail == BubbleTail.TopStart) tailH else 0).toDp() },
-                bottom = with(density) { (unit * 4 + if (tail == BubbleTail.TopStart) 0 else tailH).toDp() },
+                top = with(density) { (unit * 3 + if (tail.onTop) tailH else 0).toDp() },
+                bottom = with(density) { (unit * 4 + if (tail.onTop) 0 else tailH).toDp() },
             ),
     ) {
         if (text.isEmpty() && thinking) {
@@ -101,7 +107,7 @@ fun SpeechBubble(
                         withStyle(SpanStyle(color = if (showCursor) p.hotPink else Color.Transparent)) { append("_") }
                     }
                 },
-                style = PixelType.Body.copy(color = p.ink),
+                style = textStyle.copy(color = p.ink),
             )
         }
     }
@@ -114,13 +120,13 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTail(
     // A 6-step staircase tail leaning outwards, outlined in ink. Row 0
     // overwrites the body's bottom outline so the tail opens into the bubble.
     val steps = 6
-    val baseX = if (tail == BubbleTail.BottomEnd) w - u * 11 else u * 4
-    val down = tail != BubbleTail.TopStart
+    val baseX = if (tail.atEnd) w - u * 11 else u * 4
+    val down = !tail.onTop
     for (i in 0 until steps) {
         val rowW = (steps - i) * u
         // Slant: the tail's outer edge drifts outward one unit every two rows.
         val drift = (i / 2) * u
-        val x = if (tail == BubbleTail.BottomEnd) baseX + i * u + drift else baseX - drift
+        val x = if (tail.atEnd) baseX + i * u + drift else baseX - drift
         val y = if (down) top + h - 2 * u + i * u else top + u - i * u
         if (i == steps - 1) {
             pxRect(x - u, y, rowW + u, u, ink)
