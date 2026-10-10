@@ -5,7 +5,6 @@ import com.bradflaugher.pokersi.engine.Card
 import com.bradflaugher.pokersi.engine.GameVariant
 import com.bradflaugher.pokersi.engine.HandCategory
 import com.bradflaugher.pokersi.engine.LegalActions
-import com.bradflaugher.pokersi.run.JokerTrigger
 import com.bradflaugher.pokersi.run.RunState
 import com.bradflaugher.pokersi.run.TableReward
 
@@ -15,8 +14,6 @@ data class CardUi(
     val card: Card?,
     /** Stud: dealt face up for everyone. */
     val publicUp: Boolean = false,
-    /** Seen through X-Ray Specs (the opponent doesn't know). */
-    val xray: Boolean = false,
     /** Part of the winning five. */
     val highlighted: Boolean = false,
 )
@@ -46,8 +43,6 @@ data class SeatUi(
     val isWinner: Boolean = false,
     /** The hand shown at showdown ("Full House, Kings full of Sevens"). */
     val shownHand: String? = null,
-    /** Tell Detector: how good the opponent feels, 0..1. */
-    val confidence: Float? = null,
     val isBoss: Boolean = false,
     /** The Mime hides opponents' chip counts. */
     val chipsHidden: Boolean = false,
@@ -63,7 +58,6 @@ data class HumanTurn(
     /** Chips already in front of the human this round (raise totals include them). */
     val betThisRound: Int,
     val stack: Int,
-    val canMulligan: Boolean = false,
 ) {
     val isDiscard: Boolean get() = legal.discard != null
 }
@@ -122,15 +116,6 @@ data class TableUiState(
     val opponents: List<SeatUi> get() = seats.filter { it.seat != 0 }
 }
 
-/** The Balatro-style payout after a run hand: Joker triggers pop one by one. */
-data class PayoutUi(
-    val triggers: List<JokerTrigger>,
-    /** How many triggers have popped so far (the last one is "hot"). */
-    val shown: Int,
-    /** Coins counted up so far. */
-    val coins: Int,
-)
-
 enum class RunScreen {
     /** The table intro card ("ANTE 2 · THE WALL"). */
     Intro,
@@ -140,9 +125,11 @@ enum class RunScreen {
 
     /** The table was cleared: the reward breakdown. */
     Cleared,
-    Shop,
 
-    /** Beat the eighth ante's boss. */
+    /** Pick the next table from the offers. */
+    Choose,
+
+    /** Cleared the tour's final stop. */
     Victory,
     GameOver,
 }
@@ -150,8 +137,9 @@ enum class RunScreen {
 data class RunUiState(
     val state: RunState,
     val screen: RunScreen,
-    val payout: PayoutUi? = null,
     val reward: TableReward? = null,
     /** Opponent profiles of the current table, by seat (index 0 unused). */
     val opponents: List<OpponentProfile?> = emptyList(),
+    /** Opponent profiles of each table on offer ([RunScreen.Choose]), boss first. */
+    val offerOpponents: List<List<OpponentProfile>> = emptyList(),
 )

@@ -79,8 +79,8 @@ fun HowToPlayScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                         BodyText(v.howToPlay, small = true)
                     }
                 }
-                InfoPanel("RUN MODE") {
-                    BodyText("A ladder of poker tables, three per ante: a small table, a big table and a boss. Win the chip target before you run out of hands (or bust everyone) to clear a table. Bosses bend the rules: The Wall never folds, Blind Fury doubles the blinds, The Mime won't talk. Spend coins in the Joker shop between tables. Jokers pay coins for big hands, give chips back, let you peek at cards and more. Beat the eighth boss to win, then keep going in endless mode. The daily run is the same deal for everyone, every day.", small = true)
+                InfoPanel("POKER TOUR") {
+                    BodyText("Climb a ladder of poker tables with rising stakes. Your chips go with you from table to table. Win the chip target before you run out of hands (or bust everyone) to clear a table and collect its bonus chips, then pick your next table: low stakes, high stakes, or a boss who bends the rules (The Wall never folds, Blind Fury doubles the blinds, The Mime won't talk). Bigger risk, bigger reward. Go broke and the tour is over. Clear the tenth table to win, then keep going in endless mode. Leaving in the middle of a hand folds it. The daily tour is the same deal for everyone, every day.", small = true)
                 }
                 InfoPanel("WHO AM I PLAYING?") {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -145,13 +145,13 @@ fun SettingsScreen(settings: SettingsUi, callbacks: SettingsCallbacks, modifier:
                         ChoiceRow(GameSpeed.entries, settings.speed, { it.label }, callbacks.onSpeed)
                     }
                 }
-                PixelPanel(Modifier.readable(), title = "RUN", style = PanelStyle.Dark, paddingUnits = 2) {
+                PixelPanel(Modifier.readable(), title = "POKER TOUR", style = PanelStyle.Dark, paddingUnits = 2) {
                     if (!settings.hasSavedRun) {
-                        BodyText("No run in progress.", color = p.cardCream, small = true)
+                        BodyText("No tour in progress.", color = p.cardCream, small = true)
                     } else if (!confirmReset) {
-                        PixelButton("ABANDON RUN", { confirmReset = true }, Modifier.fillMaxWidth(), variant = PixelButtonVariant.Deal, textStyle = PixelType.Small)
+                        PixelButton("ABANDON TOUR", { confirmReset = true }, Modifier.fillMaxWidth(), variant = PixelButtonVariant.Deal, textStyle = PixelType.Small)
                     } else {
-                        BodyText("Really throw away your run? Jokers and all?", color = p.yellow, small = true)
+                        BodyText("Really throw away your tour? Chips and all?", color = p.yellow, small = true)
                         VGap(8.dp)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             SmallButton("KEEP IT", { confirmReset = false }, Modifier.weight(1f))

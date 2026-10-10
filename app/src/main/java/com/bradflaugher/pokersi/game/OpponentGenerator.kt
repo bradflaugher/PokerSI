@@ -7,6 +7,7 @@ import com.bradflaugher.pokersi.llm.Personas
 import com.bradflaugher.pokersi.run.Boss
 import com.bradflaugher.pokersi.run.OpponentSpec
 import com.bradflaugher.pokersi.run.RunState
+import com.bradflaugher.pokersi.run.TableSpec
 
 /** Silly opponents for quick games and run tables, built from [Personas]. */
 object OpponentGenerator {
@@ -43,10 +44,13 @@ object OpponentGenerator {
      * Profiles for a run table, by seat (seat 0, the player, is null). At a boss
      * table seat 1 is the boss itself: its name, its face, its rule as a bio.
      */
-    fun forRunTable(state: RunState): List<OpponentProfile?> {
-        val boss = state.table.boss
-        return listOf<OpponentProfile?>(null) + state.table.opponents.mapIndexed { i, spec ->
-            val p = forRunOpponent(spec, state.seed)
+    fun forRunTable(state: RunState): List<OpponentProfile?> = forTable(state.table, state.seed)
+
+    /** Profiles for [table] of the run seeded with [runSeed], by seat (seat 0 is null). */
+    fun forTable(table: TableSpec, runSeed: Long): List<OpponentProfile?> {
+        val boss = table.boss
+        return listOf<OpponentProfile?>(null) + table.opponents.mapIndexed { i, spec ->
+            val p = forRunOpponent(spec, runSeed)
             if (i == 0 && boss != null) p.copy(name = boss.name, avatarSeed = bossAvatarSeed(boss), bio = boss.description) else p
         }
     }

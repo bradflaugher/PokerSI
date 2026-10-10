@@ -36,8 +36,6 @@ data class BossRules(
     val forcedVariant: GameVariant? = null,
     /** Multiplies the table's hand limit. */
     val handLimitMultiplier: Double = 1.0,
-    /** The player's Jokers do nothing at this table. */
-    val jokersDisabled: Boolean = false,
 )
 
 data class Boss(val id: String, val name: String, val description: String, val rules: BossRules)
@@ -50,7 +48,7 @@ object Bosses {
             BossRules(blindsUpEvery = 3, blindsGrowth = 2.0)),
         Boss("the_mime", "The Mime", "No table talk. Chip counts hidden. Spooky.",
             BossRules(silentOpponents = true, hideChipCounts = true)),
-        Boss("short_stack", "Short Stack", "You start with half your chips.",
+        Boss("short_stack", "Short Stack", "You sit down with half your chips. The rest waits at the cashier.",
             BossRules(playerChipsMultiplier = 0.5)),
         Boss("the_mirror", "The Mirror", "Copies your last move. Check, it checks. Raise, it raises.",
             BossRules(mirrorSeat = 1)),
@@ -62,8 +60,6 @@ object Bosses {
             BossRules(forcedVariant = GameVariant.OMAHA)),
         Boss("the_clock", "The Clock", "Hit the target in 60% of the usual hands.",
             BossRules(handLimitMultiplier = 0.6)),
-        Boss("the_killjoy", "The Killjoy", "Your Jokers take this table off.",
-            BossRules(jokersDisabled = true)),
     )
 
     private val BY_ID = ALL.associateBy { it.id }

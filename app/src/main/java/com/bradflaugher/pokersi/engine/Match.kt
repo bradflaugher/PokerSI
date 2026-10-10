@@ -45,7 +45,7 @@ data class BlindSchedule(val start: BlindLevel, val handsPerLevel: Int = 10, val
  * with 0 chips), so the UI can keep everyone in place.
  */
 class Match(
-    val names: List<String>,
+    names: List<String>,
     startingChips: List<Int>,
     var variant: GameVariant,
     val schedule: BlindSchedule,
@@ -54,6 +54,10 @@ class Match(
     handsPlayed: Int = 0,
 ) {
     private val _chips = startingChips.toMutableList()
+    private val _names = names.toMutableList()
+
+    /** Seat names. A seat keeps its index for the whole match, but [replaceSeat] can seat someone new. */
+    val names: List<String> get() = _names
 
     /** Current stacks, by seat. Includes the current hand's result once it is [settle]d. */
     val chips: List<Int> get() = _chips
@@ -71,8 +75,8 @@ class Match(
     private var settled = true
 
     init {
-        require(names.size == startingChips.size) { "One stack per name" }
-        require(names.size in 2..6) { "A table seats 2 to 6" }
+        require(_names.size == startingChips.size) { "One stack per name" }
+        require(_names.size in 2..6) { "A table seats 2 to 6" }
     }
 
     val activeSeats: List<Int> get() = _chips.indices.filter { _chips[it] > 0 }
@@ -100,7 +104,7 @@ class Match(
         val stakes = Stakes.forVariant(variant, level.smallBlind, level.bigBlind, level.ante)
         val hand = Hand(
             variant = variant,
-            seats = names.indices.map { SeatSetup(names[it], _chips[it]) },
+            seats = _names.indices.map { SeatSetup(_names[it], _chips[it]) },
             button = button,
             stakes = stakes,
             seed = mix(seed, handsPlayed),
@@ -120,7 +124,19 @@ class Match(
         settled = true
     }
 
-    /** Adds [delta] chips to [seat] between hands (Joker bonuses and the like). Never below 0. */
+    /**
+     * Between hands: a new player takes [seat] (busted, usually) with [chips].
+     * The next hand deals them in under [name].
+     */
+    fun replaceSeat(seat: Int, name: String, chips: Int) {
+        settle()
+        check(currentHand?.isFinished != false) { "A hand is in play" }
+        require(chips > 0) { "A new player needs chips" }
+        _names[seat] = name
+        _chips[seat] = chips
+    }
+
+    /** Adds [delta] chips to [seat] between hands (rebuys and the like). Never below 0. */
     fun adjustChips(seat: Int, delta: Int) {
         settle()
         _chips[seat] = (_chips[seat] + delta).coerceAtLeast(0)

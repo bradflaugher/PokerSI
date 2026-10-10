@@ -1,9 +1,12 @@
 package com.bradflaugher.pokersi.game
 
+import com.bradflaugher.pokersi.engine.AgentReply
 import com.bradflaugher.pokersi.engine.BlindLevel
 import com.bradflaugher.pokersi.engine.BlindSchedule
+import com.bradflaugher.pokersi.engine.BotStyle
 import com.bradflaugher.pokersi.engine.Card
 import com.bradflaugher.pokersi.engine.Decision
+import com.bradflaugher.pokersi.engine.DecisionContext
 import com.bradflaugher.pokersi.engine.GameVariant
 import com.bradflaugher.pokersi.engine.Hand
 import com.bradflaugher.pokersi.engine.HouseBot
@@ -12,7 +15,6 @@ import com.bradflaugher.pokersi.engine.PlayerAgent
 import com.bradflaugher.pokersi.engine.isDraw
 import com.bradflaugher.pokersi.run.BossTwists
 import com.bradflaugher.pokersi.run.HandOutcome
-import com.bradflaugher.pokersi.run.Perks
 import com.bradflaugher.pokersi.run.RunPhase
 import com.bradflaugher.pokersi.run.RunState
 import com.bradflaugher.pokersi.run.TableStatus
@@ -22,10 +24,12 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -46,11 +50,10 @@ data class Pacing(
     /** Bots never answer faster than this, so their turn reads. */
     val thinkMinMs: Long = 650,
     val runOutMs: Long = 900,
-    val payoutStepMs: Long = 700,
 ) {
     companion object {
         /** No pauses at all: tests. */
-        val Instant = Pacing(0, 0, 0, 0, 0, 0)
+        val Instant = Pacing(0, 0, 0, 0, 0)
     }
 }
 
@@ -85,6 +88,15 @@ interface RunSaver {
     }
 }
 
+/** Why the table is paused (several can hold at once). */
+enum class PauseReason {
+    /** The table menu is open. */
+    Menu,
+
+    /** The app is not visible. */
+    Background,
+}
+
 /**
  * Runs a poker table for the UI: deals hands from a [Match], asks each seat's
  * agent to act (the human through [act]/[confirmDiscard], opponents through
@@ -92,8 +104,15 @@ interface RunSaver {
  * animations and publishes everything as [table] (and [run] in Run mode).
  *
  * Single-threaded: call every method from the thread of [scope] (Main in the
- * app, the test thread in tests). Only agent decisions and equity estimates
- * run on [compute], while the hand is not changing.
+ * app, the test thread in tests). Only agent decisions run on [compute],
+ * while the hand is not changing; table talk an agent streams from another
+ * thread is posted back to [scope] before it touches any state.
+ *
+ * Leaving a Poker Tour table in the middle of a hand counts as folding it:
+ * the chips the player has put in are lost and the hand counts as played.
+ * The saved run always holds that "folded now" result while a hand is in
+ * play, so killing the app mid-hand can't be used to dodge a bad hand (or
+ * replay it, since a table's deals are seeded by hand number) either.
  */
 class GameController(
     private val scope: CoroutineScope,
@@ -107,6 +126,8 @@ class GameController(
     private val houseBotIterations: Int = 250,
     /** Longest an opponent agent may think before its House Bot fallback decides. */
     private val agentTimeoutMs: Long = 45_000,
+    /** Quick games: a busted opponent's seat is taken by a newcomer after this many hands (null: never). */
+    private val replaceBustedAfterHands: Int? = 1,
 ) {
     private val _table = MutableStateFlow(TableUiState())
     val table: StateFlow<TableUiState> = _table.asStateFlow()
@@ -116,22 +137,38 @@ class GameController(
     /** Run mode only. */
     val run: StateFlow<RunUiState?> = _run.asStateFlow()
 
+    private val pauses = MutableStateFlow<Set<PauseReason>>(emptySet())
+
+    /** True while something holds the table still (the bots wait; the human may still act). */
+    val paused: StateFlow<Set<PauseReason>> = pauses.asStateFlow()
+
     private var job: Job? = null
     private var match: Match? = null
     private var hand: Hand? = null
     private var quick: QuickGameConfig? = null
     private var runState: RunState? = null
 
+    /** Run mode: the hand in play has been scored into [runState]. */
+    private var handScored = true
+
     private var profiles: List<OpponentProfile?> = emptyList()
     private var agents: List<PlayerAgent> = emptyList()
     private var fallbacks: List<HouseBot> = emptyList()
+
+    /** Quick game: seat -> the match's hand count when that opponent went broke. */
+    private val bustedAt = HashMap<Int, Int>()
+    private var replacements = 0
+
+    /** Table news ("Mo has left the table") shown in the log next to the hand's history. */
+    private var news: List<String> = emptyList()
 
     // Decorations of the hand in play.
     private val chatter = LinkedHashMap<Int, String>()
     private var streamingSeat: Int? = null
     private var thinkingSeat: Int? = null
-    private var confidence: Map<Int, Float> = emptyMap()
-    private var xray: Pair<Int, Card>? = null
+
+    /** Bumps with every bot decision, so late table talk from an earlier one is dropped. */
+    private var decisionId = 0
     private var phase = TablePhase.Idle
     private var humanTurn: HumanTurn? = null
     private var selected: Set<Int> = emptySet()
@@ -143,6 +180,11 @@ class GameController(
 
     val isRunning: Boolean get() = job?.isActive == true
 
+    /** Holds (or releases, with [on] false) the table for [reason]. Bots wait at their next step. */
+    fun setPaused(reason: PauseReason, on: Boolean) {
+        pauses.update { if (on) it + reason else it - reason }
+    }
+
     // ---------------------------------------------------------------- quick game
 
     /** Sits down at a quick game table and starts dealing. */
@@ -151,6 +193,9 @@ class GameController(
         quick = config
         runState = null
         _run.value = null
+        bustedAt.clear()
+        replacements = 0
+        news = emptyList()
         val names = listOf(PLAYER_NAME) + config.opponents.map { it.name }
         match = Match(names, List(names.size) { config.startingStack }, config.variant, config.schedule, config.seed)
         setUpAgents(listOf<OpponentProfile?>(null) + config.opponents, config.seed)
@@ -179,6 +224,7 @@ class GameController(
                 m.chips[0] <= 0 -> {
                     phase = TablePhase.Busted
                     publish(showBanner = true)
+                    if (autopilot != null) return // Autopilot can't press REBUY: the game is over.
                     awaitProceed()
                     continue
                 }
@@ -190,24 +236,57 @@ class GameController(
                     return
                 }
             }
+            val arrivals = seatNewcomers(m)
             val h = m.startNextHand()
-            playHand(h)
+            playHand(h, arrivals)
             m.settle()
+            noteBusts(m)
             phase = TablePhase.HandOver
             publish()
             if (m.chips[0] > 0 && !m.isOver) awaitProceed()
-            else if (autopilot != null && m.chips[0] <= 0) {
-                // Autopilot can't press REBUY: the game is over.
-                phase = TablePhase.Busted
-                publish()
-                return
-            }
         }
+    }
+
+    /** Quick game: "X has left the table" for every opponent who just went broke. */
+    private fun noteBusts(m: Match) {
+        if (replaceBustedAfterHands == null) return
+        val gone = (1 until m.chips.size).filter { m.chips[it] <= 0 && it !in bustedAt }
+        gone.forEach { bustedAt[it] = m.handsPlayed }
+        if (gone.isNotEmpty()) news = news + gone.map { "${m.names[it]} has left the table" }
+    }
+
+    /**
+     * Quick game: seats a fresh random opponent in each seat that has been empty
+     * for [replaceBustedAfterHands] hands, so a table never runs dry. Returns
+     * the seats that changed hands.
+     */
+    private fun seatNewcomers(m: Match): Set<Int> {
+        val config = quick ?: return emptySet()
+        val after = replaceBustedAfterHands ?: return emptySet()
+        news = emptyList()
+        val due = bustedAt.filter { (seat, at) -> m.chips[seat] <= 0 && m.handsPlayed - at >= after }.keys.sorted()
+        for (seat in due) {
+            bustedAt.remove(seat)
+            val taken = m.names.toSet()
+            var profile: OpponentProfile
+            var attempt = 0
+            do {
+                profile = OpponentGenerator.profile(Match.mix(config.seed, 50_000 + replacements * 31 + attempt++))
+            } while (profile.name in taken && attempt < 20)
+            replacements++
+            m.replaceSeat(seat, profile.name, config.startingStack)
+            profiles = profiles.toMutableList().also { it[seat] = profile }
+            val fallback = HouseBot(profile.style, Match.mix(config.seed, 1000 + seat + 7 * replacements), houseBotIterations)
+            fallbacks = fallbacks.toMutableList().also { it[seat] = fallback }
+            agents = agents.toMutableList().also { it[seat] = brains.agentFor(seat, profile, fallback) }
+            news = news + "${profile.name} sits down"
+        }
+        return due.toSet()
     }
 
     // ---------------------------------------------------------------- run mode
 
-    /** Opens a run (new or resumed): the table intro, the shop or the game over screen. */
+    /** Opens a run (new or resumed): the table intro, the table choice or the game over screen. */
     fun startRun(state: RunState) {
         stop()
         quick = null
@@ -215,15 +294,27 @@ class GameController(
         save(state)
         match = null
         hand = null
+        news = emptyList()
         phase = TablePhase.Idle
         _table.value = TableUiState(brainLabel = brains.label.value)
         val screen = when (state.phase) {
             RunPhase.TABLE -> RunScreen.Intro
-            RunPhase.SHOP -> RunScreen.Shop
+            RunPhase.CHOOSE -> RunScreen.Choose
             RunPhase.GAME_OVER -> RunScreen.GameOver
         }
-        _run.value = RunUiState(state, screen, reward = state.lastReward, opponents = runProfiles(state))
+        _run.value = runUi(state, screen)
     }
+
+    private fun runUi(state: RunState, screen: RunScreen) = RunUiState(
+        state,
+        screen,
+        reward = state.lastReward,
+        opponents = runProfiles(state),
+        offerOpponents = offerProfiles(state),
+    )
+
+    private fun offerProfiles(state: RunState): List<List<OpponentProfile>> =
+        state.offers.map { OpponentGenerator.forTable(it, state.seed).filterNotNull() }
 
     /** From the table intro: sit down and deal. */
     fun beginTable() {
@@ -254,36 +345,17 @@ class GameController(
         while (true) {
             val state = runState!!
             val h = state.startNextHand(m)
+            handScored = false
+            hand = h
+            saveForfeit(h)
             playHand(h)
-            m.settle()
-            val before = runState!!
-            val scoring = before.applyHandResult(HandOutcome.from(h), m.chips, m.button)
-            // The run's chips include Joker bonus chips: copy them back into the match.
-            scoring.state.progress.chips.forEachIndexed { seat, c ->
-                val delta = c - m.chips[seat]
-                if (delta != 0) m.adjustChips(seat, delta)
-            }
-            runState = scoring.state
-            if (scoring.state.phase == RunPhase.GAME_OVER) runSaver?.clear() else save(scoring.state)
-            _run.update { it?.copy(state = scoring.state) }
+            val status = scoreRunHand(h)
 
-            // Balatro-style payout: each Joker trigger pops in turn while the coins count up.
-            val triggers = scoring.payout.triggers
-            if (triggers.isNotEmpty()) {
-                var coins = before.coins
-                for (i in triggers.indices) {
-                    coins += triggers[i].coins
-                    _run.update { it?.copy(payout = PayoutUi(triggers, i + 1, coins)) }
-                    pause(pacing.payoutStepMs)
-                }
-            }
-
-            when (scoring.status) {
+            when (status) {
                 TableStatus.IN_PROGRESS -> {
                     phase = TablePhase.HandOver
                     publish()
                     awaitProceed()
-                    _run.update { it?.copy(payout = null) }
                 }
                 TableStatus.CLEARED, TableStatus.FAILED -> {
                     phase = TablePhase.RunTableDone
@@ -293,9 +365,9 @@ class GameController(
                     _run.update {
                         it?.copy(
                             state = next,
-                            payout = null,
                             reward = next.lastReward,
-                            screen = if (scoring.status == TableStatus.CLEARED) RunScreen.Cleared else RunScreen.GameOver,
+                            offerOpponents = offerProfiles(next),
+                            screen = if (status == TableStatus.CLEARED) RunScreen.Cleared else RunScreen.GameOver,
                         )
                     }
                     return
@@ -304,59 +376,71 @@ class GameController(
         }
     }
 
-    /** From the cleared-table screen: on to the shop (via the victory screen after the final boss). */
-    fun toShop() {
+    /** Scores the finished run hand [h] (once), saves the run and returns how the table stands. */
+    private fun scoreRunHand(h: Hand): TableStatus {
+        val m = match!!
+        m.settle()
+        val scoring = runState!!.applyHandResult(HandOutcome.from(h), m.chips, m.button)
+        handScored = true
+        runState = scoring.state
+        save(scoring.state)
+        _run.update { it?.copy(state = scoring.state) }
+        return scoring.status
+    }
+
+    /**
+     * The run as it stands if the player folded [h] right now: the chips they put
+     * in go to the opponents still in the hand and the hand counts as played.
+     */
+    private fun forfeitState(h: Hand): RunState? {
+        val state = runState ?: return null
+        val m = match ?: return null
+        if (h.isFinished) return null
+        val seats = h.snapshot(0).seats
+        val committed = (m.chips[0] - seats[0].chips).coerceAtLeast(0)
+        val stacks = m.chips.toMutableList()
+        stacks[0] -= committed
+        val takers = seats.filter { it.seat != 0 && !it.folded && !it.sittingOut }.map { it.seat }
+            .ifEmpty { seats.filter { it.seat != 0 && !it.sittingOut }.map { it.seat } }
+        if (takers.isNotEmpty()) {
+            takers.forEachIndexed { i, seat -> stacks[seat] += committed / takers.size + if (i < committed % takers.size) 1 else 0 }
+        }
+        return state.applyHandResult(HandOutcome.forfeit(committed, h.pot), stacks, h.button).state
+    }
+
+    /** Keeps the "folded now" result of [h] as the saved run while it is in play (see the class doc). */
+    private fun saveForfeit(h: Hand) {
+        if (runSaver == null || autopilot != null) return
+        forfeitState(h)?.let(::save)
+    }
+
+    /** From the cleared-table screen: on to choosing the next table (via the victory screen after the final stop). */
+    fun toChoose() {
         val ui = _run.value ?: return
-        val firstVictory = ui.state.victory && ui.screen == RunScreen.Cleared && ui.state.ante == com.bradflaugher.pokersi.run.TableSpec.FINAL_ANTE &&
-            ui.state.stage == com.bradflaugher.pokersi.run.TableSpec.STAGES_PER_ANTE - 1
-        _run.value = ui.copy(screen = if (firstVictory) RunScreen.Victory else RunScreen.Shop)
+        val firstVictory = ui.screen == RunScreen.Cleared && ui.state.victory &&
+            ui.state.level == com.bradflaugher.pokersi.run.TableSpec.FINAL_LEVEL
+        _run.value = ui.copy(screen = if (firstVictory) RunScreen.Victory else RunScreen.Choose)
     }
 
     /** Victory screen: keep going in endless mode. */
     fun continueEndless() {
-        _run.update { it?.copy(screen = RunScreen.Shop) }
+        _run.update { it?.copy(screen = RunScreen.Choose) }
     }
 
-    fun buy(jokerId: String) = shopAction { it.buy(jokerId) }
-    fun sell(jokerId: String) = shopAction { it.sell(jokerId) }
-    fun reroll() = shopAction { it.reroll() }
-
-    /** Leaves the shop for the next table's intro. */
-    fun leaveShop() {
-        val state = runState ?: return
-        if (state.phase != RunPhase.SHOP) return
-        val next = state.leaveShop()
-        runState = next
-        save(next)
-        _table.value = TableUiState(brainLabel = brains.label.value)
-        _run.value = RunUiState(next, RunScreen.Intro, opponents = runProfiles(next))
-    }
-
-    private fun shopAction(change: (RunState) -> RunState?): Boolean {
+    /** Picks table [index] from the offers: on to its intro. */
+    fun chooseTable(index: Int): Boolean {
         val state = runState ?: return false
-        val next = change(state) ?: return false
+        val next = state.choose(index) ?: return false
         runState = next
         save(next)
-        _run.update { it?.copy(state = next) }
+        hand = null
+        _table.value = TableUiState(brainLabel = brains.label.value)
+        _run.value = runUi(next, RunScreen.Intro)
         return true
     }
 
     private fun save(state: RunState) {
         if (state.phase == RunPhase.GAME_OVER) runSaver?.clear() else runSaver?.save(state)
-    }
-
-    /** Run mode: the Mulligan Joker re-deals the human's starting cards. */
-    fun mulligan() {
-        val state = runState ?: return
-        val h = hand ?: return
-        if (!state.canMulligan || !TableStates.mulliganAllowed(h)) return
-        if (!h.redealHoleCards(0)) return
-        runState = state.useMulligan()
-        save(runState!!)
-        _run.update { it?.copy(state = runState!!) }
-        humanTurn = humanTurn?.copy(canMulligan = false)
-        selected = if (h.variant.isDraw) suggestHolds(h.holeCards(0)) else emptySet()
-        publish()
     }
 
     // ---------------------------------------------------------------- human input
@@ -375,6 +459,7 @@ class GameController(
         val turn = humanTurn ?: return
         if (!turn.isDiscard) return
         val h = hand ?: return
+        if (index !in h.holeCards(0).indices) return
         selected = if (h.variant.isDraw) {
             if (index in selected) selected - index else selected + index
         } else {
@@ -408,12 +493,32 @@ class GameController(
         proceed = null
     }
 
-    /** Stops dealing (leaving the table). The run, if any, is saved between hands. */
+    /**
+     * Stops dealing (leaving the table) and cancels any opponent still thinking
+     * (an LLM generation in flight stops at its next token). In a run, a hand
+     * already decided is scored; a hand still in play is folded (see the class doc).
+     */
     fun stop() {
         job?.cancel()
         job = null
         humanDecision = null
+        humanTurn = null
         proceed = null
+        thinkingSeat = null
+        streamingSeat = null
+        val h = hand
+        if (runState != null && h != null && !handScored && match != null) {
+            if (h.isFinished) {
+                scoreRunHand(h)
+            } else if (autopilot == null) {
+                forfeitState(h)?.let { folded ->
+                    runState = folded
+                    save(folded)
+                    _run.update { it?.copy(state = folded) }
+                }
+                handScored = true
+            }
+        }
     }
 
     // ---------------------------------------------------------------- the hand
@@ -421,26 +526,24 @@ class GameController(
     private fun setUpAgents(ps: List<OpponentProfile?>, seed: Long) {
         profiles = ps
         fallbacks = ps.mapIndexed { seat, p ->
-            HouseBot(p?.style ?: com.bradflaugher.pokersi.engine.BotStyle.BALANCED, Match.mix(seed, 1000 + seat), houseBotIterations)
+            HouseBot(p?.style ?: BotStyle.BALANCED, Match.mix(seed, 1000 + seat), houseBotIterations)
         }
         agents = ps.mapIndexed { seat, p -> if (p == null) fallbacks[seat] else brains.agentFor(seat, p, fallbacks[seat]) }
     }
 
-    private suspend fun playHand(h: Hand) {
+    private suspend fun playHand(h: Hand, arrivals: Set<Int> = emptySet()) {
         hand = h
         chatter.clear()
         streamingSeat = null
         thinkingSeat = null
-        confidence = emptyMap()
         humanTurn = null
         selected = emptySet()
         boardLimit = null
-        val state = runState
-        xray = if (state?.hasXRay == true) Perks.xRayPeek(h) else null
         phase = TablePhase.Playing
+        // Newcomers say hello.
+        arrivals.forEach { seat -> profiles.getOrNull(seat)?.catchphrase?.takeIf { it.isNotBlank() }?.let { setChatter(seat, it) } }
         publish()
         pause(pacing.dealMs)
-        updateConfidence(h)
 
         var street = h.street
         var shownBoard = h.board.size
@@ -452,7 +555,6 @@ class GameController(
                 chatter.clear()
                 publish()
                 pause(pacing.streetMs)
-                updateConfidence(h)
             }
             if (seat == 0) humanAct(h) else botAct(h, seat)
             publish()
@@ -496,53 +598,67 @@ class GameController(
             bigBlind = h.stakes.bigBlind,
             betThisRound = snap.bet,
             stack = snap.chips,
-            canMulligan = runState?.canMulligan == true && TableStates.mulliganAllowed(h),
         )
         publish()
         val decision = deferred.await()
         humanTurn = null
         h.apply(0, decision)
         selected = emptySet()
+        if (runState != null) saveForfeit(h)
     }
 
     private suspend fun botAct(h: Hand, seat: Int) {
+        awaitUnpaused()
         val state = runState
         val silent = state?.table?.boss?.rules?.silentOpponents == true
+        val id = ++decisionId
         thinkingSeat = seat
         chatter.remove(seat)
         publish()
         val ctx = h.context(seat)
         val started = System.nanoTime()
-        val reply = try {
-            withTimeoutOrNull(agentTimeoutMs) {
-                withContext(compute) {
-                    agents[seat].decide(ctx) { text ->
-                        if (!silent) scope.launch { streamChatter(seat, text) }
-                    }
-                }
-            } ?: fallbacks[seat].decideNow(ctx)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            fallbacks[seat].decideNow(ctx)
+        // Table talk streams in on the agent's thread (the LLM's inference thread):
+        // hop back to the table's thread, as a child of this game so leaving cancels it.
+        val game = currentCoroutineContext()[Job]
+        val onChatter: (String) -> Unit = { text ->
+            if (!silent) scope.launch(game ?: Job()) { streamChatter(id, seat, text) }
         }
+        val reply = decideSafely(agents[seat], fallbacks[seat], ctx, onChatter)
         val elapsed = (System.nanoTime() - started) / 1_000_000
         pause((pacing.thinkMinMs - elapsed).coerceAtLeast(0))
+        awaitUnpaused()
         var decision = reply.decision
         if (state != null) {
             decision = BossTwists.adjustOpponentDecision(state.table.boss, ctx, decision, BossTwists.lastActionOf(h.events, 0))
         }
         thinkingSeat = null
         streamingSeat = null
-        val say = if (silent) null else reply.say?.trim()?.takeIf { it.isNotEmpty() }
+        val say = if (silent) null else reply.say?.let(::tidySay)
         if (say != null) setChatter(seat, say)
         h.apply(seat, decision, say)
     }
 
-    private fun streamChatter(seat: Int, text: String) {
-        if (thinkingSeat != seat) return
+    /**
+     * [agent]'s reply, or [fallback]'s when the agent throws, times out after
+     * [agentTimeoutMs] or hangs. The hand never stalls on an opponent.
+     */
+    private suspend fun decideSafely(agent: PlayerAgent, fallback: HouseBot, ctx: DecisionContext, onChatter: (String) -> Unit): AgentReply =
+        try {
+            withTimeoutOrNull(agentTimeoutMs) {
+                withContext(compute) { agent.decide(ctx, onChatter) }
+            } ?: fallback.decideNow(ctx)
+        } catch (e: CancellationException) {
+            // Our own cancellation (leaving the table) propagates; an agent's stray one doesn't.
+            currentCoroutineContext()[Job]?.let { if (!it.isActive) throw e }
+            fallback.decideNow(ctx)
+        } catch (_: Exception) {
+            fallback.decideNow(ctx)
+        }
+
+    private fun streamChatter(id: Int, seat: Int, text: String) {
+        if (id != decisionId || thinkingSeat != seat) return
         streamingSeat = seat
-        setChatter(seat, text)
+        setChatter(seat, tidySay(text) ?: return)
         publish()
     }
 
@@ -551,15 +667,6 @@ class GameController(
         chatter.remove(seat)
         chatter[seat] = text
         while (chatter.size > 2) chatter.remove(chatter.keys.first())
-    }
-
-    private suspend fun updateConfidence(h: Hand) {
-        if (runState?.hasTellDetector != true || h.isFinished) return
-        val seats = h.snapshot(0).seats.filter { it.seat != 0 && !it.folded && !it.sittingOut }.map { it.seat }
-        confidence = withContext(compute) {
-            seats.associateWith { Perks.confidence(h, it, iterations = 150).toFloat() }
-        }
-        publish()
     }
 
     private fun publish(showBanner: Boolean = true) {
@@ -575,8 +682,6 @@ class GameController(
             chatter = chatter.toMap(),
             streamingSeat = streamingSeat,
             thinkingSeat = thinkingSeat,
-            confidence = confidence,
-            xray = xray,
             bossSeat = if (state?.table?.isBoss == true) 1 else null,
             hideChips = rules?.hideChipCounts == true,
             silent = rules?.silentOpponents == true,
@@ -586,10 +691,13 @@ class GameController(
             h, extras, phase, humanTurn, selected, boardLimit, celebrate,
             showBanner = showBanner && phase != TablePhase.Playing,
         ).let { ui ->
-            // The match's stacks are the truth between hands (rebuys, Joker bonus chips).
+            // The match's stacks are the truth between hands (rebuys, newcomers).
             val m = match
-            if (m != null && h.isFinished) ui.copy(seats = ui.seats.map { s -> s.copy(chips = m.chips[s.seat], busted = m.chips[s.seat] <= 0 && !s.isWinner) })
-            else ui
+            val seated = if (m != null && h.isFinished) {
+                ui.copy(seats = ui.seats.map { s -> s.copy(chips = m.chips[s.seat], busted = m.chips[s.seat] <= 0 && !s.isWinner) })
+            } else ui
+            if (news.isEmpty()) seated
+            else seated.copy(log = (seated.log + news).takeLast(4))
         }
     }
 
@@ -600,13 +708,29 @@ class GameController(
         d.await()
     }
 
+    private suspend fun awaitUnpaused() {
+        if (autopilot != null) return
+        pauses.first { it.isEmpty() }
+    }
+
     private suspend fun pause(ms: Long) {
+        awaitUnpaused()
         val scaled = (ms * speed.value.factor).toLong()
         if (scaled > 0) delay(scaled)
     }
 
     companion object {
         const val PLAYER_NAME = "You"
+
+        /** Longest speech bubble, whatever an agent says. */
+        const val SAY_MAX = 120
+
+        /** A speech line trimmed to one bubble, or null when there is nothing to say. */
+        fun tidySay(text: String): String? {
+            val line = text.replace(Regex("\\s+"), " ").trim()
+            if (line.isEmpty()) return null
+            return if (line.length <= SAY_MAX) line else line.take(SAY_MAX - 1).trimEnd() + "…"
+        }
 
         /** Video poker courtesy: pre-HOLD pairs and better, else the two highest cards. */
         fun suggestHolds(cards: List<Card>): Set<Int> {

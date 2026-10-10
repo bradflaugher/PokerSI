@@ -56,7 +56,7 @@ fun TitleScreen(
     hasSavedRun: Boolean,
     callbacks: TitleCallbacks,
     modifier: Modifier = Modifier,
-    dailyLabel: String = "DAILY RUN",
+    dailyLabel: String = "DAILY TOUR",
 ) {
     val p = PixelTheme.palette
     ArcadeScreen(modifier) {
@@ -136,11 +136,11 @@ private fun InsertCoin() {
 @Composable
 private fun TitleMenu(hasSavedRun: Boolean, callbacks: TitleCallbacks, dailyLabel: String) {
     if (hasSavedRun) {
-        PixelButton("CONTINUE RUN", callbacks.onContinue, Modifier.fillMaxWidth(), variant = PixelButtonVariant.Call, sound = Sfx.Deal)
+        PixelButton("CONTINUE TOUR", callbacks.onContinue, Modifier.fillMaxWidth(), variant = PixelButtonVariant.Call, sound = Sfx.Deal)
     }
     PixelButton("QUICK GAME", callbacks.onQuickGame, Modifier.fillMaxWidth(), variant = PixelButtonVariant.Deal, sound = Sfx.Deal)
     Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-        PixelButton(if (hasSavedRun) "NEW RUN" else "RUN MODE", callbacks.onRunMode, Modifier.weight(1f), variant = PixelButtonVariant.Pink, textStyle = PixelType.Small)
+        PixelButton(if (hasSavedRun) "NEW TOUR" else "POKER TOUR", callbacks.onRunMode, Modifier.weight(1f), variant = PixelButtonVariant.Pink, textStyle = PixelType.Small)
         PixelButton(dailyLabel, callbacks.onDaily, Modifier.weight(1f), variant = PixelButtonVariant.Bet, textStyle = PixelType.Small)
     }
     Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {

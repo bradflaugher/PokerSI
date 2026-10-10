@@ -24,9 +24,11 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bradflaugher.pokersi.game.GameController
 import com.bradflaugher.pokersi.game.GameSpeed
+import com.bradflaugher.pokersi.game.PauseReason
 import com.bradflaugher.pokersi.game.RunScreen
 import com.bradflaugher.pokersi.game.RunUiState
 import com.bradflaugher.pokersi.ui.pixel.PixelButton
@@ -37,6 +39,7 @@ import com.bradflaugher.pokersi.ui.pixel.PixelType
 import com.bradflaugher.pokersi.ui.pixel.rememberChiptuneSound
 import com.bradflaugher.pokersi.ui.screens.BodyText
 import com.bradflaugher.pokersi.ui.screens.ChoiceRow
+import com.bradflaugher.pokersi.ui.screens.ChooseTableScreen
 import com.bradflaugher.pokersi.ui.screens.HowToPlayScreen
 import com.bradflaugher.pokersi.ui.screens.LocalCardSway
 import com.bradflaugher.pokersi.ui.models.ModelsScreen
@@ -48,7 +51,6 @@ import com.bradflaugher.pokersi.ui.screens.RunOverScreen
 import com.bradflaugher.pokersi.ui.screens.SettingsCallbacks
 import com.bradflaugher.pokersi.ui.screens.SettingsScreen
 import com.bradflaugher.pokersi.ui.screens.SettingsUi
-import com.bradflaugher.pokersi.ui.screens.ShopScreen
 import com.bradflaugher.pokersi.ui.screens.TableCallbacks
 import com.bradflaugher.pokersi.ui.screens.TableScreen
 import com.bradflaugher.pokersi.ui.screens.TitleCallbacks
@@ -68,6 +70,11 @@ fun PokerSiApp(vm: PokerViewModel) {
     val sway by s.cardSway.collectAsStateWithLifecycle()
     val player = rememberChiptuneSound(sound)
     val haptic = LocalHapticFeedback.current
+    // Bots (and their model) don't play on while nobody is looking.
+    LifecycleStartEffect(vm.controller) {
+        vm.controller.setPaused(PauseReason.Background, false)
+        onStopOrDispose { vm.controller.setPaused(PauseReason.Background, true) }
+    }
     PixelTheme(crtEnabled = crt, sound = player) {
         CompositionLocalProvider(
             LocalHapticFeedback provides if (haptics) haptic else NoHaptics,
@@ -79,10 +86,7 @@ fun PokerSiApp(vm: PokerViewModel) {
                     Screen.Picker -> PickerRoute(vm)
                     Screen.Table -> TableRoute(vm, run = null)
                     Screen.Run -> RunRoute(vm)
-                    Screen.Models -> {
-                        val label by vm.brains.label.collectAsStateWithLifecycle()
-                        ModelsScreen(onBack = { vm.back() })
-                    }
+                    Screen.Models -> ModelsScreen(onBack = { vm.back() })
                     Screen.HowTo -> HowToPlayScreen(onBack = { vm.back() })
                     Screen.Settings -> SettingsRoute(vm)
                 }
@@ -96,9 +100,11 @@ fun PokerSiApp(vm: PokerViewModel) {
 private fun TitleRoute(vm: PokerViewModel) {
     val label by vm.brains.label.collectAsStateWithLifecycle()
     val saved by vm.runSaver.saved.collectAsStateWithLifecycle()
+    val daily by vm.daily.result.collectAsStateWithLifecycle()
     TitleScreen(
         brainLabel = label,
         hasSavedRun = saved,
+        dailyLabel = daily.label,
         callbacks = TitleCallbacks(
             onQuickGame = { vm.go(Screen.Picker) },
             onRunMode = vm::newRun,
@@ -164,19 +170,12 @@ private fun RunRoute(vm: PokerViewModel) {
         }
         RunScreen.Table -> TableRoute(vm, ui)
         RunScreen.Cleared -> {
-            BackHandler { c.toShop() }
-            RunClearedScreen(ui, onShop = c::toShop)
+            BackHandler { c.toChoose() }
+            RunClearedScreen(ui, onNext = c::toChoose)
         }
-        RunScreen.Shop -> {
+        RunScreen.Choose -> {
             BackHandler { vm.toTitle() }
-            ShopScreen(
-                ui,
-                onBuy = { c.buy(it) },
-                onSell = { c.sell(it) },
-                onReroll = { c.reroll() },
-                onLeave = c::leaveShop,
-                onBack = vm::toTitle,
-            )
+            ChooseTableScreen(ui, onChoose = { c.chooseTable(it) }, onBack = vm::toTitle)
         }
         RunScreen.Victory -> {
             BackHandler { c.continueEndless() }
@@ -195,6 +194,11 @@ private fun TableRoute(vm: PokerViewModel, run: RunUiState?) {
     val table by c.table.collectAsStateWithLifecycle()
     val speed by vm.settings.speed.collectAsStateWithLifecycle()
     var menu by rememberSaveable { mutableStateOf(false) }
+    // The menu really pauses the table: no bot acts behind it.
+    DisposableEffect(c, menu) {
+        c.setPaused(PauseReason.Menu, menu)
+        onDispose { c.setPaused(PauseReason.Menu, false) }
+    }
     KeepScreenOn()
     BackHandler { menu = !menu }
     Box(Modifier.fillMaxSize()) {
@@ -205,7 +209,6 @@ private fun TableRoute(vm: PokerViewModel, run: RunUiState?) {
                 onToggle = c::toggleSelect,
                 onConfirmDiscard = c::confirmDiscard,
                 onNext = c::next,
-                onMulligan = c::mulligan,
                 onPlayAgain = vm::newQuickTable,
                 onMenu = vm::toTitle,
                 onPause = { menu = true },
@@ -227,13 +230,13 @@ private fun TableRoute(vm: PokerViewModel, run: RunUiState?) {
 @Composable
 private fun TableMenu(speed: GameSpeed, onSpeed: (GameSpeed) -> Unit, onResume: () -> Unit, onQuit: () -> Unit, inRun: Boolean) {
     Box(Modifier.fillMaxSize().background(Color(0xB0000000)), contentAlignment = Alignment.Center) {
-        PixelPanel(Modifier.widthIn(max = 380.dp).fillMaxWidth().padding(20.dp), title = "TABLE MENU", paddingUnits = 3) {
+        PixelPanel(Modifier.widthIn(max = 380.dp).fillMaxWidth().padding(20.dp), title = "PAUSED", paddingUnits = 3) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 BodyText("Game speed")
                 ChoiceRow(GameSpeed.entries, speed, { it.label }, onSpeed)
                 PixelButton("RESUME", onResume, Modifier.fillMaxWidth(), variant = PixelButtonVariant.Call)
                 PixelButton("QUIT TO MENU", onQuit, Modifier.fillMaxWidth(), variant = PixelButtonVariant.Deal, textStyle = PixelType.Small)
-                BodyText(if (inRun) "Your run is saved between hands." else "Your chips at this table are lost.", small = true)
+                BodyText(if (inRun) "Your tour is saved. Quitting mid-hand folds the hand." else "Your chips at this table are lost.", small = true)
             }
         }
     }

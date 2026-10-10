@@ -17,7 +17,6 @@ import com.bradflaugher.pokersi.engine.usesShortDeck
 import com.bradflaugher.pokersi.game.GameController
 import com.bradflaugher.pokersi.game.HumanTurn
 import com.bradflaugher.pokersi.game.OpponentProfile
-import com.bradflaugher.pokersi.game.PayoutUi
 import com.bradflaugher.pokersi.game.QuickGameSetup
 import com.bradflaugher.pokersi.game.RunScreen
 import com.bradflaugher.pokersi.game.RunUiState
@@ -26,7 +25,7 @@ import com.bradflaugher.pokersi.game.TablePhase
 import com.bradflaugher.pokersi.game.TableStates
 import com.bradflaugher.pokersi.game.TableUiState
 import com.bradflaugher.pokersi.run.RunPhase
-import com.bradflaugher.pokersi.run.JokerTrigger
+import com.bradflaugher.pokersi.run.Risk
 import com.bradflaugher.pokersi.run.RunState
 import com.bradflaugher.pokersi.run.RunStats
 import com.bradflaugher.pokersi.run.TableProgress
@@ -183,30 +182,29 @@ object ScreenshotScenes {
 
     // ---------------------------------------------------------------- run
 
-    /** An ante-2 boss table run by The Wall. */
+    /** A boss table at tour stop 5 run by The Wall. */
     fun wallRun(phase: RunPhase = RunPhase.TABLE): RunState {
         var seed = 1L
         var spec: TableSpec
         do {
-            spec = TableSpec.generate(seed++, 2, 2)
+            spec = TableSpec.generate(seed++, 5, Risk.BOSS, 1840)
         } while (spec.bossId != "the_wall" || spec.opponents.size < 3)
         spec = spec.copy(variant = GameVariant.TEXAS_HOLDEM, opponents = spec.opponents.take(3))
         return RunState(
             seed = seed,
-            ante = 2,
-            stage = 2,
-            coins = 14,
-            jokers = listOf("flush_fund", "tell_detector", "xray_specs", "rake_back"),
+            level = 5,
             phase = phase,
             table = spec,
             progress = TableProgress(listOf(1840) + spec.opponents.map { 980 }, handsPlayed = 9),
-            stats = RunStats(handsPlayed = 41, handsWon = 17, biggestPot = 2360, tablesCleared = 4, coinsEarned = 38, bestHand = HandCategory.FULL_HOUSE),
+            bankroll = 1840,
+            stats = RunStats(handsPlayed = 41, handsWon = 17, biggestPot = 2360, tablesCleared = 4, bestHand = HandCategory.FULL_HOUSE, peakChips = 2410),
+            version = RunState.SAVE_VERSION,
         )
     }
 
     private fun runProfiles(state: RunState): List<OpponentProfile?> = com.bradflaugher.pokersi.game.OpponentGenerator.forRunTable(state)
 
-    /** The Wall's table on the turn: Tell Detector meters, an X-Ray peek, and a flush for you. */
+    /** The Wall's table on the turn, and a flush for you. */
     fun runBossTable(): Pair<TableUiState, RunUiState> {
         val state = wallRun()
         val spec = state.table
@@ -230,8 +228,6 @@ object ScreenshotScenes {
         val extras = TableExtras(
             profiles = ps,
             chatter = mapOf(1 to "I never fold. Never ever. Not even once."),
-            confidence = mapOf(1 to 0.72f, 2 to 0.38f, 3 to 0.15f),
-            xray = 2 to hand.holeCards(2)[0],
             bossSeat = 1,
             brainLabel = "GEMMA 3 1B",
         )
@@ -239,27 +235,24 @@ object ScreenshotScenes {
         return table to RunUiState(state, RunScreen.Table, opponents = ps)
     }
 
-    fun shop(): RunUiState {
-        val state = wallRun(RunPhase.SHOP).copy(
-            coins = 12,
-            jokers = listOf("flush_fund", "tell_detector"),
-            shop = listOf("high_roller", "lucky_sevens", "mulligan"),
+    /** After clearing The Wall: three tables to choose from. */
+    fun chooseTable(): RunUiState {
+        val run = wallRun()
+        val state = run.copy(
+            phase = RunPhase.CHOOSE,
+            offers = Risk.entries.map { TableSpec.generate(run.seed, 6, it, 2410) },
+            bankroll = 2410,
         )
-        return RunUiState(state, RunScreen.Shop)
+        return RunUiState(
+            state,
+            RunScreen.Choose,
+            offerOpponents = state.offers.map { com.bradflaugher.pokersi.game.OpponentGenerator.forTable(it, state.seed).filterNotNull() },
+        )
     }
 
     fun runIntro(): RunUiState {
         val state = wallRun().copy(progress = wallRun().progress.copy(handsPlayed = 0))
         return RunUiState(state, RunScreen.Intro, opponents = runProfiles(state))
-    }
-
-    fun payoutTable(): Pair<TableUiState, RunUiState> {
-        val (table, run) = runBossTable()
-        val triggers = listOf(
-            JokerTrigger("flush_fund", "Flush Fund", "+6 coins", coins = 6),
-            JokerTrigger("rake_back", "Rake Back", "+98 chips", chips = 98),
-        )
-        return table to run.copy(payout = PayoutUi(triggers, shown = 2, coins = run.state.coins + 6))
     }
 
     // ---------------------------------------------------------------- the list
@@ -276,12 +269,8 @@ object ScreenshotScenes {
             val (t, r) = runBossTable()
             PixelTheme { TableScreen(t, TableCallbacks(), run = r) }
         },
-        Scene("run_payout") {
-            val (t, r) = payoutTable()
-            PixelTheme { TableScreen(t, TableCallbacks(), run = r) }
-        },
         Scene("run_intro") { PixelTheme { RunIntroScreen(runIntro(), {}, {}) } },
-        Scene("run_shop") { PixelTheme { ShopScreen(shop(), {}, {}, {}, {}, {}) } },
+        Scene("run_choose") { PixelTheme { ChooseTableScreen(chooseTable(), {}, {}) } },
         Scene("run_over") { PixelTheme { RunOverScreen(RunUiState(wallRun(RunPhase.GAME_OVER), RunScreen.GameOver), victory = false, onNewRun = {}, onMenu = {}) } },
         Scene("how_to_play") { PixelTheme { HowToPlayScreen({}) } },
         Scene("settings") { PixelTheme { SettingsScreen(SettingsUi(hasSavedRun = true), SettingsCallbacks()) } },

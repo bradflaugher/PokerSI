@@ -3,10 +3,7 @@ package com.bradflaugher.pokersi.game
 import com.bradflaugher.pokersi.engine.BlindLevel
 import com.bradflaugher.pokersi.engine.Card
 import com.bradflaugher.pokersi.engine.Hand
-import com.bradflaugher.pokersi.engine.HandEvent
 import com.bradflaugher.pokersi.engine.HandEvaluator
-import com.bradflaugher.pokersi.engine.isStud
-import com.bradflaugher.pokersi.engine.streetNames
 
 /** Everything the table shows besides the hand itself: profiles, table talk, perks, boss flags. */
 data class TableExtras(
@@ -16,10 +13,6 @@ data class TableExtras(
     val chatter: Map<Int, String> = emptyMap(),
     val streamingSeat: Int? = null,
     val thinkingSeat: Int? = null,
-    /** Tell Detector readings by seat. */
-    val confidence: Map<Int, Float> = emptyMap(),
-    /** X-Ray Specs: a peeked (seat, card). */
-    val xray: Pair<Int, Card>? = null,
     val bossSeat: Int? = null,
     val hideChips: Boolean = false,
     val silent: Boolean = false,
@@ -48,14 +41,10 @@ object TableStates {
         } else emptySet()
         val revealHighlights = boardLimit == null || boardLimit >= snap.board.size
         val seats = snap.seats.map { s ->
-            val holes = if (s.seat == 0 || (s.cards.any { it == null } && extras.xray?.first == s.seat)) hand.holeCards(s.seat) else null
-            val cards = s.cards.mapIndexed { k, c ->
-                val xrayHere = c == null && extras.xray?.first == s.seat && holes?.getOrNull(k) == extras.xray.second
-                val shown = c ?: if (xrayHere) extras.xray?.second else null
+            val cards = s.cards.mapIndexed { k, shown ->
                 CardUi(
                     card = shown,
                     publicUp = s.faceUp.getOrElse(k) { false },
-                    xray = xrayHere,
                     highlighted = revealHighlights && shown != null && shown in winningCards && s.isWinner,
                 )
             }
@@ -77,7 +66,6 @@ object TableStates {
                 thinking = extras.thinkingSeat == s.seat,
                 isWinner = s.isWinner && revealHighlights,
                 shownHand = s.shownHand.takeIf { revealHighlights },
-                confidence = extras.confidence[s.seat],
                 isBoss = extras.bossSeat == s.seat,
                 chipsHidden = extras.hideChips && s.seat != 0,
                 net = result?.net?.getOrNull(s.seat),
@@ -136,10 +124,6 @@ object TableStates {
         }
     }
 
-    /** True when the human may still take a Mulligan this hand (before acting on the first street). */
-    fun mulliganAllowed(hand: Hand): Boolean =
-        !hand.isFinished && !hand.variant.isStud && hand.street == hand.variant.streetNames.first() &&
-            hand.events.none { (it is HandEvent.Action && it.seat == 0) || (it is HandEvent.Redealt && it.seat == 0) }
 }
 
 /** "1,250" style grouping for chip counts. */

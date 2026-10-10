@@ -7,16 +7,19 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.bradflaugher.pokersi.AppServices
 import com.bradflaugher.pokersi.engine.GameVariant
+import com.bradflaugher.pokersi.game.DailyRecord
 import com.bradflaugher.pokersi.game.GameController
 import com.bradflaugher.pokersi.game.Pacing
 import com.bradflaugher.pokersi.game.PrefsRunSaver
 import com.bradflaugher.pokersi.game.QuickGameSetup
 import com.bradflaugher.pokersi.game.Settings
+import com.bradflaugher.pokersi.run.RunPhase
 import com.bradflaugher.pokersi.run.RunState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import kotlin.random.Random
 
@@ -28,6 +31,7 @@ class PokerViewModel(app: Application) : AndroidViewModel(app) {
     private val prefs = app.getSharedPreferences("pokersi", Context.MODE_PRIVATE)
     val settings = Settings(prefs)
     val runSaver = PrefsRunSaver(prefs)
+    val daily = DailyRecord(prefs)
     val brains = AppServices.brains(app)
     val controller = GameController(viewModelScope, brains, Pacing(), settings.speed, runSaver = runSaver)
 
@@ -37,7 +41,15 @@ class PokerViewModel(app: Application) : AndroidViewModel(app) {
     private val _picker = MutableStateFlow(QuickGameSetup(seed = Random.nextLong()))
     val picker: StateFlow<QuickGameSetup> = _picker.asStateFlow()
 
+    init {
+        // Today's daily tour: played, finished, best result (for the title screen).
+        viewModelScope.launch {
+            controller.run.collect { ui -> ui?.state?.let(daily::update) }
+        }
+    }
+
     fun go(screen: Screen) {
+        if (screen == Screen.Title) daily.refresh()
         backStack += screen
     }
 
@@ -51,6 +63,7 @@ class PokerViewModel(app: Application) : AndroidViewModel(app) {
 
     fun toTitle() {
         controller.stop()
+        daily.refresh()
         backStack.clear()
         backStack += Screen.Title
     }
@@ -72,7 +85,17 @@ class PokerViewModel(app: Application) : AndroidViewModel(app) {
     // ---------------------------------------------------------------- run
 
     fun newRun() = openRun(RunState.new(Random.nextLong()))
-    fun dailyRun() = openRun(RunState.daily(LocalDate.now()))
+
+    /** Today's daily tour: picks up a saved one in progress instead of dealing it again. */
+    fun dailyRun() {
+        val today = LocalDate.now()
+        val saved = runSaver.load()
+        if (saved != null && saved.daily && saved.seed == RunState.dailySeed(today) && saved.phase != RunPhase.GAME_OVER) {
+            openRun(saved)
+        } else {
+            openRun(RunState.daily(today))
+        }
+    }
 
     fun continueRun() {
         val saved = runSaver.load() ?: return newRun()

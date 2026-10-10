@@ -10,24 +10,39 @@ import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.random.Random
 
-/** One opponent at a run table: a name, a [BotStyle] name for the House Bot, a stack. */
+/** One opponent at a tour table: a name, a [BotStyle] name for the House Bot, a stack. */
 @Serializable
 data class OpponentSpec(val name: String, val style: String, val chips: Int) {
     val botStyle: BotStyle get() = BotStyle.ALL.firstOrNull { it.name == style } ?: BotStyle.BALANCED
 }
 
+/** How dangerous a table on offer is. Bigger risk, bigger reward. */
+@Serializable
+enum class Risk(val label: String) {
+    /** Fewer, softer opponents, low blinds. */
+    LOW("LOW STAKES"),
+
+    /** One more opponent, sharks allowed, bigger blinds and target. */
+    HIGH("HIGH STAKES"),
+
+    /** A boss with a rule twist. */
+    BOSS("BOSS TABLE"),
+}
+
 /**
- * One table of a run. The player is seat 0, opponents follow. Clear it by
- * busting every opponent or holding [chipTarget] chips within [handLimit] hands.
+ * One table of the Poker Tour. The player is seat 0, opponents follow. Clear it by
+ * busting every opponent or holding [chipTarget] chips within [handLimit] hands;
+ * clearing pays [reward] bonus chips on top of what the player won.
  */
 @Serializable
 data class TableSpec(
-    val ante: Int,
-    /** 0 = small table, 1 = big table, 2 = boss table. */
-    val stage: Int,
+    /** The tour stop, from 1. */
+    val level: Int,
+    val risk: Risk,
     val name: String,
     val variant: GameVariant,
     val opponents: List<OpponentSpec>,
+    /** What the player sits down with (their whole bankroll, unless a boss says otherwise). */
     val playerChips: Int,
     val smallBlind: Int,
     val bigBlind: Int,
@@ -36,7 +51,7 @@ data class TableSpec(
     val blindGrowth: Double,
     val chipTarget: Int,
     val handLimit: Int,
-    /** Coins for clearing the table, before bonuses. */
+    /** Bonus chips for clearing the table. */
     val reward: Int,
     val bossId: String? = null,
     val seed: Long,
@@ -67,8 +82,9 @@ data class TableSpec(
 
     companion object {
         const val PLAYER_NAME = "You"
-        const val STAGES_PER_ANTE = 3
-        const val FINAL_ANTE = 8
+
+        /** Clearing this stop wins the tour (it goes on, endless). */
+        const val FINAL_LEVEL = 10
         const val BASE_CHIPS = 1000
 
         private val OPPONENT_NAMES = listOf(
@@ -78,52 +94,50 @@ data class TableSpec(
         )
 
         /**
-         * Builds the table for [ante] and [stage] of the run seeded with [runSeed].
-         * [jokers] (owned ids) can add starting chips, hands or lower the target.
+         * Builds the [risk] table offered at tour stop [level] of the run seeded with
+         * [runSeed], for a player holding [bankroll] chips.
          */
-        fun generate(runSeed: Long, ante: Int, stage: Int, jokers: List<String> = emptyList()): TableSpec {
-            val seed = Match.mix(runSeed, ante * 16 + stage)
+        fun generate(runSeed: Long, level: Int, risk: Risk, bankroll: Int): TableSpec {
+            val seed = Match.mix(runSeed, level * 16 + risk.ordinal)
             val rng = Random(seed)
-            val boss = if (stage == 2) Bosses.ALL[rng.nextInt(Bosses.ALL.size)] else null
+            val boss = if (risk == Risk.BOSS) Bosses.ALL[rng.nextInt(Bosses.ALL.size)] else null
             val rules = boss?.rules ?: BossRules()
-            val effects = if (rules.jokersDisabled) emptyList() else jokers.mapNotNull { Jokers.byId(it)?.effect }
+            val r = risk.ordinal
 
-            // Difficulty grows through the eight antes, then faster in endless mode.
-            val endless = (ante - FINAL_ANTE).coerceAtLeast(0)
-            val scale = (1.0 + 0.15 * (ante - 1)) * 1.4.pow(endless)
+            // Stakes grow along the tour, then faster in endless mode.
+            val endless = (level - FINAL_LEVEL).coerceAtLeast(0)
+            val scale = (1.0 + 0.2 * (level - 1)) * 1.4.pow(endless)
 
-            val opponentCount = (1 + stage + (if (ante >= 3) 1 else 0) + (if (ante >= 6) 1 else 0) + rng.nextInt(0, 2))
+            val opponentCount = (1 + minOf(r, 1) + (if (level >= 4) 1 else 0) + (if (level >= 7) 1 else 0) + rng.nextInt(0, 2))
                 .coerceIn(1, 5)
             val names = OPPONENT_NAMES.shuffled(rng).take(opponentCount)
-            val styles = BotStyle.ALL.filter { stage == 2 || ante > 2 || it != BotStyle.SHARK }
+            val styles = BotStyle.ALL.filter { risk != Risk.LOW || level > 3 || it != BotStyle.SHARK }
             val opponentChips = roundTo((BASE_CHIPS * scale).roundToInt(), 50)
             val opponents = names.map { OpponentSpec(it, styles[rng.nextInt(styles.size)].name, opponentChips) }
 
-            val chipBonus = effects.filterIsInstance<JokerEffect.StartingChipsPercent>().sumOf { it.percent }
-            val playerChips = roundTo((BASE_CHIPS * scale * rules.playerChipsMultiplier * (100 + chipBonus) / 100).roundToInt(), 50)
+            val playerChips = (bankroll * rules.playerChipsMultiplier).toInt().coerceIn(1, maxOf(1, bankroll))
 
-            val bigBlind = BlindSchedule.tidy((20 * scale * (1 + 0.25 * stage)).toLong())
+            val bigBlind = BlindSchedule.tidy((20 * scale * (1 + 0.25 * r)).toLong())
             val smallBlind = maxOf(1, bigBlind / 2)
             val tableAnte = if (rules.anteFraction > 0) maxOf(1, (bigBlind * rules.anteFraction).roundToInt()) else 0
 
-            // Win enough of the table's chips: a bigger share as the antes climb, always reachable.
+            // Win a share of the table's chips: a bigger share at riskier tables and later stops.
             val opponentTotal = opponentChips * opponentCount
-            val wanted = BASE_CHIPS * scale * (1.6 + 0.15 * (ante - 1) + 0.2 * stage)
-            val reachable = playerChips + opponentTotal * 0.8
-            val chipTarget = roundTo(minOf(wanted, reachable).roundToInt(), 50).coerceAtLeast(playerChips + 50)
+            val share = (0.3 + 0.12 * r + 0.02 * (level - 1)).coerceAtMost(0.8)
+            val chipTarget = roundTo((playerChips + opponentTotal * share).roundToInt(), 50)
+                .coerceIn(playerChips + 50, maxOf(playerChips + 50, playerChips + (opponentTotal * 0.8).toInt()))
 
-            val extraHands = effects.filterIsInstance<JokerEffect.ExtraHands>().sumOf { it.hands }
-            val handLimit = ((12 + 4 * opponentCount) * rules.handLimitMultiplier).roundToInt() + extraHands
+            val handLimit = ((12 + 4 * opponentCount) * rules.handLimitMultiplier).roundToInt()
 
             val variant = rules.forcedVariant ?: when {
-                ante == 1 -> GameVariant.TEXAS_HOLDEM
+                level == 1 -> GameVariant.TEXAS_HOLDEM
                 rng.nextInt(3) == 0 -> GameVariant.TEXAS_HOLDEM
                 else -> GameVariant.entries[rng.nextInt(GameVariant.entries.size)]
             }
             return TableSpec(
-                ante = ante,
-                stage = stage,
-                name = boss?.name ?: if (stage == 0) "Small Table" else "Big Table",
+                level = level,
+                risk = risk,
+                name = boss?.name ?: if (risk == Risk.LOW) "Low Stakes" else "High Stakes",
                 variant = variant,
                 opponents = opponents,
                 playerChips = playerChips,
@@ -134,7 +148,7 @@ data class TableSpec(
                 blindGrowth = if (rules.blindsUpEvery != null) rules.blindsGrowth else 1.5,
                 chipTarget = chipTarget,
                 handLimit = handLimit,
-                reward = 3 + 2 * stage + ante / 2 + endless,
+                reward = roundTo((opponentChips * (0.2 + 0.3 * r)).roundToInt(), 50),
                 bossId = boss?.id,
                 seed = seed,
             )

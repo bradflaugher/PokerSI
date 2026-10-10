@@ -2,7 +2,9 @@ package com.bradflaugher.pokersi.game
 
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import com.bradflaugher.pokersi.run.RunPhase
 import com.bradflaugher.pokersi.run.RunState
+import java.time.LocalDate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -47,8 +49,16 @@ class Settings(private val prefs: SharedPreferences) {
     }
 }
 
-/** Keeps the run in SharedPreferences as [RunState.toJson]; [saved] tells the title screen there's one to CONTINUE. */
+/**
+ * Keeps the run in SharedPreferences as [RunState.toJson]; [saved] tells the title
+ * screen there's one to CONTINUE. A save from an older format (the Joker-shop
+ * runs) is dropped on first read instead of crashing.
+ */
 class PrefsRunSaver(private val prefs: SharedPreferences) : RunSaver {
+    init {
+        if (prefs.contains(OLD_KEY)) prefs.edit { remove(OLD_KEY) }
+    }
+
     private val _saved = MutableStateFlow(load() != null)
     val saved: StateFlow<Boolean> = _saved.asStateFlow()
 
@@ -61,6 +71,7 @@ class PrefsRunSaver(private val prefs: SharedPreferences) : RunSaver {
         try {
             RunState.fromJson(json)
         } catch (_: Exception) {
+            prefs.edit { remove(KEY) }
             null
         }
     }
@@ -71,6 +82,57 @@ class PrefsRunSaver(private val prefs: SharedPreferences) : RunSaver {
     }
 
     private companion object {
-        const val KEY = "run_v1"
+        const val KEY = "run_v2"
+        const val OLD_KEY = "run_v1"
+    }
+}
+
+/** Today's daily tour as far as the title screen cares: played yet, finished, best result. */
+data class DailyResult(val played: Boolean = false, val finished: Boolean = false, val bestTables: Int = 0) {
+    /** The title screen's button label. */
+    val label: String get() = when {
+        finished -> "DAILY: BEST $bestTables"
+        else -> "DAILY TOUR"
+    }
+}
+
+/** Remembers today's daily tour (date, finished, most tables cleared) in [prefs]. */
+class DailyRecord(private val prefs: SharedPreferences, private val today: () -> LocalDate = LocalDate::now) {
+    private val _result = MutableStateFlow(read())
+    val result: StateFlow<DailyResult> = _result.asStateFlow()
+
+    /** Re-reads for the current date (a new day resets it). */
+    fun refresh() {
+        _result.value = read()
+    }
+
+    /** Records [state] if it is today's daily tour. */
+    fun update(state: RunState) {
+        val date = today()
+        if (!state.daily || state.seed != RunState.dailySeed(date)) return
+        val current = read()
+        val next = DailyResult(
+            played = true,
+            finished = current.finished || state.phase == RunPhase.GAME_OVER,
+            bestTables = maxOf(current.bestTables, state.stats.tablesCleared),
+        )
+        if (next == current) return
+        prefs.edit {
+            putLong(KEY_DATE, date.toEpochDay())
+            putBoolean(KEY_FINISHED, next.finished)
+            putInt(KEY_BEST, next.bestTables)
+        }
+        _result.value = next
+    }
+
+    private fun read(): DailyResult {
+        if (prefs.getLong(KEY_DATE, Long.MIN_VALUE) != today().toEpochDay()) return DailyResult()
+        return DailyResult(played = true, finished = prefs.getBoolean(KEY_FINISHED, false), bestTables = prefs.getInt(KEY_BEST, 0))
+    }
+
+    private companion object {
+        const val KEY_DATE = "daily_date"
+        const val KEY_FINISHED = "daily_finished"
+        const val KEY_BEST = "daily_best"
     }
 }

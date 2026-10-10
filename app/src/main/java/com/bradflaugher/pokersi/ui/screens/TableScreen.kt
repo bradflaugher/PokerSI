@@ -92,7 +92,6 @@ class TableCallbacks(
     val onToggle: (Int) -> Unit = {},
     val onConfirmDiscard: () -> Unit = {},
     val onNext: () -> Unit = {},
-    val onMulligan: () -> Unit = {},
     val onPlayAgain: () -> Unit = {},
     val onMenu: () -> Unit = {},
     val onPause: () -> Unit = {},
@@ -195,9 +194,6 @@ fun TableScreen(
                 }
                 BubbleLayer(state, spots, compact = !m.big, wide = m.wide)
                 BannerLayer(state, screenWidth, spots, m.wide)
-                run?.payout?.let { payout ->
-                    PayoutPanel(payout, Modifier.align(Alignment.Center).widthIn(max = 340.dp).padding(horizontal = 24.dp).zIndex(4f))
-                }
                 ConfettiBurst(state.celebrate.takeIf { it > 0 && state.banner?.humanWon == true }, Modifier.fillMaxSize().zIndex(5f))
             }
         }
@@ -314,12 +310,6 @@ private fun OpponentSeat(seat: SeatUi, m: TableMetrics, state: TableUiState, mod
             seat.isBoss -> PixelTag("BOSS", p.hotPink, textColor = p.yellow)
             else -> Box(Modifier.height(16.dp))
         }
-        if (seat.confidence != null && !seat.folded) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                PixelText("TELL", style = PixelType.Label.copy(fontSize = 8.sp), color = p.teal, shadowUnits = 0)
-                PixelMeter(seat.confidence, lerp(p.teal, p.red, seat.confidence), Modifier.weight(1f), height = 8.dp)
-            }
-        }
     }
 }
 
@@ -380,7 +370,6 @@ private fun SeatCards(cards: List<CardUi>, cardSize: Dp, handNumber: Int, modifi
                         dealFrom = DpOffset(0.dp, 120.dp),
                         dealDelayMillis = 60 * i,
                     )
-                    if (c.xray) PixelTag("XRAY", PixelTheme.palette.teal, Modifier.align(Alignment.BottomCenter), textColor = PixelTheme.palette.ink, style = PixelType.LabelBold.copy(fontSize = 8.sp))
                 }
             }
         }
@@ -516,9 +505,6 @@ private fun HumanArea(state: TableUiState, m: TableMetrics, callbacks: TableCall
                 if (made != null && !me.folded) {
                     PixelText(made.uppercase(), style = PixelType.LabelBold.copy(fontSize = 12.sp), color = if (me.isWinner) p.yellow else p.cardCream, maxLines = 1)
                 }
-            }
-            if (turn?.canMulligan == true) {
-                SmallButton("MULLIGAN", callbacks.onMulligan, variant = PixelButtonVariant.Pink)
             }
             LedCounter(me.chips, label = "CREDIT", color = LedColor.Red, minDigits = 5, segmentUnits = if (m.big) 2 else 1)
         }
@@ -742,7 +728,7 @@ private fun HandOverBar(state: TableUiState, callbacks: TableCallbacks, run: Run
                 PixelButton("NEW TABLE", callbacks.onPlayAgain, Modifier.weight(2f), variant = PixelButtonVariant.Deal, sound = Sfx.Deal)
             }
             TablePhase.RunTableDone -> {
-                val cleared = run?.state?.phase == RunPhase.SHOP
+                val cleared = run?.state?.phase == RunPhase.CHOOSE
                 PixelButton(if (cleared) "CASH OUT" else "GAME OVER", callbacks.onNext, Modifier.weight(1f), variant = if (cleared) PixelButtonVariant.Bet else PixelButtonVariant.Deal, sound = Sfx.Blip)
             }
             else -> PixelButton("NEXT HAND", callbacks.onNext, Modifier.weight(1f), variant = PixelButtonVariant.Deal, sound = Sfx.Deal)
