@@ -44,6 +44,7 @@ import com.bradflaugher.pokersi.run.Jokers
 import com.bradflaugher.pokersi.run.Rarity
 import com.bradflaugher.pokersi.run.RunState
 import com.bradflaugher.pokersi.run.TableSpec
+import com.bradflaugher.pokersi.ui.pixel.FeltColors
 import com.bradflaugher.pokersi.ui.pixel.BigBanner
 import com.bradflaugher.pokersi.ui.pixel.ConfettiBurst
 import com.bradflaugher.pokersi.ui.pixel.LedColor
@@ -195,7 +196,7 @@ fun RunIntroScreen(run: RunUiState, onPlay: () -> Unit, onBack: () -> Unit, modi
     val state = run.state
     val spec = state.table
     val boss = spec.boss
-    ArcadeScreen(modifier, swirl = if (boss != null) listOf(Color(0xFF1A0420), p.purpleDark, p.suitRed) else null) {
+    ArcadeScreen(modifier, felt = FeltColors.Table) {
         Column(Modifier.fillMaxSize()) {
             ArcadeTopBar(if (state.daily) "DAILY RUN" else "RUN MODE", onBack) {
                 LedCounter(state.coins, label = "COINS", color = LedColor.Amber, minDigits = 3, segmentUnits = 1)
@@ -314,7 +315,7 @@ fun ShopScreen(
 ) {
     val p = PixelTheme.palette
     val state = run.state
-    ArcadeScreen(modifier, swirl = listOf(Color(0xFF1B0A3A), p.purple, p.hotPink)) {
+    ArcadeScreen(modifier) {
         Column(Modifier.fillMaxSize()) {
             ArcadeTopBar("JOKER SHOP", onBack) {
                 LedCounter(state.coins, label = "COINS", color = LedColor.Amber, minDigits = 3, segmentUnits = 1, sound = Sfx.Chip)
@@ -411,7 +412,7 @@ fun RunOverScreen(run: RunUiState, victory: Boolean, onNewRun: () -> Unit, onMen
     val p = PixelTheme.palette
     val state = run.state
     val s = state.stats
-    ArcadeScreen(modifier, swirl = if (victory) null else listOf(Color(0xFF12040C), p.redDark, p.purpleDark)) {
+    ArcadeScreen(modifier) {
         if (victory) ConfettiBurst(Unit, Modifier.fillMaxSize())
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),

@@ -32,14 +32,14 @@ private fun cards(s: String) = Card.parseList(s)
 
 /**
  * Every piece of the pixel design system on one scrolling screen, on the
- * swirl under CRT glass. Used by the screenshot tests and handy as a debug
+ * green felt under CRT glass. Used by the screenshot tests and handy as a debug
  * screen. Interactive bits (HOLD toggles, DEAL, BET) work.
  */
 @Composable
 fun DesignShowcase(modifier: Modifier = Modifier, scrollable: Boolean = true) {
     PixelTheme {
         CrtOverlay(modifier.fillMaxSize()) {
-            SwirlBackground(Modifier.fillMaxSize()) {
+            FeltBackground(Modifier.fillMaxSize()) {
                 val scroll = rememberScrollState()
                 Column(
                     Modifier

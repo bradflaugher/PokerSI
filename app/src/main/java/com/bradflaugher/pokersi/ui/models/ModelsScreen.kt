@@ -47,7 +47,8 @@ import com.bradflaugher.pokersi.ui.pixel.PixelButtonVariant
 import com.bradflaugher.pokersi.ui.pixel.PixelPanel
 import com.bradflaugher.pokersi.ui.pixel.PixelText
 import com.bradflaugher.pokersi.ui.pixel.PixelType
-import com.bradflaugher.pokersi.ui.pixel.SwirlBackground
+import com.bradflaugher.pokersi.ui.pixel.FeltBackground
+import com.bradflaugher.pokersi.ui.pixel.FeltColors
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -141,7 +142,7 @@ fun ModelsContent(state: ModelsUiState, actions: ModelsActions, modifier: Modifi
     val catalog = state.models.filter { !it.isCustom }
         .sortedWith(compareByDescending<LocalModel> { it.catalog?.recommended == true }.thenByDescending { it.isAvailable }.thenBy { it.sizeBytes })
     val custom = state.models.filter { it.isCustom }
-    SwirlBackground(modifier.fillMaxSize(), colors = listOf(p.cabinetDeep, p.purpleDark, p.cabinetBlack)) {
+    FeltBackground(modifier.fillMaxSize(), colors = FeltColors.Lobby) {
         CrtOverlay(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxSize().safeDrawingPadding(), contentAlignment = Alignment.TopCenter) {
                 LazyColumn(

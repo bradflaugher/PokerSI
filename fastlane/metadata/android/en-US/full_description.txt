@@ -1,4 +1,4 @@
-Poker against a table of oddballs, and every one of them is an AI running on your phone. Chunky 8-bit cards, a swirling psychedelic backdrop, CRT scanlines and marquee lights: half 90s video poker cabinet, half roguelite. Texas Hold'em, Omaha, Draw, Stud, Short Deck and Crazy Pineapple, plus a Run mode that keeps raising the stakes.
+Poker against a table of oddballs, and every one of them is an AI running on your phone. Chunky 8-bit cards on green felt, CRT scanlines and marquee lights: a 90s video poker cabinet with a whole table of characters. Texas Hold'em, Omaha, Draw, Stud, Short Deck and Crazy Pineapple, plus a Run mode that keeps raising the stakes.
 
 THE TABLE TALKS BACK
 • Every opponent is a freshly rolled persona with a pixel face, a name and a personality, from timid to reckless. A small language model plays each one, deciding the bet and the trash talk together.
@@ -18,7 +18,7 @@ SIX GAMES
 RUN MODE
 • Climb a ladder of tables with rising blinds. Bust out and the run is over.
 • Boss opponents bring a rule twist to their table, and you have to adapt.
-• Spend your winnings in the Joker shop on perks that stack in strange ways.
+• After each table, pick your next one: a different game, bigger stakes, or a boss.
 • Seeded runs you can share and replay, and a daily run that is the same for everyone.
 
 PICK YOUR BRAIN

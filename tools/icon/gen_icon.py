@@ -2,10 +2,10 @@
 """Generates the PokerSI adaptive launcher icon as vector drawables.
 
 A pixel-art ace card with the PokerSI robot on it (antenna poking out over
-the top edge), on a posterized swirl in cabinet blue, purple and hot pink.
+the top edge), on lamp-lit green card-table felt.
 Writes three layers, all on the 108x108dp adaptive-icon canvas:
 
-  res/drawable/ic_launcher_background.xml  swirl
+  res/drawable/ic_launcher_background.xml  felt
   res/drawable/ic_launcher_foreground.xml  card + robot (inside the 66dp safe zone)
   res/drawable/ic_launcher_monochrome.xml  one-color silhouette for themed icons
 
@@ -127,38 +127,24 @@ def card_art():
     return ["".join(r) for r in g]
 
 
-def swirl_background():
-    """A posterized swirl (same idea as the in-app SwirlBackground)."""
-    a = (0x0A, 0x12, 0x50)
-    b = (0x5B, 0x2C, 0xD8)
-    c = (0xE5, 0x26, 0x7E)
+def felt_background():
+    """Lamp-lit green felt, ordered-dithered (same idea as the in-app FeltBackground)."""
+    tones = ["#FF021C15", "#FF053324", "#FF0A4C34", "#FF106444", "#FF187C53"]
+    bayer = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]
     rows = []
-    cells = {}
     for y in range(GRID):
         row = []
         for x in range(GRID):
-            ux = (x + 0.5 - GRID / 2) / GRID * 2
-            uy = (y + 0.5 - GRID / 2) / GRID * 2
-            r = math.hypot(ux, uy)
-            ang = math.atan2(uy, ux) + 0.8 + (1.3 - r) * 2.6
-            qx, qy = math.cos(ang) * r * 3, math.sin(ang) * r * 3
-            for i in range(4):
-                qx, qy = qx + math.sin(qy * 1.25 + i) * 0.6, qy + math.cos(qx * 1.05 + i * 1.7) * 0.6
-            v = 0.5 + 0.5 * math.sin(qx * 1.15 + qy * 0.85)
-            w = 0.5 + 0.5 * math.cos(math.hypot(qx, qy) * 1.35)
-            m = min(1, max(0, v * 0.62 + w * 0.38 - r * 0.1))
-            d = [[0, 0.5], [0.75, 0.25]][x % 2][y % 2]
-            k = min(1.0, max(0.0, math.floor(m * 5 + d) / 4))
-            if k < 0.5:
-                f, c0, c1 = k * 2, a, b
-            else:
-                f, c0, c1 = (k - 0.5) * 2, b, c
-            col = tuple(round(c0[i] + (c1[i] - c0[i]) * f) for i in range(3))
-            key = "#FF%02X%02X%02X" % col
-            ch = cells.setdefault(key, chr(ord("A") + len(cells)))
-            row.append(ch)
+            dx = (x + 0.5) / GRID - 0.5
+            dy = (y + 0.5) / GRID - 0.45
+            lamp = max(0.0, 1 - (math.hypot(dx, dy) / 0.62) ** 2)
+            twill = 0.035 if (x + y) % 4 < 2 else -0.035
+            v = min(1.0, max(0.0, 0.1 + lamp * 0.86 + twill)) * (len(tones) - 1)
+            base = math.floor(v)
+            k = base + 1 if v - base > (bayer[(y % 4) * 4 + x % 4] + 0.5) / 16 else base
+            row.append(chr(ord("A") + min(k, len(tones) - 1)))
         rows.append("".join(row))
-    legend = {v: k for k, v in cells.items()}
+    legend = {chr(ord("A") + i): t for i, t in enumerate(tones)}
     return rows, legend
 
 
@@ -216,7 +202,7 @@ def monochrome_rows(rows):
 
 def main():
     fg = card_art()
-    bg, bg_legend = swirl_background()
+    bg, bg_legend = felt_background()
     drawable = os.path.join(RES, "drawable")
     mipmap = os.path.join(RES, "mipmap-anydpi")
     os.makedirs(drawable, exist_ok=True)

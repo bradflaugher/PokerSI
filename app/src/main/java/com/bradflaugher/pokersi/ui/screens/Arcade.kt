@@ -57,7 +57,8 @@ import com.bradflaugher.pokersi.ui.pixel.PixelTheme
 import com.bradflaugher.pokersi.ui.pixel.PixelText
 import com.bradflaugher.pokersi.ui.pixel.PixelType
 import com.bradflaugher.pokersi.ui.pixel.Sfx
-import com.bradflaugher.pokersi.ui.pixel.SwirlBackground
+import com.bradflaugher.pokersi.ui.pixel.FeltBackground
+import com.bradflaugher.pokersi.ui.pixel.FeltColors
 import com.bradflaugher.pokersi.ui.pixel.notchedRect
 import com.bradflaugher.pokersi.ui.pixel.pxRect
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -65,22 +66,19 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 /** Whether cards sway idly (a setting). */
 val LocalCardSway = compositionLocalOf { true }
 
-/** Swirl colors for the felt-green table screens. */
-val FeltSwirl: List<Color> get() = PixelPalette.Felt.let { listOf(it.swirlA, it.swirlB, it.swirlC) }
-
 /**
- * Every screen's frame: the swirl backdrop under CRT glass, content kept
+ * Every screen's frame: green felt under CRT glass, content kept
  * clear of system bars (edge to edge).
  */
 @Composable
 fun ArcadeScreen(
     modifier: Modifier = Modifier,
-    swirl: List<Color>? = null,
+    felt: FeltColors = FeltColors.Lobby,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val p = PixelTheme.palette
     CrtOverlay(modifier.fillMaxSize()) {
-        SwirlBackground(Modifier.fillMaxSize(), colors = swirl ?: listOf(p.swirlA, p.swirlB, p.swirlC)) {
+        FeltBackground(Modifier.fillMaxSize(), colors = felt) {
             BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
                 // Tablets: the phone layout, scaled up, reads far better than a sea of space.
                 val scale = minOf(maxWidth / 411.dp, maxHeight / 731.dp, maxHeight / 411.dp).coerceIn(1f, 1.6f)
