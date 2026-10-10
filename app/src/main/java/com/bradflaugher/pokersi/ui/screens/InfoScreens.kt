@@ -1,0 +1,187 @@
+package com.bradflaugher.pokersi.ui.screens
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.bradflaugher.pokersi.engine.Card
+import com.bradflaugher.pokersi.engine.GameVariant
+import com.bradflaugher.pokersi.game.GameSpeed
+import com.bradflaugher.pokersi.ui.pixel.Mood
+import com.bradflaugher.pokersi.ui.pixel.PanelStyle
+import com.bradflaugher.pokersi.ui.pixel.PayRow
+import com.bradflaugher.pokersi.ui.pixel.PayTable
+import com.bradflaugher.pokersi.ui.pixel.PixelAvatar
+import com.bradflaugher.pokersi.ui.pixel.PixelButton
+import com.bradflaugher.pokersi.ui.pixel.PixelButtonVariant
+import com.bradflaugher.pokersi.ui.pixel.PixelCard
+import com.bradflaugher.pokersi.ui.pixel.PixelPanel
+import com.bradflaugher.pokersi.ui.pixel.PixelText
+import com.bradflaugher.pokersi.ui.pixel.PixelTheme
+import com.bradflaugher.pokersi.ui.pixel.PixelType
+import com.bradflaugher.pokersi.ui.pixel.SpeechBubble
+
+// ---------------------------------------------------------------- how to play
+
+/** Hand rankings, each game's rules, Run mode, and what the AI is. */
+@Composable
+fun HowToPlayScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
+    val p = PixelTheme.palette
+    ArcadeScreen(modifier) {
+        Column(Modifier.fillMaxSize()) {
+            ArcadeTopBar("HOW TO PLAY", onBack)
+            Column(
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 14.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                PayTable(
+                    listOf(
+                        PayRow("ROYAL FLUSH", "A K Q J 10"),
+                        PayRow("STRAIGHT FLUSH", "5 IN A ROW, 1 SUIT"),
+                        PayRow("FOUR OF A KIND", "4 SAME RANK"),
+                        PayRow("FULL HOUSE", "3 + 2"),
+                        PayRow("FLUSH", "5 OF 1 SUIT"),
+                        PayRow("STRAIGHT", "5 IN A ROW"),
+                        PayRow("THREE OF A KIND", "3 SAME RANK"),
+                        PayRow("TWO PAIR", "2 + 2"),
+                        PayRow("PAIR", "2 SAME RANK"),
+                        PayRow("HIGH CARD", "NOTHING. OOF."),
+                    ),
+                    Modifier.readable(),
+                    title = "HAND RANKINGS",
+                    highlight = 0,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Card.parseList("As Ks Qs Js Ts").forEach { PixelCard(it, size = 44.dp, highlighted = true) }
+                }
+                InfoPanel("THE BASICS") {
+                    BodyText("Everyone gets cards and bets in turns. On your turn: FOLD (give up), CHECK (pass, when nobody has bet), CALL (match the bet), or RAISE (bet more). Bet so big nobody calls and the pot is yours. Otherwise the best five-card hand at the showdown wins.", small = true)
+                }
+                GameVariant.entries.forEach { v ->
+                    InfoPanel(v.displayName.uppercase()) {
+                        PixelText(v.tagline, style = PixelType.BodySmall, color = p.yellow)
+                        VGap(4.dp)
+                        BodyText(v.howToPlay, small = true)
+                    }
+                }
+                InfoPanel("RUN MODE") {
+                    BodyText("A ladder of poker tables, three per ante: a small table, a big table and a boss. Win the chip target before you run out of hands (or bust everyone) to clear a table. Bosses bend the rules: The Wall never folds, Blind Fury doubles the blinds, The Mime won't talk. Spend coins in the Joker shop between tables. Jokers pay coins for big hands, give chips back, let you peek at cards and more. Beat the eighth boss to win, then keep going in endless mode. The daily run is the same deal for everyone, every day.", small = true)
+                }
+                InfoPanel("WHO AM I PLAYING?") {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PixelAvatar(4242L, Mood.Smug, size = 56.dp)
+                        SpeechBubble("I'm a language model. On your phone. Fear me.", Modifier.weight(1f))
+                    }
+                    VGap(6.dp)
+                    BodyText("Each opponent is a made-up character played by a small AI language model running on your phone, offline. Every turn it reads the table (only what its seat may see), decides, and says something silly. Download a model from MODELS. With no model, the built-in House Bot plays every seat, and it steps in whenever the AI fumbles, so a hand never stalls.", small = true)
+                }
+                VGap(12.dp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun InfoPanel(title: String, content: @Composable () -> Unit) {
+    PixelPanel(Modifier.readable(), title = title, style = PanelStyle.Cabinet, paddingUnits = 2) { content() }
+}
+
+// ---------------------------------------------------------------- settings
+
+/** The settings as the screen shows them. */
+data class SettingsUi(
+    val sound: Boolean = true,
+    val haptics: Boolean = true,
+    val crt: Boolean = true,
+    val cardSway: Boolean = true,
+    val speed: GameSpeed = GameSpeed.NORMAL,
+    val hasSavedRun: Boolean = false,
+)
+
+class SettingsCallbacks(
+    val onSound: (Boolean) -> Unit = {},
+    val onHaptics: (Boolean) -> Unit = {},
+    val onCrt: (Boolean) -> Unit = {},
+    val onCardSway: (Boolean) -> Unit = {},
+    val onSpeed: (GameSpeed) -> Unit = {},
+    val onResetRun: () -> Unit = {},
+    val onBack: () -> Unit = {},
+)
+
+@Composable
+fun SettingsScreen(settings: SettingsUi, callbacks: SettingsCallbacks, modifier: Modifier = Modifier) {
+    val p = PixelTheme.palette
+    var confirmReset by remember { mutableStateOf(false) }
+    ArcadeScreen(modifier) {
+        Column(Modifier.fillMaxSize()) {
+            ArcadeTopBar("SETTINGS", callbacks.onBack)
+            Column(
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 14.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                PixelPanel(Modifier.readable(), title = "CABINET", paddingUnits = 2) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        ToggleRow("SOUND", "Chiptune bleeps", settings.sound, callbacks.onSound)
+                        ToggleRow("HAPTICS", "Buzz on buttons", settings.haptics, callbacks.onHaptics)
+                        ToggleRow("CRT GLASS", "Scanlines and vignette", settings.crt, callbacks.onCrt)
+                        ToggleRow("CARD SWAY", "Cards bob gently", settings.cardSway, callbacks.onCardSway)
+                        SectionHeading("GAME SPEED")
+                        ChoiceRow(GameSpeed.entries, settings.speed, { it.label }, callbacks.onSpeed)
+                    }
+                }
+                PixelPanel(Modifier.readable(), title = "RUN", style = PanelStyle.Dark, paddingUnits = 2) {
+                    if (!settings.hasSavedRun) {
+                        BodyText("No run in progress.", color = p.cardCream, small = true)
+                    } else if (!confirmReset) {
+                        PixelButton("ABANDON RUN", { confirmReset = true }, Modifier.fillMaxWidth(), variant = PixelButtonVariant.Deal, textStyle = PixelType.Small)
+                    } else {
+                        BodyText("Really throw away your run? Jokers and all?", color = p.yellow, small = true)
+                        VGap(8.dp)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SmallButton("KEEP IT", { confirmReset = false }, Modifier.weight(1f))
+                            SmallButton("YES, RESET", { confirmReset = false; callbacks.onResetRun() }, Modifier.weight(1f), variant = PixelButtonVariant.Deal)
+                        }
+                    }
+                }
+                PixelText(
+                    "NO ADS. NO ACCOUNTS. NO ANALYTICS.\nTHE NETWORK IS ONLY USED TO DOWNLOAD MODELS YOU PICK.",
+                    style = PixelType.Label.copy(fontSize = 10.sp), color = p.gray, textAlign = TextAlign.Center, shadowUnits = 0,
+                )
+                VGap(12.dp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ToggleRow(title: String, subtitle: String, on: Boolean, onChange: (Boolean) -> Unit) {
+    val p = PixelTheme.palette
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            PixelText(title, style = PixelType.Small, color = p.yellow)
+            PixelText(subtitle, style = PixelType.BodySmall, color = p.cardCream, shadowUnits = 0)
+        }
+        PixelButton(
+            if (on) "ON" else "OFF", { onChange(!on) },
+            Modifier.padding(0.dp),
+            variant = if (on) PixelButtonVariant.Call else PixelButtonVariant.Gray,
+            textStyle = PixelType.Small,
+        )
+    }
+}
