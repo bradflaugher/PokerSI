@@ -9,18 +9,35 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
+    <!-- Touch is optional: a Chromebook with only a keyboard and mouse can play.
+         Without this, Play assumes a touchscreen is required. -->
+    <uses-feature
+        android:name="android.hardware.touchscreen"
+        android:required="false" />
+
+    <!-- hasFragileUserData: uninstalling offers to keep the downloaded models and the saved run. -->
     <application
         android:allowBackup="false"
         android:appCategory="game"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:extractNativeLibs="true"
+        android:hasFragileUserData="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher"
         android:theme="@style/Theme.PokerSI">
 
+        <!-- Compose handles every configuration change in place: rotating, folding,
+             resizing a window or plugging in a keyboard never restarts the activity,
+             so a hand in play (and a model mid-thought) is never interrupted. -->
         <activity
             android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density|uiMode|keyboard|keyboardHidden|navigation|fontScale|fontWeightAdjustment|layoutDirection|locale|colorMode|touchscreen"
             android:exported="true">
+            <!-- Below this, a freeform or split-screen window can't fit the table. -->
+            <layout
+                android:minWidth="320dp"
+                android:minHeight="320dp" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
