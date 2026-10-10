@@ -29,6 +29,12 @@ object CardArt {
     fun face(card: Card, palette: PixelPalette = PixelPalette.Default): ImageBitmap =
         cache.getOrPut(FaceKey(card, palette)) { drawFace(card, palette).toImageBitmap() }
 
+    /** Renders every face and the back into the cache; call off the main thread. */
+    fun prewarm(palette: PixelPalette = PixelPalette.Default) {
+        back(palette)
+        for (suit in Suit.entries) for (rank in Rank.entries) face(Card(rank, suit), palette)
+    }
+
     /** The PokerSI card back. */
     fun back(palette: PixelPalette = PixelPalette.Default): ImageBitmap =
         cache.getOrPut(BackKey(palette)) { drawBack(palette).toImageBitmap() }
