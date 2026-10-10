@@ -1,33 +1,15 @@
 package com.bradflaugher.pokersi.ui.models
 
 import android.net.Uri
-import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.bradflaugher.pokersi.llm.DownloadProgress
 import com.bradflaugher.pokersi.llm.EngineState
 import com.bradflaugher.pokersi.llm.LocalModel
 import com.bradflaugher.pokersi.llm.ModelCatalog
 import com.bradflaugher.pokersi.llm.ModelLocation
-import com.bradflaugher.pokersi.ui.pixel.PixelTheme
-import com.bradflaugher.pokersi.ui.screenshot.DeviceSpec
-import com.bradflaugher.pokersi.ui.screenshot.renderToPng
-import com.bradflaugher.pokersi.ui.screenshot.screenshotDir
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.annotation.Config
-import org.robolectric.annotation.GraphicsMode
 import java.io.File
 
-/** The model bay with a loaded model, a download in flight and a custom file. */
-@RunWith(AndroidJUnit4::class)
-@Config(sdk = [36])
-@GraphicsMode(GraphicsMode.Mode.NATIVE)
-class ModelsScreenshotTest {
-    @Test
-    fun modelBay() = renderToPng(File(screenshotDir, "screens/models.png"), DeviceSpec.PHONE) {
-        PixelTheme { ModelsContent(scene(), NoActions) }
-    }
-
-    companion object {
+/** A scripted model bay: a loaded model, a download in flight, a linked folder. */
+object ModelsScenes {
         fun scene(): ModelsUiState {
             val catalog = ModelCatalog.models.map { c ->
                 val location = if (c.recommended) ModelLocation.FilePath(File("/models/${c.fileName}")) else null
@@ -41,7 +23,8 @@ class ModelsScreenshotTest {
                 folders = listOf(Uri.parse("content://com.android.externalstorage.documents/tree/primary%3AModels")),
             )
         }
-    }
+
+    val noActions: ModelsActions = NoActions
 }
 
 private object NoActions : ModelsActions {

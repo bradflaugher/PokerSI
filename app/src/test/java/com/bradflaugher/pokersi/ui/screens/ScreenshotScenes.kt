@@ -1,5 +1,8 @@
 package com.bradflaugher.pokersi.ui.screens
 
+import com.bradflaugher.pokersi.ui.models.ModelsContent
+import com.bradflaugher.pokersi.ui.models.ModelsScenes
+
 import androidx.compose.runtime.Composable
 import com.bradflaugher.pokersi.engine.BotStyle
 import com.bradflaugher.pokersi.engine.Card
@@ -282,6 +285,6 @@ object ScreenshotScenes {
         Scene("run_over") { PixelTheme { RunOverScreen(RunUiState(wallRun(RunPhase.GAME_OVER), RunScreen.GameOver), victory = false, onNewRun = {}, onMenu = {}) } },
         Scene("how_to_play") { PixelTheme { HowToPlayScreen({}) } },
         Scene("settings") { PixelTheme { SettingsScreen(SettingsUi(hasSavedRun = true), SettingsCallbacks()) } },
-        Scene("models") { PixelTheme { ModelsScreen(HOUSE, {}) } },
+        Scene("models") { PixelTheme { ModelsContent(ModelsScenes.scene(), ModelsScenes.noActions) } },
     )
 }

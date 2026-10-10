@@ -39,7 +39,7 @@ import com.bradflaugher.pokersi.ui.screens.BodyText
 import com.bradflaugher.pokersi.ui.screens.ChoiceRow
 import com.bradflaugher.pokersi.ui.screens.HowToPlayScreen
 import com.bradflaugher.pokersi.ui.screens.LocalCardSway
-import com.bradflaugher.pokersi.ui.screens.ModelsScreen
+import com.bradflaugher.pokersi.ui.models.ModelsScreen
 import com.bradflaugher.pokersi.ui.screens.PickerCallbacks
 import com.bradflaugher.pokersi.ui.screens.PickerScreen
 import com.bradflaugher.pokersi.ui.screens.RunClearedScreen
@@ -81,7 +81,7 @@ fun PokerSiApp(vm: PokerViewModel) {
                     Screen.Run -> RunRoute(vm)
                     Screen.Models -> {
                         val label by vm.brains.label.collectAsStateWithLifecycle()
-                        ModelsScreen(label, onBack = { vm.back() })
+                        ModelsScreen(onBack = { vm.back() })
                     }
                     Screen.HowTo -> HowToPlayScreen(onBack = { vm.back() })
                     Screen.Settings -> SettingsRoute(vm)

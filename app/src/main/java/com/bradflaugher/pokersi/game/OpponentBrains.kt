@@ -42,4 +42,6 @@ data class OpponentProfile(
     val style: BotStyle,
     val bio: String,
     val catchphrase: String,
+    /** How they talk, for the LLM ("a pirate: says arr and matey"). Empty means the model picks. */
+    val voice: String = "",
 )
