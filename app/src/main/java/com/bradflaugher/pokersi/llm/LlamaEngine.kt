@@ -20,6 +20,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.io.File
@@ -229,11 +231,14 @@ class LlamaEngine private constructor(context: Context) {
                     if (started.get() && !finished.get()) cancelGeneration()
                 }
             }
-            try {
-                withContext(dispatcher) {
-                    val h = handle.takeIf { it != 0L } ?: throw NoModelException()
-                    val job = currentCoroutineContext()
-                    started.set(true)
+            // The native call runs as its own job, so a timeout or cancellation returns
+            // to the caller at once instead of waiting for the native call to unwind
+            // (the watcher's cancel() stops it shortly after).
+            val work = scope.async(dispatcher) {
+                val h = handle.takeIf { it != 0L } ?: throw NoModelException()
+                val job = currentCoroutineContext()
+                started.set(true)
+                try {
                     // Cancelled while queued behind another call: don't start at all.
                     job.ensureActive()
                     val text = StringBuilder()
@@ -250,9 +255,17 @@ class LlamaEngine private constructor(context: Context) {
                         // Checked every token: a cancel that raced the native flag reset still stops it.
                         job.isActive && onText(text.toString())
                     }
+                } finally {
+                    finished.set(true)
                 }
+            }
+            try {
+                work.await()
+            } catch (e: CancellationException) {
+                work.cancel()
+                if (started.get() && !finished.get()) cancelGeneration()
+                throw e
             } finally {
-                finished.set(true)
                 watcher.cancel()
             }
         }

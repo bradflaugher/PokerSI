@@ -105,6 +105,11 @@ inline Engine *load(const std::string &path, int n_threads, int n_ctx) {
     engine->model = model;
     engine->ctx = ctx;
     engine->templates = init_templates(model);
+    // cancel() must also stop a llama_decode that is already running: on a slow
+    // phone one prompt batch can take many seconds. ggml checks this between
+    // graph nodes and llama_decode then returns an error.
+    llama_set_abort_callback(
+        ctx, [](void *data) { return static_cast<Engine *>(data)->cancelled.load(); }, engine);
     POKERSI_LOGI("loaded %s", path.c_str());
     return engine;
 }
