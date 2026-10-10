@@ -6,29 +6,34 @@ lives on your phone.
 PokerSI is an Android poker game where every opponent is played by a
 language model running **on the device** with
 [llama.cpp](https://github.com/ggml-org/llama.cpp). It looks like a 90s
-video poker cabinet crossed with Balatro: chunky 8-bit cards, a swirling
-psychedelic backdrop, CRT scanlines, marquee lights, LED pot counters, HOLD
+video poker cabinet on a green card table: chunky 8-bit cards, lamp-lit
+pixel felt, CRT scanlines, marquee lights, LED pot counters, HOLD
 buttons, and a table of quirky characters who bet, bluff and talk trash.
 Six variants, a roguelite Run mode, and no network at all unless you
 download a model.
 
 <div align="center">
-  <img src="docs/screenshots/table-holdem.png" alt="A Texas Hold'em table against three AI opponents" width="49%">
-  <p><em><b>Texas Hold'em</b> — every seat is a persona played by the on-device model</em></p>
+  <img src="docs/screenshots/table-holdem.png" alt="A Texas Hold'em table against three AI opponents, one of them talking trash" width="49%">
+  <p><em><b>Texas Hold'em</b> — every seat is a persona played by the on-device model, trash talk included</em></p>
 </div>
 
 <table>
   <tr>
     <td align="center" width="33%"><img src="docs/screenshots/title.png" alt="Title screen"><p><em><b>Title</b> · insert coin</em></p></td>
-    <td align="center" width="33%"><img src="docs/screenshots/picker.png" alt="Game picker"><p><em><b>Six games</b></em></p></td>
+    <td align="center" width="33%"><img src="docs/screenshots/picker.png" alt="Game picker"><p><em><b>Six games</b> — pick one, pick your rivals</em></p></td>
     <td align="center" width="33%"><img src="docs/screenshots/draw.png" alt="Five-Card Draw with HOLD buttons"><p><em><b>Five-Card Draw</b> — HOLD the keepers</em></p></td>
   </tr>
   <tr>
-    <td align="center" width="33%"><img src="docs/screenshots/run-shop.png" alt="Run mode Joker shop"><p><em><b>Run mode</b> — the Joker shop</em></p></td>
+    <td align="center" width="33%"><img src="docs/screenshots/showdown.png" alt="A full house wins the showdown"><p><em><b>Showdown</b> — full house!</em></p></td>
+    <td align="center" width="33%"><img src="docs/screenshots/boss.png" alt="Run mode boss table"><p><em><b>Run mode</b> — a boss table: The Wall never folds</em></p></td>
     <td align="center" width="33%"><img src="docs/screenshots/models.png" alt="Models screen"><p><em><b>Models</b> — download one, or bring your own GGUF</em></p></td>
-    <td></td>
   </tr>
 </table>
+
+<div align="center">
+  <img src="docs/screenshots/tablet.png" alt="Texas Hold'em on a 10-inch tablet" width="49%">
+  <p><em><b>Tablet</b> — the same cabinet, bigger cards</em></p>
+</div>
 
 ## What it is
 
@@ -37,7 +42,7 @@ download a model.
   model. Every decision is a fresh, self-contained prompt: the persona, the
   rules, what that seat can see, the legal actions and its current hand in
   plain words. The reply is held to a tiny JSON shape by a grammar
-  (`{"say": "...", "action": "...", "amount": N}`), the line it says
+  (`{"action": "raise", "amount": 120, "say": "..."}`, the decision first), the line it says
   shows up in a speech bubble, and the action is clamped to something legal.
 - **House Bot when there's no model.** With nothing loaded, a built-in
   heuristic opponent plays every seat and the table says so. It also steps
@@ -45,7 +50,7 @@ download a model.
   never stalls. The game never waits on a download.
 - **Fair dealing.** Decks are shuffled from a seed, and each opponent only
   ever sees what its seat may know: its own cards, the board, the bets.
-- **Retro on purpose.** Pixel cards and fonts, an AGSL swirl shader, a CRT
+- **Retro on purpose.** Pixel cards and fonts, lamp-lit pixel felt, a CRT
   overlay, LED digits and chiptune bleeps.
 - **Private.** No account, no ads, no analytics. The only network use is
   downloading a model you pick, from Hugging Face.
@@ -72,10 +77,10 @@ A roguelite ladder of poker tables:
   up; bust and the run is over.
 - **Bosses.** Some tables are run by a boss opponent with a rule twist that
   changes how that table plays.
-- **The Joker shop.** Spend winnings between tables on Joker perks that
-  bend the odds or the rules in your favor, and stack in silly ways.
-- **Seeded and daily runs.** Every run has a seed you can share and replay,
-  and the daily run is the same seed for everyone that day.
+- **Choose your next table.** Between tables, pick where the run goes
+  next.
+- **Seeded and daily runs.** Every run is dealt from a seed (shown when
+  the run ends), and the daily run is the same seed for everyone that day.
 
 ## Models
 
@@ -103,7 +108,8 @@ memory and storage. llama.cpp ships one CPU backend per ARM feature level
 
 PokerSI targets the latest public stable Android and the toolchain tracks
 the latest Android Gradle Plugin and Gradle. It installs on Android 13 and
-up, because that is the newest API the code uses (AGSL `RuntimeShader`),
+up, because that is the newest API the code uses (the `POST_NOTIFICATIONS`
+permission, for download progress),
 not because it carries code for older phones: there are no version checks.
 Full policy in [`AGENTS.md`](AGENTS.md).
 
@@ -139,15 +145,35 @@ House Bot. Use it for unit tests, lint and screenshot work.
 ### Tests
 
 The poker engine (`engine/`) and Run mode (`run/`) are pure Kotlin with no
-Android imports, so every test is a plain JVM unit test: the hand
+Android imports, so their tests are plain JVM unit tests: the hand
 evaluator, every variant's dealing, betting and side pots, Run mode's
-tables, bosses and shop, and the prompt builder, grammar and reply parser
+tables and bosses, and the prompt builder, grammar and reply parser
 that sit between the model and the table.
 
 GitHub Actions runs the unit tests and lint on every pull request and push
 to `main` (`.github/workflows/ci.yml`, with a per-suite summary on the run
 page), the full native release build in `build-release.yml`, and CodeQL in
 `codeql.yml`.
+
+### Screenshots
+
+The README and Play screenshots are rendered on the JVM, no emulator: the
+real composables in scripted game states (`ScreenshotScenes`), drawn by
+Robolectric's native graphics through Roborazzi.
+[`tools/screenshots/shoot.py`](tools/screenshots/shoot.py) renders every
+scene at each Play class (phone 1080×1920, 7-inch 1224×2176, 10-inch
+1620×2880, all exactly 9:16) into `build/screenshots/`, then
+[`caption.py`](tools/screenshots/caption.py) (ImageMagick, in the app's own
+fonts and cabinet colors) adds a headline and subline to each one for
+Google Play and writes them into `fastlane/metadata/android/en-US/images/`,
+with the feature graphic and the 512px icon. The README shots in
+`docs/screenshots/` (including the `icon.png` in the title above) stay
+uncaptioned:
+
+```sh
+tools/screenshots/shoot.py               # render, caption, optimize
+tools/screenshots/shoot.py --no-render   # only redo the captions
+```
 
 Signed release builds need all four of `POKERSI_KEYSTORE_PATH`,
 `POKERSI_STORE_PASSWORD`, `POKERSI_KEY_ALIAS`, `POKERSI_KEY_PASSWORD` (or
@@ -177,8 +203,8 @@ system file picker. The full policy is in
 - Models are downloaded from [Hugging Face](https://huggingface.co/) and
   carry their own licenses (see each model's Hugging Face page).
 
-Poker hand names and rules are public domain. Balatro and LM Playground are
-named only as inspirations; PokerSI is not affiliated with either.
+Poker hand names and rules are public domain. LM Playground is named only
+as an inspiration; PokerSI is not affiliated with it.
 
 ## License
 

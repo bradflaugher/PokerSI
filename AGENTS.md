@@ -88,8 +88,33 @@ unsigned and publish nothing. Keep `main` green.
 
 ## Screenshots
 
-`tools/screenshots/` renders the store and README screenshots on the JVM
-(no emulator) from the real composables with scripted game states, then
-`caption.py` adds the headline captions in the app's own pixel style and
-builds the feature graphic. Rerun after a visible UI change and look at every
-PNG it writes.
+Every image in `fastlane/metadata/android/en-US/images/` and
+`docs/screenshots/` is generated; regenerate them all with one command
+after any visible UI change, then look at every PNG it writes:
+
+```sh
+tools/screenshots/shoot.py               # render + caption (needs ImageMagick)
+tools/screenshots/shoot.py --no-render   # captions only, from build/screenshots/
+```
+
+- `shoot.py` runs `./gradlew -PskipNative -Pstore :app:testDebugUnitTest
+  --tests '*StoreScreenshotTest*' --rerun`. `StoreScreenshotTest` renders
+  every `ScreenshotScenes.all` scene at phone 1080x1920 (420dpi), 7-inch
+  1224x2176 and 10-inch 1620x2880 (320dpi), all exactly 9:16, plus the
+  feature graphic's marquee logo and card fan and the launcher icon, into
+  `build/screenshots/<class>/<scene>.png`. Without `-Pstore` (or
+  `POKERSI_STORE_SHOTS`) it is skipped, so plain `test` stays fast.
+- `caption.py` (ImageMagick 7 `magick` or 6 `convert`; pngquant and
+  optipng when installed) picks scenes by name. `CAPTIONS` sets the store
+  order, headlines (Press Start 2P, at most 13 characters a line, two
+  lines) and sublines (VT323); `README_SHOTS` maps the uncaptioned README
+  files. Each caption shows a different feature; keep them true to the app.
+  Renaming or removing a scene means updating those two tables.
+- Outputs: `phoneScreenshots/` (8), `sevenInchScreenshots/` and
+  `tenInchScreenshots/` (6 each), `featureGraphic.png` (1024x500),
+  `icon.png` (512x512, from the adaptive icon layers), and in
+  `docs/screenshots/` the README shots plus `icon.png` (192px, rounded),
+  which the README title needs.
+- The quick look at UI work is still `./gradlew -PskipNative
+  :app:testDebugUnitTest --tests '*ScreenshotTest*'`, which writes
+  `app/build/outputs/roborazzi/`.
