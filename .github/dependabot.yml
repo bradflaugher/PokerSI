@@ -38,3 +38,15 @@ updates:
       actions:
         patterns:
           - "*"
+
+  # llama.cpp (app/src/main/cpp/llama.cpp). The submodule follows the
+  # `branch` in .gitmodules, a fixed andriydruk/llama.cpp-android branch
+  # per upstream build (android-bNNNNN), so this only proposes fixes pushed
+  # to that branch. Moving to a newer llama.cpp build means pointing
+  # .gitmodules at the next branch by hand (see MAINTAINING.md). Submodule
+  # commits have no release dates, so there is no cooldown here.
+  - package-ecosystem: gitsubmodule
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 1

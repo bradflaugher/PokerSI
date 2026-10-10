@@ -1,0 +1,38 @@
+Poker against a table of oddballs, and every one of them is an AI running on your phone. Chunky 8-bit cards, a swirling psychedelic backdrop, CRT scanlines and marquee lights: half 90s video poker cabinet, half roguelite. Texas Hold'em, Omaha, Draw, Stud, Short Deck and Crazy Pineapple, plus a Run mode that keeps raising the stakes.
+
+THE TABLE TALKS BACK
+• Every opponent is a freshly rolled persona with a pixel face, a name and a personality, from timid to reckless. A small language model plays each one, deciding the bet and the trash talk together.
+• The AI runs entirely on your phone with llama.cpp. Nothing you play is sent anywhere.
+• Each opponent only ever sees what its seat can see. The deck is shuffled fairly and nobody peeks.
+• No model yet? House Bot, a built-in opponent, plays every seat with no download at all, and steps in for any AI player that stalls.
+
+SIX GAMES
+• Texas Hold'em: two hole cards, five on the board.
+• Pot-Limit Omaha: four hole cards, use exactly two.
+• Five-Card Draw: tap HOLD on the keepers, like the cabinet at the arcade.
+• Seven-Card Stud: up cards, down cards, no board.
+• Short Deck: sixes and up, where a flush beats a full house.
+• Crazy Pineapple: three hole cards, throw one away after the flop.
+• Side pots, all-ins and split pots are all handled for you.
+
+RUN MODE
+• Climb a ladder of tables with rising blinds. Bust out and the run is over.
+• Boss opponents bring a rule twist to their table, and you have to adapt.
+• Spend your winnings in the Joker shop on perks that stack in strange ways.
+• Seeded runs you can share and replay, and a daily run that is the same for everyone.
+
+PICK YOUR BRAIN
+• Download a small model from a short curated list, picked to play well on phones. Downloads come from Hugging Face, run in the background and show their progress.
+• Or point PokerSI at a folder of your own GGUF files and pick any of them.
+• Switch models from the Models screen whenever you like.
+
+RETRO ON THE GLASS
+• Pixel cards, LED pot counters, chiptune bleeps and a scanline CRT glow.
+• A how-to-play screen covers every game and the hand rankings.
+
+NO NONSENSE
+Free. No ads. No in-app purchases. No account. No analytics or tracking. The only time PokerSI goes online is to download a model you chose, from Hugging Face. No real money is ever involved: chips are pretend.
+
+The AI opponents need a reasonably recent phone with a few gigabytes of free storage and memory; older phones can still play every game against House Bot. Requires Android 13 or newer.
+
+Pull up a chair, ante up, and see who blinks first.
