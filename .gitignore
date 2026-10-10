@@ -1,7 +1,6 @@
 # Gradle files
 .gradle/
 build/
-.kotlin/
 
 # Local configuration file (sdk path, etc)
 local.properties
@@ -33,3 +32,7 @@ google-services.json
 
 # Android Profiling
 *.hprof
+.emu/
+.signing/
+tools/icon/preview.html
+__pycache__/
