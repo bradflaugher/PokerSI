@@ -198,7 +198,7 @@ class Hand(
     fun holeCards(seat: Int): List<Card> = seats[seat].cards.toList()
 
     /**
-     * Throws [seat]'s starting cards away and deals new ones (the Mulligan Joker).
+     * Throws [seat]'s starting cards away and deals new ones (a mulligan).
      * Only before the seat has acted on the first street, and not in stud (the up
      * card already set the bring-in). Returns false when not allowed.
      */

@@ -24,7 +24,7 @@ download a model.
     <td align="center" width="33%"><img src="docs/screenshots/draw.png" alt="Five-Card Draw with HOLD buttons"><p><em><b>Five-Card Draw</b> — HOLD the keepers</em></p></td>
   </tr>
   <tr>
-    <td align="center" width="33%"><img src="docs/screenshots/run-shop.png" alt="Run mode Joker shop"><p><em><b>Run mode</b> — the Joker shop</em></p></td>
+    <td align="center" width="33%"><img src="docs/screenshots/run-shop.png" alt="Poker Tour: choose your next table"><p><em><b>Poker Tour</b> — choose your next table</em></p></td>
     <td align="center" width="33%"><img src="docs/screenshots/models.png" alt="Models screen"><p><em><b>Models</b> — download one, or bring your own GGUF</em></p></td>
     <td></td>
   </tr>
@@ -64,18 +64,25 @@ download a model.
 All-ins, side pots and split pots are handled by the engine, and a
 how-to-play screen covers each game and the hand rankings.
 
-## Run mode
+## Poker Tour
 
-A roguelite ladder of poker tables:
+A roguelite ladder of poker tables (the Run mode):
 
-- **Escalating tables.** Each table raises the blinds. Survive it to move
-  up; bust and the run is over.
-- **Bosses.** Some tables are run by a boss opponent with a rule twist that
+- **Escalating tables.** Win each table's chip target within its hand
+  limit (or bust everyone) to clear it. Your chips carry over from table
+  to table; go broke and the tour is over. Clear the tenth table to win,
+  then keep going in endless mode.
+- **Choose your next table.** After each table, pick from three: low
+  stakes, high stakes, or a boss table. Bigger risk, bigger chip bonus.
+- **Bosses.** Boss tables are run by an opponent with a rule twist that
   changes how that table plays.
-- **The Joker shop.** Spend winnings between tables on Joker perks that
-  bend the odds or the rules in your favor, and stack in silly ways.
-- **Seeded and daily runs.** Every run has a seed you can share and replay,
-  and the daily run is the same seed for everyone that day.
+- **No dodging.** Leaving in the middle of a hand folds it.
+- **Seeded and daily tours.** Every tour has a seed, and the daily tour is
+  the same seed for everyone that day. The title screen shows your best
+  daily result.
+
+Quick games never run dry: when an opponent goes broke they leave the
+table, and a new character sits down a hand later.
 
 ## Models
 

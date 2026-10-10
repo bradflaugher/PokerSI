@@ -84,7 +84,7 @@ sealed interface HandEvent {
     /** A seat threw away [count] cards (and in draw games got as many new ones). */
     data class Discarded(val seat: Int, val count: Int, override val text: String) : HandEvent
 
-    /** A seat re-dealt its starting cards (the Run mode's Mulligan Joker). */
+    /** A seat re-dealt its starting cards (a mulligan). */
     data class Redealt(val seat: Int, override val text: String) : HandEvent
 
     /** The part of a bet nobody called goes back to its owner. */
