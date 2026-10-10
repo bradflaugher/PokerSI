@@ -14,6 +14,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.bradflaugher.pokersi.R
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -36,11 +37,20 @@ class ModelDownloadWorker(context: Context, params: WorkerParameters) : Coroutin
 
     override suspend fun getForegroundInfo(): ForegroundInfo = foregroundInfo(0, inputData.getLong(KEY_SIZE, 0), 0)
 
+    /** False when the system refused the foreground service: the download still runs, without the notification. */
+    private var foreground = false
+
     override suspend fun doWork(): Result {
-        try {
+        // A retry that starts while the app is in the background may not start a foreground
+        // service (ForegroundServiceStartNotAllowedException on Android 12+); download anyway.
+        foreground = try {
             setForeground(getForegroundInfo())
+            true
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.w(TAG, "could not go foreground", e)
+            false
         }
         val url = inputData.getString(KEY_URL) ?: return fail("Missing URL")
         val fileName = inputData.getString(KEY_FILE) ?: return fail("Missing file name")
@@ -59,6 +69,10 @@ class ModelDownloadWorker(context: Context, params: WorkerParameters) : Coroutin
             Result.success()
         } catch (e: IOException) {
             Log.w(TAG, "download of $id interrupted", e)
+            // A full disk won't fix itself on a retry.
+            if (expected > 0 && freeBytes(dir) < expected - part.length() + SPACE_MARGIN / 2) {
+                return fail(applicationContext.getString(R.string.download_no_space))
+            }
             // Keep the .part: the retry picks up where this left off.
             if (runAttemptCount < MAX_ATTEMPTS) Result.retry() else fail(e.message ?: "Network error")
         }
@@ -80,7 +94,15 @@ class ModelDownloadWorker(context: Context, params: WorkerParameters) : Coroutin
         try {
             val code = connection.responseCode
             val append = when (code) {
-                HttpURLConnection.HTTP_PARTIAL -> true
+                // Only append when the server resumed exactly where the .part ends.
+                HttpURLConnection.HTTP_PARTIAL -> {
+                    val range = connection.getHeaderField("Content-Range").orEmpty()
+                    if (!range.startsWith("bytes $existing-")) {
+                        part.delete()
+                        throw IOException("Unexpected Content-Range \"$range\"; starting over")
+                    }
+                    true
+                }
                 HttpURLConnection.HTTP_OK -> false
                 416 -> if (expected > 0 && existing >= expected) return else throw IOException("HTTP 416")
                 else -> throw IOException("HTTP $code")
@@ -126,10 +148,14 @@ class ModelDownloadWorker(context: Context, params: WorkerParameters) : Coroutin
 
     private suspend fun report(bytes: Long, total: Long, speed: Long) {
         setProgress(workDataOf(KEY_BYTES to bytes, KEY_TOTAL to total, KEY_SPEED to speed))
+        if (!foreground) return
         try {
             setForeground(foregroundInfo(bytes, total, speed))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.w(TAG, "could not update the notification", e)
+            foreground = false
         }
     }
 

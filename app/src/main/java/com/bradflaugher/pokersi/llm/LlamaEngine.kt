@@ -1,6 +1,7 @@
 package com.bradflaugher.pokersi.llm
 
 import android.annotation.SuppressLint
+import android.app.ActivityManager
 import android.content.Context
 import android.os.ParcelFileDescriptor
 import android.util.Log
@@ -13,6 +14,7 @@ import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,6 +23,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.io.File
+import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -38,14 +41,42 @@ sealed interface EngineState {
 class NoModelException : IllegalStateException("No model loaded")
 
 /**
+ * Whether a model fits in this phone's memory. llama.cpp maps the weights,
+ * but every token touches all of them, so in practice they must stay
+ * resident, plus the KV cache and compute buffers. Loading something far
+ * bigger than RAM gets the app killed by the low-memory killer instead of
+ * failing cleanly, so the engine refuses it up front.
+ */
+object MemoryCheck {
+    /** Rough RAM a loaded model needs: weights, a 4K-token KV cache and compute buffers. */
+    fun estimateBytes(modelBytes: Long): Long = modelBytes + modelBytes / 5 + (256L shl 20)
+
+    /** Why [modelBytes] can't be loaded on a phone with [totalMem] RAM, [availMem] of it free; null when it fits. */
+    fun problem(name: String, modelBytes: Long, totalMem: Long, availMem: Long): String? {
+        if (modelBytes <= 0 || totalMem <= 0) return null
+        val need = estimateBytes(modelBytes)
+        return when {
+            need > totalMem * 0.7 ->
+                "$name is too big for this phone: it needs about ${gb(need)} of memory and the phone has ${gb(totalMem)}. Try a smaller model."
+            need > availMem + totalMem / 4 ->
+                "Not enough free memory for $name right now (needs about ${gb(need)}, ${gb(availMem)} free). Close some apps and try again."
+            else -> null
+        }
+    }
+
+    private fun gb(bytes: Long): String = String.format(Locale.US, "%.1f GB", bytes / 1_073_741_824.0)
+}
+
+/**
  * The app's one llama.cpp instance: owns at most one loaded model and runs
- * every native call on a single dedicated thread, so calls never overlap.
- * Use [get] for the shared instance. The last loaded model is remembered
- * and loaded again on the next start.
+ * every native call on a single dedicated thread, so calls never overlap
+ * (a load or unload waits for a generation in flight, which it cancels
+ * first). Use [get] for the shared instance. The last loaded model is
+ * remembered and loaded again on the next start, off the main thread.
  */
 class LlamaEngine private constructor(context: Context) {
     private val app = context.applicationContext
-    private val prefs = app.getSharedPreferences("llama_engine", Context.MODE_PRIVATE)
+    private val prefs by lazy { app.getSharedPreferences("llama_engine", Context.MODE_PRIVATE) }
 
     // Big stack: llama.cpp's Jinja template renderer is recursive.
     private val dispatcher = Executors.newSingleThreadExecutor { r ->
@@ -53,12 +84,21 @@ class LlamaEngine private constructor(context: Context) {
     }.asCoroutineDispatcher()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    private val _state = MutableStateFlow<EngineState>(if (LlamaNative.available) EngineState.NoModel else EngineState.Unavailable)
+    // NoModel until the library check on the llama thread says otherwise (loading
+    // the native libraries is too slow for the main thread).
+    private val _state = MutableStateFlow<EngineState>(EngineState.NoModel)
     val state: StateFlow<EngineState> = _state.asStateFlow()
 
-    /** Native handle, only touched on [dispatcher] (read anywhere for [LlamaNative.cancel]). */
+    /**
+     * Native handle. Written only on [dispatcher], and only under [handleLock]
+     * so that [cancelGeneration] (any thread) never signals a freed engine.
+     */
     @Volatile private var handle = 0L
+    private val handleLock = Any()
     private var descriptor: ParcelFileDescriptor? = null
+
+    /** True once the native library is known to be loaded. Read on [dispatcher]. */
+    private var available = false
 
     val isReady: Boolean get() = state.value is EngineState.Ready
 
@@ -66,9 +106,25 @@ class LlamaEngine private constructor(context: Context) {
     private val threads: Int = (Runtime.getRuntime().availableProcessors() - 2).coerceIn(2, 4)
 
     init {
-        if (LlamaNative.available) {
-            scope.launch(dispatcher) { LlamaNative.init(app.applicationInfo.nativeLibraryDir) }
-            rememberedModel()?.let { scope.launch { load(it) } }
+        scope.launch(dispatcher) {
+            available = LlamaNative.available
+            if (!available) {
+                _state.value = EngineState.Unavailable
+                return@launch
+            }
+            LlamaNative.init(app.applicationInfo.nativeLibraryDir)
+            val crashed = prefs.getString(KEY_LOADING, null)
+            if (crashed != null) {
+                // The last load never finished: the process died in it (out of memory,
+                // or a file llama.cpp chokes on). Don't crash again on every start.
+                forget()
+                _state.value = EngineState.Failed(
+                    "$crashed didn't finish loading last time (the phone may have run out of memory), so it wasn't loaded again.",
+                )
+                return@launch
+            }
+            val remembered = rememberedModel() ?: return@launch
+            if (!loadOnThread(remembered)) forget()
         }
     }
 
@@ -78,38 +134,59 @@ class LlamaEngine private constructor(context: Context) {
      * can't be loaded.
      */
     suspend fun load(model: LocalModel): Boolean {
-        if (!LlamaNative.available) return false
-        val location = model.location ?: return false
+        if (model.location == null) return false
         cancelGeneration()
-        return withContext(dispatcher) {
-            freeCurrent()
-            _state.value = EngineState.Loading(model.id, model.name)
-            val path = try {
-                when (location) {
-                    is ModelLocation.FilePath -> location.file.path
-                    is ModelLocation.Document -> {
-                        val pfd = app.contentResolver.openFileDescriptor(location.uri, "r")
-                            ?: error("Can't open ${model.name}")
-                        descriptor = pfd
-                        "fd:${pfd.fd}"
-                    }
+        return withContext(dispatcher) { loadOnThread(model) }
+    }
+
+    /** On [dispatcher] only. */
+    private fun loadOnThread(model: LocalModel): Boolean {
+        if (!available) return false
+        val location = model.location ?: return false
+        freeCurrent()
+        _state.value = EngineState.Loading(model.id, model.name)
+        val (path, size) = try {
+            when (location) {
+                is ModelLocation.FilePath -> {
+                    if (!location.file.isFile) error("the file is gone")
+                    location.file.path to location.file.length()
                 }
-            } catch (e: Exception) {
-                Log.w(TAG, "open failed", e)
-                _state.value = EngineState.Failed("Can't open ${model.name}: ${e.message}")
-                return@withContext false
+                is ModelLocation.Document -> {
+                    val pfd = app.contentResolver.openFileDescriptor(location.uri, "r") ?: error("no access")
+                    descriptor = pfd
+                    "fd:${pfd.fd}" to pfd.statSize
+                }
             }
-            val h = LlamaNative.loadModel(path, threads, CONTEXT_SIZE)
-            if (h == 0L) {
-                closeDescriptor()
-                _state.value = EngineState.Failed("${model.name} didn't load. The file may be damaged or too big for this phone.")
-                false
-            } else {
-                handle = h
-                remember(model)
-                _state.value = EngineState.Ready(model.id, model.name, LlamaNative.describe(h))
-                true
-            }
+        } catch (e: Exception) {
+            // Includes SecurityException when a picked folder's permission was revoked.
+            Log.w(TAG, "open failed", e)
+            closeDescriptor()
+            _state.value = EngineState.Failed("Can't open ${model.name}: ${e.message}")
+            return false
+        }
+        val memory = ActivityManager.MemoryInfo()
+        app.getSystemService(ActivityManager::class.java)?.getMemoryInfo(memory)
+        MemoryCheck.problem(model.name, size, memory.totalMem, memory.availMem)?.let { why ->
+            closeDescriptor()
+            _state.value = EngineState.Failed(why)
+            return false
+        }
+        // Marks the load in progress until it returns (see init).
+        prefs.edit(commit = true) { putString(KEY_LOADING, model.name) }
+        val h = try {
+            LlamaNative.loadModel(path, threads, CONTEXT_SIZE)
+        } finally {
+            prefs.edit(commit = true) { remove(KEY_LOADING) }
+        }
+        return if (h == 0L) {
+            closeDescriptor()
+            _state.value = EngineState.Failed("${model.name} didn't load. The file may be damaged or too big for this phone.")
+            false
+        } else {
+            synchronized(handleLock) { handle = h }
+            remember(model)
+            _state.value = EngineState.Ready(model.id, model.name, LlamaNative.describe(h))
+            true
         }
     }
 
@@ -118,8 +195,8 @@ class LlamaEngine private constructor(context: Context) {
         cancelGeneration()
         withContext(dispatcher) {
             freeCurrent()
-            prefs.edit { clear() }
-            if (LlamaNative.available) _state.value = EngineState.NoModel
+            forget()
+            if (available) _state.value = EngineState.NoModel
         }
     }
 
@@ -141,19 +218,24 @@ class LlamaEngine private constructor(context: Context) {
         onText: (String) -> Boolean = { true },
     ): String = withTimeout(timeoutMs) {
         coroutineScope {
+            val started = AtomicBoolean(false)
             val finished = AtomicBoolean(false)
             // Stops the native loop (even mid-prompt) when we are cancelled or time out.
+            // Only once our own call is on the thread: never another caller's generation.
             val watcher = launch {
                 try {
                     awaitCancellation()
                 } finally {
-                    if (!finished.get()) handle.takeIf { it != 0L }?.let(LlamaNative::cancel)
+                    if (started.get() && !finished.get()) cancelGeneration()
                 }
             }
             try {
                 withContext(dispatcher) {
                     val h = handle.takeIf { it != 0L } ?: throw NoModelException()
                     val job = currentCoroutineContext()
+                    started.set(true)
+                    // Cancelled while queued behind another call: don't start at all.
+                    job.ensureActive()
                     val text = StringBuilder()
                     LlamaNative.generate(
                         h,
@@ -165,7 +247,8 @@ class LlamaEngine private constructor(context: Context) {
                         seed,
                     ) { piece ->
                         text.append(piece)
-                        onText(text.toString()) && job.isActive
+                        // Checked every token: a cancel that raced the native flag reset still stops it.
+                        job.isActive && onText(text.toString())
                     }
                 }
             } finally {
@@ -176,16 +259,15 @@ class LlamaEngine private constructor(context: Context) {
     }
 
     private fun cancelGeneration() {
-        handle.takeIf { it != 0L }?.let(LlamaNative::cancel)
+        synchronized(handleLock) {
+            handle.takeIf { it != 0L }?.let(LlamaNative::cancel)
+        }
     }
 
     /** On [dispatcher] only. */
     private fun freeCurrent() {
-        val h = handle
-        if (h != 0L) {
-            handle = 0L
-            LlamaNative.freeModel(h)
-        }
+        val h = synchronized(handleLock) { handle.also { handle = 0L } }
+        if (h != 0L) LlamaNative.freeModel(h)
         closeDescriptor()
     }
 
@@ -196,6 +278,8 @@ class LlamaEngine private constructor(context: Context) {
         }
         descriptor = null
     }
+
+    private fun forget() = prefs.edit { clear() }
 
     private fun remember(model: LocalModel) {
         val location = model.location ?: return
@@ -212,7 +296,7 @@ class LlamaEngine private constructor(context: Context) {
 
     private fun rememberedModel(): LocalModel? {
         val id = prefs.getString(KEY_ID, null) ?: return null
-        val location = prefs.getString(KEY_PATH, null)?.let { File(it) }?.takeIf { it.isFile }?.let { ModelLocation.FilePath(it) }
+        val location = prefs.getString(KEY_PATH, null)?.let { ModelLocation.FilePath(File(it)) }
             ?: prefs.getString(KEY_URI, null)?.toUri()?.let { ModelLocation.Document(it) }
             ?: return null
         return LocalModel(
@@ -233,6 +317,7 @@ class LlamaEngine private constructor(context: Context) {
         private const val KEY_FILE = "file"
         private const val KEY_PATH = "path"
         private const val KEY_URI = "uri"
+        private const val KEY_LOADING = "loading"
 
         // Holds only the application context.
         @SuppressLint("StaticFieldLeak")

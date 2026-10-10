@@ -32,11 +32,41 @@ void log_callback(ggml_log_level level, const char *text, void *) {
     }
 }
 
+// Java strings to standard UTF-8. GetStringUTFChars would give "modified UTF-8"
+// (emoji as two 3-byte surrogates, NUL as C0 80), which the tokenizer reads as
+// garbage, so convert from UTF-16 ourselves.
 std::string to_string(JNIEnv *env, jstring s) {
     if (s == nullptr) return {};
-    const char *chars = env->GetStringUTFChars(s, nullptr);
-    std::string out(chars);
-    env->ReleaseStringUTFChars(s, chars);
+    const jsize len = env->GetStringLength(s);
+    const jchar *chars = env->GetStringChars(s, nullptr);
+    if (chars == nullptr) return {};  // OutOfMemoryError pending
+    std::string out;
+    out.reserve(static_cast<size_t>(len) + 8);
+    for (jsize i = 0; i < len; i++) {
+        uint32_t cp = chars[i];
+        if (cp >= 0xD800 && cp <= 0xDBFF && i + 1 < len && chars[i + 1] >= 0xDC00 && chars[i + 1] <= 0xDFFF) {
+            cp = 0x10000 + ((cp - 0xD800) << 10) + (chars[i + 1] - 0xDC00);
+            i++;
+        } else if (cp >= 0xD800 && cp <= 0xDFFF) {
+            cp = 0xFFFD;  // lone surrogate
+        }
+        if (cp < 0x80) {
+            out += static_cast<char>(cp);
+        } else if (cp < 0x800) {
+            out += static_cast<char>(0xC0 | (cp >> 6));
+            out += static_cast<char>(0x80 | (cp & 0x3F));
+        } else if (cp < 0x10000) {
+            out += static_cast<char>(0xE0 | (cp >> 12));
+            out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+            out += static_cast<char>(0x80 | (cp & 0x3F));
+        } else {
+            out += static_cast<char>(0xF0 | (cp >> 18));
+            out += static_cast<char>(0x80 | ((cp >> 12) & 0x3F));
+            out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+            out += static_cast<char>(0x80 | (cp & 0x3F));
+        }
+    }
+    env->ReleaseStringChars(s, chars);
     return out;
 }
 
@@ -86,7 +116,13 @@ Java_com_bradflaugher_pokersi_llm_LlamaNative_init(JNIEnv *env, jobject, jstring
 extern "C" JNIEXPORT jlong JNICALL
 Java_com_bradflaugher_pokersi_llm_LlamaNative_loadModel(JNIEnv *env, jobject, jstring jpath, jint n_threads,
                                                         jint n_ctx) {
-    return reinterpret_cast<jlong>(pokersi::load(to_string(env, jpath), n_threads, n_ctx));
+    try {
+        return reinterpret_cast<jlong>(pokersi::load(to_string(env, jpath), n_threads, n_ctx));
+    } catch (const std::exception &e) {
+        // Never let a C++ exception unwind through the JNI frame (that aborts the app).
+        POKERSI_LOGE("load failed: %s", e.what());
+        return 0;
+    }
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -96,7 +132,11 @@ Java_com_bradflaugher_pokersi_llm_LlamaNative_freeModel(JNIEnv *, jobject, jlong
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_bradflaugher_pokersi_llm_LlamaNative_describe(JNIEnv *env, jobject, jlong handle) {
-    return new_jstring(env, pokersi::describe(reinterpret_cast<Engine *>(handle)));
+    try {
+        return new_jstring(env, pokersi::describe(reinterpret_cast<Engine *>(handle)));
+    } catch (const std::exception &e) {
+        return new_jstring(env, "");
+    }
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -117,6 +157,7 @@ Java_com_bradflaugher_pokersi_llm_LlamaNative_generate(JNIEnv *env, jobject, jlo
 
     std::vector<common_chat_msg> messages;
     jsize count = env->GetArrayLength(roles);
+    if (contents == nullptr || env->GetArrayLength(contents) != count) return new_jstring(env, "");
     for (jsize i = 0; i < count; i++) {
         auto jrole = static_cast<jstring>(env->GetObjectArrayElement(roles, i));
         auto jcontent = static_cast<jstring>(env->GetObjectArrayElement(contents, i));
@@ -140,6 +181,10 @@ Java_com_bradflaugher_pokersi_llm_LlamaNative_generate(JNIEnv *env, jobject, jlo
     if (on_token != nullptr) {
         on_text = [&](const std::string &piece) {
             jstring jpiece = new_jstring(env, piece);
+            if (jpiece == nullptr) {  // OutOfMemoryError pending
+                threw = true;
+                return false;
+            }
             jboolean keep_going = env->CallBooleanMethod(callback, on_token, jpiece);
             env->DeleteLocalRef(jpiece);
             if (env->ExceptionCheck()) {

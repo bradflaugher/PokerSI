@@ -19,6 +19,7 @@
 #include <cmath>
 #include <cstdio>
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -237,12 +238,18 @@ inline std::string generate(Engine *engine, const std::vector<common_chat_msg> &
     }
     stats->prompt_ms = ms_since(start);
 
-    llama_sampler *grammar_sampler = nullptr;
+    // Samplers are freed on every way out, exceptions included.
+    struct SamplerDeleter {
+        void operator()(llama_sampler *s) const { if (s != nullptr) llama_sampler_free(s); }
+    };
+    std::unique_ptr<llama_sampler, SamplerDeleter> grammar_owner;
     if (!grammar.empty()) {
-        grammar_sampler = llama_sampler_init_grammar(vocab, grammar.c_str(), "root");
-        if (grammar_sampler == nullptr) POKERSI_LOGW("grammar failed to parse; generating free text");
+        grammar_owner.reset(llama_sampler_init_grammar(vocab, grammar.c_str(), "root"));
+        if (!grammar_owner) POKERSI_LOGW("grammar failed to parse; generating free text");
     }
-    llama_sampler *chain = llama_sampler_chain_init(llama_sampler_chain_default_params());
+    llama_sampler *grammar_sampler = grammar_owner.get();
+    std::unique_ptr<llama_sampler, SamplerDeleter> chain_owner(llama_sampler_chain_init(llama_sampler_chain_default_params()));
+    llama_sampler *chain = chain_owner.get();
     llama_sampler_chain_add(chain, llama_sampler_init_top_k(40));
     llama_sampler_chain_add(chain, llama_sampler_init_top_p(0.95f, 1));
     llama_sampler_chain_add(chain, llama_sampler_init_temp(temperature));
@@ -282,8 +289,6 @@ inline std::string generate(Engine *engine, const std::vector<common_chat_msg> &
         }
     }
     stats->generate_ms = ms_since(start);
-    llama_sampler_free(chain);
-    if (grammar_sampler != nullptr) llama_sampler_free(grammar_sampler);
     return output;
 }
 
