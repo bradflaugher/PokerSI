@@ -1,0 +1,232 @@
+name: Build and release
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One release pipeline at a time; never cancel a run that may be
+# mid-way through replacing the published release.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    # llama.cpp (one CPU backend per ARM feature level, two ABIs) is most of
+    # the build. A cold build without the compiler cache is the slow case.
+    timeout-minutes: 60
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      signed: ${{ steps.keystore.outputs.signed }}
+    env:
+      # CMake picks these up when it first configures the native build, so
+      # every llama.cpp and JNI compile goes through ccache (see "Cache
+      # native objects" below).
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_NOHASHDIR: 'true'
+      CCACHE_COMPILERCHECK: content
+      CCACHE_MAXSIZE: 2G
+
+    steps:
+      # llama.cpp is a git submodule (app/src/main/cpp/llama.cpp).
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          submodules: recursive
+
+      # Date-labeled versions: 2026.10.10.<run>. The run number keeps the
+      # versionCode increasing, so sideloaded updates install over the old APK
+      # and every bundle is a valid Google Play upload.
+      - name: Compute version
+        id: version
+        run: |
+          version="$(date -u +%Y.%m.%d).${GITHUB_RUN_NUMBER}"
+          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+          printf 'POKERSI_VERSION_NAME=%s\nPOKERSI_VERSION_CODE=%s\n' "$version" "$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # API 37 platforms install as platforms;android-37.0 (not android-37).
+      # The NDK and CMake versions match ndkVersion and the cmake version in
+      # app/build.gradle.kts; build-tools 36.0.0 is AGP's default.
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
+        with:
+          packages: 'platform-tools platforms;android-37.0 build-tools;37.0.0 build-tools;36.0.0 ndk;30.0.16248370 cmake;4.1.2'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          validate-wrappers: true
+
+      - name: Set up ccache
+        id: native
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends ccache
+          printf 'CCACHE_DIR=%s\n' "$HOME/.cache/ccache" >> "$GITHUB_ENV"
+          printf 'llama=%s\n' "$(git rev-parse HEAD:app/src/main/cpp/llama.cpp)" >> "$GITHUB_OUTPUT"
+
+      # ccache is keyed on file contents, not timestamps, so a stale entry is
+      # simply a miss: restoring an older cache (other llama.cpp commit, other
+      # JNI code) can only speed the build up, never change its output. Caches
+      # are scoped by branch: a pull request can read main's cache but writes
+      # its own, so the signed main build only ever reuses objects that main
+      # builds compiled.
+      - name: Cache native objects
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-ccache-ndk30.0.16248370-${{ steps.native.outputs.llama }}-${{ hashFiles('app/src/main/cpp/CMakeLists.txt', 'app/src/main/cpp/*.cpp', 'app/build.gradle.kts') }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-ndk30.0.16248370-${{ steps.native.outputs.llama }}-
+            ${{ runner.os }}-ccache-ndk30.0.16248370-
+
+      # Signing is optional until the repository secrets exist: without them
+      # the build and tests still run, but nothing is published (Android
+      # won't install an unsigned APK).
+      # Secrets only ever reach builds of main (never PRs or a manual
+      # dispatch of another branch), so branch build logic can't read them.
+      - name: Restore signing keystore
+        id: keystore
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          POKERSI_KEYSTORE_BASE64: ${{ secrets.POKERSI_KEYSTORE_BASE64 }}
+          POKERSI_STORE_PASSWORD: ${{ secrets.POKERSI_STORE_PASSWORD }}
+          POKERSI_KEY_ALIAS: ${{ secrets.POKERSI_KEY_ALIAS }}
+          POKERSI_KEY_PASSWORD: ${{ secrets.POKERSI_KEY_PASSWORD }}
+        run: |
+          missing=()
+          for variable in POKERSI_KEYSTORE_BASE64 POKERSI_STORE_PASSWORD POKERSI_KEY_ALIAS POKERSI_KEY_PASSWORD; do
+            if [ -z "${!variable:-}" ]; then
+              missing+=("$variable")
+            fi
+          done
+          if [ "${#missing[@]}" -eq 4 ]; then
+            printf '::warning title=Release skipped::No signing secrets configured (POKERSI_KEYSTORE_BASE64, POKERSI_STORE_PASSWORD, POKERSI_KEY_ALIAS, POKERSI_KEY_PASSWORD). Building unsigned; no release will be published.\n'
+            printf 'signed=false\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${#missing[@]}" -ne 0 ]; then
+            printf 'Signing secrets are partially configured. Missing: %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
+          keystore_path="$RUNNER_TEMP/pokersi-release.jks"
+          if ! printf '%s' "$POKERSI_KEYSTORE_BASE64" | base64 --decode > "$keystore_path"; then
+            printf 'POKERSI_KEYSTORE_BASE64 is not valid base64\n' >&2
+            exit 1
+          fi
+          if [ ! -s "$keystore_path" ]; then
+            printf 'The restored signing keystore is empty\n' >&2
+            exit 1
+          fi
+          printf 'POKERSI_KEYSTORE_PATH=%s\n' "$keystore_path" >> "$GITHUB_ENV"
+          printf 'signed=true\n' >> "$GITHUB_OUTPUT"
+
+      # Signing is all-or-nothing in app/build.gradle.kts. Anything but a
+      # signed main build gets no signing variables and builds unsigned.
+      - name: Lint, test, and build release APK and bundle
+        env:
+          POKERSI_STORE_PASSWORD: ${{ steps.keystore.outputs.signed == 'true' && secrets.POKERSI_STORE_PASSWORD || '' }}
+          POKERSI_KEY_ALIAS: ${{ steps.keystore.outputs.signed == 'true' && secrets.POKERSI_KEY_ALIAS || '' }}
+          POKERSI_KEY_PASSWORD: ${{ steps.keystore.outputs.signed == 'true' && secrets.POKERSI_KEY_PASSWORD || '' }}
+        run: ./gradlew lint test assembleRelease bundleRelease
+
+      - name: Show ccache statistics
+        if: ${{ !cancelled() }}
+        run: ccache --show-stats
+
+      # The APK is for sideloading; the bundle (.aab) is what Google Play takes.
+      # The R8 mapping goes to Play Console too, to deobfuscate crash reports.
+      # A release without llama.cpp would quietly ship House Bot only, so the
+      # APK must carry the JNI bridge for arm64.
+      - name: Collect APK, bundle and mapping
+        run: |
+          mkdir -p dist
+          mv "$(ls app/build/outputs/apk/release/*.apk | head -1)" dist/pokersi.apk
+          mv "$(ls app/build/outputs/bundle/release/*.aab | head -1)" dist/pokersi.aab
+          cp app/build/outputs/mapping/release/mapping.txt dist/mapping.txt
+          if ! unzip -l dist/pokersi.apk | grep -q 'lib/arm64-v8a/libpokersi.so'; then
+            printf 'pokersi.apk has no lib/arm64-v8a/libpokersi.so: the native build is missing\n' >&2
+            exit 1
+          fi
+
+      - name: Upload APK and bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pokersi-${{ steps.version.outputs.version }}
+          path: |
+            dist/pokersi.apk
+            dist/pokersi.aab
+            dist/mapping.txt
+          if-no-files-found: error
+
+  release:
+    name: release
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && needs.build.outputs.signed == 'true'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # publish the new GitHub release, delete the previous one
+      id-token: write # sign the build provenance attestation (OIDC)
+      attestations: write # store the attestation
+
+    steps:
+      - name: Download signed APK, bundle and mapping
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: pokersi-${{ needs.build.outputs.version }}
+          path: release-apk
+
+      # Signed build provenance for the APK and bundle: anyone can check a
+      # download came from this repository's CI with `gh attestation verify`.
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            release-apk/pokersi.apk
+            release-apk/pokersi.aab
+
+      # Exactly one release lives at a time: publish the new date-labeled
+      # release, then delete every other release and its tag.
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          tag="v${VERSION}"
+          cd release-apk
+          sha256sum pokersi.apk | tee pokersi.apk.sha256
+
+          gh release create "$tag" pokersi.apk pokersi.apk.sha256 \
+            pokersi.aab mapping.txt \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "PokerSI ${VERSION}" \
+            --notes "Signed build of ${GITHUB_SHA} from $(date -u +%Y-%m-%d). Sideload pokersi.apk; pokersi.aab and mapping.txt are for Google Play. Verify with pokersi.apk.sha256." \
+            --latest
+
+          gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName --jq '.[].tagName' |
+          while read -r old_tag; do
+            if [ "$old_tag" != "$tag" ]; then
+              gh release delete "$old_tag" --cleanup-tag --yes --repo "$GITHUB_REPOSITORY"
+            fi
+          done

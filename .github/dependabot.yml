@@ -1,0 +1,52 @@
+version: 2
+updates:
+  # Every version update waits 3 days after a release before Dependabot
+  # proposes it, so a hijacked release has time to be pulled first. Security
+  # updates ignore the cooldown.
+
+  # Gradle plugins and AndroidX/Kotlin libraries (gradle/libs.versions.toml).
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 3
+    open-pull-requests-limit: 5
+    groups:
+      androidx:
+        patterns:
+          - "androidx.*"
+      # Everything else: minor and patch bumps land together in one PR.
+      # Major versions still arrive one per PR, so their release notes get
+      # a look.
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  # Actions are pinned to commit SHAs; Dependabot keeps the pins current.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 3
+    open-pull-requests-limit: 5
+    groups:
+      # All action pin bumps in one PR: they are SHA-pinned and CI runs on
+      # every one of them.
+      actions:
+        patterns:
+          - "*"
+
+  # llama.cpp (app/src/main/cpp/llama.cpp). The submodule follows the
+  # `branch` in .gitmodules, a fixed andriydruk/llama.cpp-android branch
+  # per upstream build (android-bNNNNN), so this only proposes fixes pushed
+  # to that branch. Moving to a newer llama.cpp build means pointing
+  # .gitmodules at the next branch by hand (see MAINTAINING.md). Submodule
+  # commits have no release dates, so there is no cooldown here.
+  - package-ecosystem: gitsubmodule
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 1
