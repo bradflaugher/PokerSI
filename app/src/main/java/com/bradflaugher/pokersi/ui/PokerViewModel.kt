@@ -120,8 +120,8 @@ class PokerViewModel(app: Application) : AndroidViewModel(app) {
     /** Today's daily tour: picks up a saved one in progress instead of dealing it again. */
     fun dailyRun() {
         val today = LocalDate.now()
-        val saved = runSaver.load()
-        if (saved != null && saved.daily && saved.seed == RunState.dailySeed(today) && saved.phase != RunPhase.GAME_OVER) {
+        val saved = runSaver.load(daily = true)
+        if (saved != null && saved.seed == RunState.dailySeed(today) && saved.phase != RunPhase.GAME_OVER) {
             openRun(saved)
         } else {
             openRun(RunState.daily(today), started = true)
@@ -142,6 +142,7 @@ class PokerViewModel(app: Application) : AndroidViewModel(app) {
 
     fun resetRun() {
         runSaver.clear()
+        runSaver.clear(daily = true)
     }
 
     override fun onCleared() {

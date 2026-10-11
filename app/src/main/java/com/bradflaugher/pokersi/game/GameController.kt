@@ -75,16 +75,18 @@ data class QuickGameConfig(
 
 /** Where a run is kept between launches. */
 interface RunSaver {
+    /** Saves [state] in its own slot: the daily tour never overwrites a regular one. */
     fun save(state: RunState)
-    fun load(): RunState?
-    fun clear()
+    fun load(daily: Boolean = false): RunState?
+    fun clear(daily: Boolean = false)
 
-    /** Keeps the run in memory only (tests). */
+    /** Keeps the runs in memory only (tests). */
     class InMemory : RunSaver {
         var saved: RunState? = null
-        override fun save(state: RunState) { saved = state }
-        override fun load(): RunState? = saved
-        override fun clear() { saved = null }
+        var savedDaily: RunState? = null
+        override fun save(state: RunState) { if (state.daily) savedDaily = state else saved = state }
+        override fun load(daily: Boolean): RunState? = if (daily) savedDaily else saved
+        override fun clear(daily: Boolean) { if (daily) savedDaily = null else saved = null }
     }
 }
 
@@ -442,7 +444,7 @@ class GameController(
     }
 
     private fun save(state: RunState) {
-        if (state.phase == RunPhase.GAME_OVER) runSaver?.clear() else runSaver?.save(state)
+        if (state.phase == RunPhase.GAME_OVER) runSaver?.clear(state.daily) else runSaver?.save(state)
     }
 
     // ---------------------------------------------------------------- human input

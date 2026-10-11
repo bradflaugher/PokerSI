@@ -114,3 +114,18 @@ class StatsTest {
         assertNull(r.best)
     }
 }
+
+class ShortDeckBestHandTest {
+    @org.junit.Test
+    fun shortDeckFlushBeatsShortDeckFullHouse() {
+        val v = com.bradflaugher.pokersi.engine.GameVariant.SHORT_DECK
+        val fullHouse = com.bradflaugher.pokersi.engine.HandEvaluator.evaluate(
+            com.bradflaugher.pokersi.engine.Card.parseList("Kc Kd Kh 7s 7c"), shortDeck = true,
+        )
+        val flush = com.bradflaugher.pokersi.engine.HandEvaluator.evaluate(
+            com.bradflaugher.pokersi.engine.Card.parseList("Ah Jh 9h 8h 6h"), shortDeck = true,
+        )
+        org.junit.Assert.assertTrue(BestHand.of(flush, v).beats(BestHand.of(fullHouse, v)))
+        org.junit.Assert.assertFalse(BestHand.of(fullHouse, v).beats(BestHand.of(flush, v)))
+    }
+}

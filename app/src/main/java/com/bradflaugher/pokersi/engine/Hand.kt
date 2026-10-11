@@ -153,7 +153,11 @@ class Hand(
         val toCall = (currentBet - s.bet).coerceIn(0, s.chips)
         val canCheck = s.bet >= currentBet
         val maxTotal = s.bet + s.chips
-        val reopened = !s.acted || s.actedAtRaise < fullRaiseCount
+        // Betting reopens for a seat that already acted after a full raise, or (no-limit
+        // and pot-limit, TDA rule 49) when short all-ins add up to one since it acted.
+        val cumulativeFullRaise = variant.structure != BettingStructure.FIXED_LIMIT &&
+            currentBet - s.bet >= maxOf(lastRaiseSize, stakes.bigBlind, 1)
+        val reopened = !s.acted || s.actedAtRaise < fullRaiseCount || cumulativeFullRaise
         val capped = variant.structure == BettingStructure.FIXED_LIMIT && betCount >= FIXED_LIMIT_CAP
         val canRaise = s.chips > toCall && reopened && !capped && othersCanBet(seat)
         var minTo: Int? = null

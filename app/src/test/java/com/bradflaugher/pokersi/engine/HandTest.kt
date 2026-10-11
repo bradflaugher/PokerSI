@@ -97,6 +97,27 @@ class HandTest {
     }
 
     @Test
+    fun cumulativeShortAllInsReopenBetting() {
+        // TDA rule 49: seat 0 bets 100, then all-ins to 150 and 200. Neither shove is a full
+        // raise, but together they raise seat 0 by 100, a full raise, so seat 0 may re-raise.
+        val hand = Hand(GameVariant.TEXAS_HOLDEM, seats(1000, 160, 210, 1000), button = 3, stakes = Stakes(5, 10), seed = 3)
+        hand.act(2, Decision.Call)
+        hand.act(3, Decision.Call)
+        hand.act(0, Decision.Call)
+        hand.act(1, Decision.Check)
+        assertEquals("Flop", hand.street)
+        hand.act(0, Decision.RaiseTo(100))
+        hand.act(1, Decision.AllIn)
+        hand.act(2, Decision.AllIn)
+        assertEquals(200, (hand.events.last() as HandEvent.Action).total)
+        hand.act(3, Decision.Call)
+        assertEquals(0, hand.toAct)
+        val legal = hand.context(0).legal
+        assertEquals(100, legal.toCall)
+        assertNotNull("a cumulative full raise reopens betting", legal.minRaiseTo)
+    }
+
+    @Test
     fun potLimitMaximum() {
         val stakes = Stakes(1, 2)
         val hand = Hand(GameVariant.OMAHA, seats(1000, 1000, 1000, 1000), button = 0, stakes = stakes, seed = 4)

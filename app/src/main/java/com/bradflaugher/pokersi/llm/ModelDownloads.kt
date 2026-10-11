@@ -61,6 +61,9 @@ class ModelDownloads(context: Context) {
             .addTag(TAG)
             .addTag(TAG_ID_PREFIX + model.id)
             .build()
+        // Finished attempts (an old failure) would otherwise linger next to this one and
+        // resurface once it succeeds. WorkManager runs these two operations in order.
+        workManager.pruneWork()
         workManager.enqueueUniqueWork(workName(model.id), ExistingWorkPolicy.KEEP, request)
     }
 
@@ -73,10 +76,13 @@ class ModelDownloads(context: Context) {
     /** Downloads that are queued, running or failed, by catalog id. */
     val progress: Flow<Map<String, DownloadProgress>> =
         workManager.getWorkInfosByTagFlow(TAG).map { infos ->
-            // An old failed attempt may linger next to a fresh one; the fresh one wins.
-            infos.sortedBy { if (it.state == WorkInfo.State.FAILED) 0 else 1 }
-                .mapNotNull { info -> idOf(info)?.let { id -> toProgress(info)?.let { id to it } } }
-                .toMap()
+            // An old failed attempt may linger next to a fresh one: any other attempt
+            // (queued, running, or finished successfully) supersedes a failure.
+            infos.groupBy { idOf(it) }.mapNotNull { (id, attempts) ->
+                if (id == null) return@mapNotNull null
+                val current = attempts.firstOrNull { it.state != WorkInfo.State.FAILED } ?: attempts.first()
+                toProgress(current)?.let { id to it }
+            }.toMap()
         }.flowOn(Dispatchers.IO).distinctUntilChanged()
 
     fun progress(modelId: String): Flow<DownloadProgress?> = progress.map { it[modelId] }.distinctUntilChanged()

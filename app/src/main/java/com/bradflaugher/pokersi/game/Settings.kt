@@ -63,26 +63,29 @@ class PrefsRunSaver(private val prefs: SharedPreferences) : RunSaver {
     val saved: StateFlow<Boolean> = _saved.asStateFlow()
 
     override fun save(state: RunState) {
-        prefs.edit { putString(KEY, state.toJson()) }
-        _saved.value = true
+        prefs.edit { putString(key(state.daily), state.toJson()) }
+        if (!state.daily) _saved.value = true
     }
 
-    override fun load(): RunState? = prefs.getString(KEY, null)?.let { json ->
+    override fun load(daily: Boolean): RunState? = prefs.getString(key(daily), null)?.let { json ->
         try {
             RunState.fromJson(json)
         } catch (_: Exception) {
-            prefs.edit { remove(KEY) }
+            prefs.edit { remove(key(daily)) }
             null
         }
     }
 
-    override fun clear() {
-        prefs.edit { remove(KEY) }
-        _saved.value = false
+    override fun clear(daily: Boolean) {
+        prefs.edit { remove(key(daily)) }
+        if (!daily) _saved.value = false
     }
+
+    private fun key(daily: Boolean) = if (daily) KEY_DAILY else KEY
 
     private companion object {
         const val KEY = "run_v2"
+        const val KEY_DAILY = "run_v2_daily"
         const val OLD_KEY = "run_v1"
     }
 }

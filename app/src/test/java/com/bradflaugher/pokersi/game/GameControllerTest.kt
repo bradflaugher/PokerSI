@@ -202,6 +202,18 @@ class GameControllerTest {
     }
 
     @Test
+    fun dailyTourKeepsItsOwnSaveSlot() = runTest {
+        val saver = RunSaver.InMemory()
+        val regular = RunState.new(7)
+        saver.save(regular)
+        val c = controller(saver = saver)
+        c.startRun(RunState.daily(java.time.LocalDate.of(2026, 10, 11)))
+        assertEquals("the regular tour is untouched", regular, saver.saved)
+        assertNotNull(saver.savedDaily)
+        assertTrue(saver.load(daily = true)!!.daily)
+    }
+
+    @Test
     fun runTableLeadsToTheTableChoiceAndOn() = runTest {
         val saver = RunSaver.InMemory()
         // A shark on autopilot until a table is cleared (or the run ends).

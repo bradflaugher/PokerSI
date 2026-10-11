@@ -38,6 +38,7 @@ import com.bradflaugher.pokersi.llm.DownloadProgress
 import com.bradflaugher.pokersi.llm.EngineState
 import com.bradflaugher.pokersi.llm.LlamaEngine
 import com.bradflaugher.pokersi.llm.LocalModel
+import com.bradflaugher.pokersi.llm.ModelLocation
 import com.bradflaugher.pokersi.llm.ModelStore
 import com.bradflaugher.pokersi.ui.pixel.CrtOverlay
 import com.bradflaugher.pokersi.ui.pixel.LocalPixelPalette
@@ -57,6 +58,8 @@ data class ModelsUiState(
     val engine: EngineState,
     val models: List<LocalModel>,
     val folders: List<Uri>,
+    /** Single files the user imported; only these can be forgotten one by one (folder models go with their folder). */
+    val importedFiles: List<Uri> = emptyList(),
 )
 
 /** What the model bay's buttons do. */
@@ -82,6 +85,7 @@ fun ModelsScreen(onBack: () -> Unit) {
     val engineState by engine.state.collectAsState()
     val models by store.models.collectAsState()
     val folders by store.folders.collectAsState()
+    val importedFiles by store.files.collectAsState()
 
     val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) store.addFolder(uri)
@@ -131,7 +135,7 @@ fun ModelsScreen(onBack: () -> Unit) {
         override fun removeFolder(uri: Uri) = store.removeFolder(uri)
         override fun back() = onBack()
     }
-    ModelsContent(ModelsUiState(engineState, models, folders), actions)
+    ModelsContent(ModelsUiState(engineState, models, folders, importedFiles), actions)
 }
 
 /** The model bay itself: what's loaded, the catalog, and the player's own GGUFs. */
@@ -161,7 +165,7 @@ fun ModelsContent(state: ModelsUiState, actions: ModelsActions, modifier: Modifi
                     }
                     item { EnginePanel(state.engine, actions) }
                     item { SectionHeader("DOWNLOAD A BRAIN") }
-                    items(catalog, key = { it.id }) { model -> ModelRow(model, state.engine, actions) }
+                    items(catalog, key = { it.id }) { model -> ModelRow(model, state.engine, actions, removable(model, state)) }
                     item { SectionHeader("YOUR OWN GGUF FILES") }
                     item {
                         PixelPanel(Modifier.fillMaxWidth(), style = PanelStyle.Dark) {
@@ -195,7 +199,7 @@ fun ModelsContent(state: ModelsUiState, actions: ModelsActions, modifier: Modifi
                             )
                         }
                     }
-                    items(custom, key = { it.id }) { model -> ModelRow(model, state.engine, actions) }
+                    items(custom, key = { it.id }) { model -> ModelRow(model, state.engine, actions, removable(model, state)) }
                     item { Spacer(Modifier.height(24.dp)) }
                 }
             }
@@ -230,7 +234,7 @@ private fun EnginePanel(engine: EngineState, actions: ModelsActions) {
 }
 
 @Composable
-private fun ModelRow(model: LocalModel, engine: EngineState, actions: ModelsActions) {
+private fun ModelRow(model: LocalModel, engine: EngineState, actions: ModelsActions, removable: Boolean) {
     val p = LocalPixelPalette.current
     val loaded = (engine as? EngineState.Ready)?.modelId == model.id
     val loading = (engine as? EngineState.Loading)?.modelId == model.id
@@ -266,7 +270,7 @@ private fun ModelRow(model: LocalModel, engine: EngineState, actions: ModelsActi
                     loading -> PixelText("LOADING…", style = PixelType.Small, color = p.cabinetGlow)
                     else -> PixelButton("LOAD", { actions.load(model) }, variant = PixelButtonVariant.Call, enabled = !busy, textStyle = PixelType.Small)
                 }
-                if (!loading) {
+                if (!loading && removable) {
                     val label = if (model.isDownloaded) "DELETE" else "FORGET"
                     PixelButton(label, { actions.delete(model) }, variant = PixelButtonVariant.Gray, textStyle = PixelType.Small, sound = null)
                 }
@@ -299,6 +303,12 @@ private fun ProgressBar(download: DownloadProgress) {
     }
     Spacer(Modifier.height(4.dp))
     PixelText(label, style = PixelType.BodySmall, color = p.cabinetGlow, shadowUnits = 0)
+}
+
+/** Downloads can be deleted and imported files forgotten; a folder's models leave with the folder. */
+private fun removable(model: LocalModel, state: ModelsUiState): Boolean {
+    val location = model.location
+    return model.isDownloaded || (location is ModelLocation.Document && location.uri in state.importedFiles)
 }
 
 private fun folderName(uri: Uri): String =

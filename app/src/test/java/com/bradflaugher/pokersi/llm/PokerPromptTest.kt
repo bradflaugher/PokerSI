@@ -91,6 +91,23 @@ class PokerPromptTest {
     }
 
     @Test
+    fun pocketPairsUseTheEnginesWording() {
+        // The engine says "Pocket Aces", not "Pair of Aces"; aces must never be advised to fold.
+        val aces = Fixtures.preflopAces.copy(madeHand = "Pocket Aces")
+        assertEquals(PokerPrompt.Strength.VERY_STRONG, PokerPrompt.strength(aces).second)
+        val prompt = PokerPrompt.build(aces, Personas.handWritten.first()).last().content
+        assertFalse(prompt.contains("Advice: \"fold\""))
+        val deuces = aces.copy(holeCards = Card.parseList("2c 2d"), madeHand = "Pocket Twos")
+        assertTrue(PokerPrompt.strength(deuces).second > PokerPrompt.Strength.WEAK)
+        // Every real engine description of a two-card hand is rated from the cards.
+        val engineText = com.bradflaugher.pokersi.engine.HandEvaluator.describe(
+            Card.parseList("Kc Kd"), emptyList(), com.bradflaugher.pokersi.engine.GameVariant.TEXAS_HOLDEM,
+        )
+        val kings = aces.copy(holeCards = Card.parseList("Kc Kd"), madeHand = engineText)
+        assertEquals(PokerPrompt.Strength.VERY_STRONG, PokerPrompt.strength(kings).second)
+    }
+
+    @Test
     fun longHistoryIsCut() {
         val busy = Fixtures.preflopAces.copy(history = (1..40).map { "event $it" })
         val text = user(busy)

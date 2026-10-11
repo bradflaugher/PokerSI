@@ -2,6 +2,8 @@ package com.bradflaugher.pokersi.run
 
 import com.bradflaugher.pokersi.engine.Hand
 import com.bradflaugher.pokersi.engine.HandCategory
+import com.bradflaugher.pokersi.engine.strength
+import com.bradflaugher.pokersi.engine.usesShortDeck
 import com.bradflaugher.pokersi.engine.Match
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -56,6 +58,8 @@ data class HandOutcome(
     /** The player's hand when it won at showdown. */
     val category: HandCategory?,
     val potSize: Int,
+    /** Short-deck ranking applies (a flush beats a full house). */
+    val shortDeck: Boolean = false,
 ) {
     val won: Boolean get() = chipsWon > 0
 
@@ -71,6 +75,7 @@ data class HandOutcome(
                 showdown = result.showdown,
                 category = if (wonAtShowdown) result.handValues[seat]?.category else null,
                 potSize = result.pots.sumOf { it.amount },
+                shortDeck = hand.variant.usesShortDeck,
             )
         }
 
@@ -138,7 +143,10 @@ data class RunState(
      * and [button], and clears or fails the table when it is decided.
      */
     fun applyHandResult(outcome: HandOutcome, stacksAfter: List<Int>, button: Int = progress.button): HandScoring {
-        val best = stats.bestHand.let { b -> if (outcome.category != null && (b == null || outcome.category > b)) outcome.category else b }
+        val best = stats.bestHand.let { b ->
+            val c = outcome.category
+            if (c != null && (b == null || c.strength(outcome.shortDeck) > b.strength(outcome.shortDeck))) c else b
+        }
         var next = copy(
             progress = progress.copy(chips = stacksAfter.toList(), handsPlayed = progress.handsPlayed + 1, button = button),
             stats = stats.copy(

@@ -138,7 +138,9 @@ object PokerPrompt {
     /** The seat's hand in words plus its [Strength], e.g. "Pair of Aces" / STRONG. */
     internal fun strength(c: DecisionContext): Pair<String, Strength> {
         val made = c.madeHand
-        val early = made == null || made.startsWith("High", ignoreCase = true) || made.contains("pair", ignoreCase = true)
+        // Starting hands ("Pocket Kings", "Ace-King suited", a stud pair) are rated by
+        // preflopStrength; only a made hand like rolled-up trips goes by category.
+        val early = made == null || !made.contains("of a kind", ignoreCase = true)
         if (c.board.isEmpty() && c.holeCards.size <= 3 && early) {
             return (made ?: describeStart(c.holeCards)) to preflopStrength(c.holeCards)
         }
@@ -174,7 +176,7 @@ object PokerPrompt {
     }
 
     private fun pairRank(m: String): Int? =
-        Rank.entries.firstOrNull { "pair of ${it.plural.lowercase()}" in m }?.value
+        Rank.entries.firstOrNull { "pair of ${it.plural.lowercase()}" in m || "pocket ${it.plural.lowercase()}" in m }?.value
 
     /**
      * 1-based positions a plain strategy throws away: keep cards that pair
@@ -214,12 +216,20 @@ object PokerPrompt {
             if (a - b in 1..2) score += 1
             best = maxOf(best, score)
         }
-        return when {
+        // Any pocket pair is at least worth a look; big ones are premium.
+        val pair = cards.groupBy { it.rank }.filterValues { it.size >= 2 }.keys.maxOfOrNull { it.value }
+        val pairStrength = when {
+            pair == null -> Strength.WEAK
+            pair >= Rank.JACK.value -> Strength.VERY_STRONG
+            pair >= Rank.EIGHT.value -> Strength.STRONG
+            else -> Strength.MEDIUM
+        }
+        return maxOf(pairStrength, when {
             best >= 34 -> Strength.VERY_STRONG
             best >= 26 -> Strength.STRONG
             best >= 23 -> Strength.GOOD
             best >= 20 -> Strength.MEDIUM
             else -> Strength.WEAK
-        }
+        })
     }
 }

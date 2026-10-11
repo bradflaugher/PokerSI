@@ -10,6 +10,8 @@ import com.bradflaugher.pokersi.engine.HandEvaluator
 import com.bradflaugher.pokersi.engine.HandValue
 import com.bradflaugher.pokersi.engine.hasBoard
 import com.bradflaugher.pokersi.engine.mustUseTwoHoleCards
+import com.bradflaugher.pokersi.engine.strength
+import com.bradflaugher.pokersi.engine.usesShortDeck
 import com.bradflaugher.pokersi.run.RunState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -36,8 +38,17 @@ data class BestHand(
 ) {
     val cardList: List<Card> get() = Card.parseList(cards)
 
-    fun beats(other: BestHand?): Boolean =
-        other == null || category > other.category || (category == other.category && score > other.score)
+    /**
+     * Within one game the evaluator's score decides (it already knows a short-deck
+     * flush beats a full house); across games, each hand ranks by its own game's order.
+     */
+    fun beats(other: BestHand?): Boolean {
+        if (other == null) return true
+        if (variant == other.variant) return score > other.score
+        val mine = category.strength(variant.usesShortDeck)
+        val theirs = other.category.strength(other.variant.usesShortDeck)
+        return mine > theirs || (mine == theirs && score > other.score)
+    }
 
     companion object {
         fun of(value: HandValue, variant: GameVariant) =

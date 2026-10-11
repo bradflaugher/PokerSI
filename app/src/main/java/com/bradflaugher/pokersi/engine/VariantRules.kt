@@ -28,3 +28,14 @@ val GameVariant.streetNames: List<String>
         this == GameVariant.CRAZY_PINEAPPLE -> listOf("Pre-flop", "Flop", "Discard", "Turn", "River")
         else -> listOf("Pre-flop", "Flop", "Turn", "River")
     }
+
+/**
+ * Where this category ranks: its order, except that with the short deck
+ * ([shortDeck]) a flush beats a full house.
+ */
+fun HandCategory.strength(shortDeck: Boolean): Int = when {
+    !shortDeck -> ordinal
+    this == HandCategory.FLUSH -> HandCategory.FULL_HOUSE.ordinal
+    this == HandCategory.FULL_HOUSE -> HandCategory.FLUSH.ordinal
+    else -> ordinal
+}
