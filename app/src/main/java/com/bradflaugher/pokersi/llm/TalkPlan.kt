@@ -111,7 +111,11 @@ data class TalkPlan(
             val pick = pool.firstOrNull { (_, weight, _) -> roll -= weight; roll < 0 } ?: pool.last()
             val hint = pick.third()
             // Talk on some turns, not all: more likely when spoken to or under pressure.
-            val spokenTo = talk.recent(3).lastOrNull()?.let { it.speaker != me } == true
+            // Spoken to: someone else talked in this hand since this character last acted
+            // (from the hand's own history, so the boost is used up by the next decision).
+            val history = context.history
+            val myLast = history.indexOfLast { it.startsWith("$me ") && !it.contains(" says \"") }
+            val spokenTo = history.drop(myLast + 1).any { it.contains(" says \"") && !it.startsWith("$me ") }
             // Facing a real bet: more than the big blind to call, or any bet once the board is out.
             val toCall = context.legal.toCall
             val pressed = toCall > context.bigBlind || (toCall > 0 && context.board.isNotEmpty())

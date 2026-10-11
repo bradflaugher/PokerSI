@@ -80,10 +80,14 @@ class TableTalkPromptTest {
         val random = Random(11)
         val talking = (1..1000).count { TalkPlan.make(context, cowboy, quiet, random).speak }
         assertTrue("about ${TalkPlan.SPEAK_OTHERWISE}: $talking/1000", talking in 220..380)
-        // Spoken to: more often.
-        val spokenTo = talkWith("Miss Quill" to "Shhh! I'm raising.")
-        val answering = (1..1000).count { TalkPlan.make(context, cowboy, spokenTo, random).speak }
+        // Spoken to in this hand since our last move: more often.
+        val talkedAt = context.copy(history = context.history + "Miss Quill says \"Shhh! I'm raising.\"")
+        val answering = (1..1000).count { TalkPlan.make(talkedAt, cowboy, quiet, random).speak }
         assertTrue("about ${TalkPlan.SPEAK_ANSWER}: $answering/1000", answering in 470..630)
+        // Once we've acted since, the boost is used up, however recent the line in TableTalk.
+        val answered = talkedAt.copy(history = talkedAt.history + "${cowboy.name} checks")
+        val after = (1..1000).count { TalkPlan.make(answered, cowboy, talkWith("Miss Quill" to "Shhh! I'm raising."), random).speak }
+        assertTrue("back to about ${TalkPlan.SPEAK_OTHERWISE}: $after/1000", after in 220..380)
         assertTrue((1..50).all { TalkPlan.make(context, cowboy, quiet, random, alwaysSpeak = true).speak })
         // Facing a bet (whatever happened since): the pressure rate.
         val facing = context.copy(legal = context.legal.copy(canCheck = false, toCall = context.bigBlind * 3))
