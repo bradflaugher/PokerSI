@@ -36,12 +36,23 @@ object HandTalk {
     )
 
     /**
-     * Cards as the prompt writes them ("Kd", "7h", "Ts"), read case-sensitively off
-     * the raw line. An ace alone ("As", "Ah", "Ad") is an ordinary word, so it only
-     * counts next to another card ("As Kd") or after card words ("holding As").
+     * Cards as the prompt writes them ("Kd", "7h", "Ts"), read off the raw line. An
+     * ace alone ("As", "Ah", "Ad") is an ordinary word, so it only counts next to
+     * another card ("As Kd") or after card words ("holding As").
      */
     private val card = "(?:[2-9TJQKA]|10)[shdc]"
-    private val cardCodes = Regex("\\b(?:$card[\\s,]+$card|(?:[2-9TJQK]|10)[shdc]|(?i:holding|hold|have|got|cards?)[:\\s]+A[shdc])\\b")
+    private val lowCard = "(?:[2-9TJQK]|10)[shdc]"
+    private val cardCodes = Regex(
+        listOf(
+            // Two in a row as written ("As Kd"), or in any case with a non-ace in them
+            // ("as kd", "AS KD"; "Ah, as I said" stays fine).
+            "$card[\\s,]+$card", "(?i:$lowCard[\\s,]+$card|$card[\\s,]+$lowCard)",
+            // One non-ace as written ("Kd", "7h").
+            lowCard,
+            // An ace after card words, any case of suit ("hold AS"; "have as much" stays fine).
+            "(?i:holding|hold|have|got|cards?)[:\\s]+A[shdcSHDC]",
+        ).joinToString("|", "\\b(?:", ")\\b"),
+    )
 
     /** Whether [text] says what hand (or cards) its speaker holds. */
     fun revealsHand(text: String): Boolean {
