@@ -43,7 +43,7 @@ import com.bradflaugher.pokersi.llm.LocalModel
 import com.bradflaugher.pokersi.llm.ModelLocation
 import com.bradflaugher.pokersi.llm.ModelStore
 import com.bradflaugher.pokersi.ui.pixel.CrtOverlay
-import com.bradflaugher.pokersi.ui.screens.CONSOLE_SLOT
+import com.bradflaugher.pokersi.ui.screens.ConsoleSlot
 import com.bradflaugher.pokersi.ui.pixel.LocalPixelPalette
 import com.bradflaugher.pokersi.ui.pixel.PanelStyle
 import com.bradflaugher.pokersi.ui.pixel.PixelButton
@@ -170,7 +170,7 @@ fun ModelsContent(state: ModelsUiState, actions: ModelsActions, modifier: Modifi
                                     maxLines = 1, overflow = TextOverflow.Ellipsis,
                                 )
                             }
-                            if (state.consoleSlot) Spacer(Modifier.size(CONSOLE_SLOT))
+                            if (state.consoleSlot) ConsoleSlot()
                         }
                     }
                     item { EnginePanel(state.engine, actions) }

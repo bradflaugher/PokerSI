@@ -50,6 +50,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -125,8 +126,19 @@ fun ConsoleToggle(open: Boolean, onToggle: () -> Unit, modifier: Modifier = Modi
     }
 }
 
-/** The width headers keep free, at their top right, for [ConsoleToggle]. */
+/** The width headers keep free, at their top right, for [ConsoleToggle] (in a tablet-scaled screen, see [ConsoleSlot]). */
 val CONSOLE_SLOT = 48.dp
+
+/**
+ * The room [ConsoleToggle] takes, for a header that is not tablet-scaled
+ * (the model bay, the console): [CONSOLE_SLOT] at the toggle's own scale.
+ */
+@Composable
+fun ConsoleSlot(modifier: Modifier = Modifier) {
+    val screen = LocalConfiguration.current
+    val scale = tabletScale(screen.screenWidthDp.dp, screen.screenHeightDp.dp)
+    Spacer(modifier.size(CONSOLE_SLOT * scale))
+}
 
 /** The "~" itself, drawn as pixel art (no pixel font has a readable tilde); lit green while the console is [open]. */
 @Composable
@@ -246,7 +258,7 @@ private fun ConsolePanel(
                 )
             }
             // The toggle ([ConsoleToggle]) sits here, over the console.
-            Spacer(Modifier.size(CONSOLE_SLOT))
+            ConsoleSlot()
         }
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 2.dp),
