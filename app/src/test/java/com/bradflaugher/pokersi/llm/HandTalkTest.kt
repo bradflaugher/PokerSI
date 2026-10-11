@@ -1,5 +1,8 @@
 package com.bradflaugher.pokersi.llm
 
+import com.bradflaugher.pokersi.engine.Card
+import com.bradflaugher.pokersi.engine.Rank
+import com.bradflaugher.pokersi.engine.Suit
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -36,9 +39,20 @@ class HandTalkTest {
             "I drew an ace, yeehaw.",
             "I was dealt a king.",
             "I drew As, partner.",
+            "My ace's looking good.",
+            "A king's what I drew.",
             "I flopped a set, yeehaw.",
             "Nine four offsuit, yikes.",
         ).forEach { assertTrue(it, HandTalk.revealsHand(it)) }
+    }
+
+    @Test
+    fun cardsEveryoneCanSeeAreFairToTalkAbout() {
+        val board = listOf(Card(Rank.KING, Suit.DIAMONDS), Card(Rank.SEVEN, Suit.HEARTS))
+        assertFalse(HandTalk.revealsHand("That Kd on the board looks dangerous.", board))
+        assertFalse(HandTalk.revealsHand("Kd, 7h, what a board.", board))
+        assertTrue(HandTalk.revealsHand("I have Qs with that Kd.", board))
+        assertTrue(HandTalk.revealsHand("That Kd on the board looks dangerous."))
     }
 
     @Test
@@ -58,6 +72,7 @@ class HandTalkTest {
             "The king's decree stands!",
             "THE KING'S DECREE STANDS!",
             "I have the king's blessing.",
+            "Keep a straight face",
             "",
         ).forEach { assertFalse(it, HandTalk.revealsHand(it)) }
     }

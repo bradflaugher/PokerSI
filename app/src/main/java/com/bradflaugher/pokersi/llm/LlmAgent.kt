@@ -4,6 +4,7 @@ import com.bradflaugher.pokersi.debug.AiLog
 import com.bradflaugher.pokersi.debug.AiLogKind
 import com.bradflaugher.pokersi.engine.AgentReply
 import com.bradflaugher.pokersi.engine.BotLines
+import com.bradflaugher.pokersi.engine.Card
 import com.bradflaugher.pokersi.engine.Decision
 import com.bradflaugher.pokersi.engine.DecisionContext
 import com.bradflaugher.pokersi.engine.PlayerAgent
@@ -60,6 +61,7 @@ class LlmAgent(
 
         // What the bubble shows (whole words): kept if the House Bot has to decide.
         var shown: String? = null
+        val seen = seenCards(context)
         var firstTokenAt = 0L
         var tokens = 0
         val raw = try {
@@ -81,7 +83,7 @@ class LlmAgent(
                 // Held back while it could still turn out to be a line already said, or gives the hand away.
                 // The bubble shows [words], which may end sooner than [say]: both are checked.
                 if (!words.isNullOrEmpty() && words != shown && !talk.mightRepeat(say!!, avoid, who, PokerGrammar.SAY_MAX) &&
-                    !talk.isRepeat(words, who, avoid) && !HandTalk.revealsHand(say)
+                    !talk.isRepeat(words, who, avoid) && !HandTalk.revealsHand(say, seen) && !HandTalk.revealsHand(words, seen)
                 ) {
                     shown = words
                     onChatter(words)
@@ -123,7 +125,7 @@ class LlmAgent(
         if (say == null) return null
         val why = when {
             talk.isRepeat(say, who, avoid) -> "a repeat"
-            HandTalk.revealsHand(say) -> "a hand giveaway"
+            HandTalk.revealsHand(say, seenCards(context)) -> "a hand giveaway"
             else -> return say
         }
         val instead = BotLines.pickFresh(BotLines.momentFor(decision, context.legal.canCheck), random, talk)
@@ -153,6 +155,10 @@ class LlmAgent(
         final.say?.let(onChatter)
         return final
     }
+
+    /** Cards everyone can see, which may be talked about: "that Kd on the board". */
+    private fun seenCards(context: DecisionContext): List<Card> =
+        context.board + context.seats.filter { it.seat != context.seat }.flatMap { it.cards.filterNotNull() }
 
     private fun timing(start: Long, firstTokenAt: Long, end: Long, tokens: Int): String {
         val total = end - start

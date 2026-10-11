@@ -1,6 +1,8 @@
 package com.bradflaugher.pokersi.llm
 
+import com.bradflaugher.pokersi.engine.Card
 import com.bradflaugher.pokersi.engine.Rank
+import com.bradflaugher.pokersi.engine.Suit
 import com.bradflaugher.pokersi.engine.TableTalk
 
 /**
@@ -60,17 +62,31 @@ object HandTalk {
         ).joinToString("|", "\\b(?:", ")\\b"),
     )
 
-    /** Whether [text] says what hand (or cards) its speaker holds. */
-    fun revealsHand(text: String): Boolean {
-        if (cardCodes.containsMatchIn(text)) return true
-        // "The king's decree" names no card: a possessive rank becomes a plain word, and
-        // other possessives lose their 's. "High five" is a celebration, not a hand of fives.
-        val plain = text.replace(rankPossessive, "someone").replace(possessive, "")
+    private val oneCode = Regex("(?i)(10|[2-9tjqka])([shdc])")
+
+    /**
+     * Whether [text] says what hand (or cards) its speaker holds. Card codes for
+     * [seen] cards (the board, others' face-up cards) are fair to talk about: "that
+     * Kd on the board".
+     */
+    fun revealsHand(text: String, seen: Collection<Card> = emptyList()): Boolean {
+        val named = cardCodes.findAll(text).flatMap { oneCode.findAll(it.value) }.map(::parse)
+        if (named.any { it !in seen }) return true
+        // "The king's decree" names no card: a possessive rank ("the king's") becomes a
+        // plain word ("my ace's looking good" still names one), and other possessives lose
+        // their 's. "High five" is a celebration, not a hand of fives.
+        val plain = text.replace(rankPossessive, "the someone").replace(possessive, "")
         val words = TableTalk.normalize(plain).replace(highFive, "")
         return reveal.containsMatchIn(words)
     }
 
     private val highFive = Regex("\\bhigh fives?\\b")
-    private val rankPossessive = Regex("\\b${anyOf(singular)}['’]s\\b", RegexOption.IGNORE_CASE)
-    private val possessive = Regex("['’]s\\b", RegexOption.IGNORE_CASE)
+    private val rankPossessive = Regex("\\bthe ${anyOf(singular)}['’]s\\b", RegexOption.IGNORE_CASE)
+
+    private fun parse(code: MatchResult): Card {
+        val (rank, suit) = code.destructured
+        return Card(Rank.fromLetter(rank[0]), Suit.entries.first { it.letter == suit[0].lowercaseChar() })
+    }
+    // A rank keeps its 's ("ace's" reads as "aces"), so it still names a card.
+    private val possessive = Regex("(?<!\\b${anyOf(singular)})['’]s\\b", RegexOption.IGNORE_CASE)
 }
