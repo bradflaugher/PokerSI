@@ -19,7 +19,7 @@ download a model.
 
 <table>
   <tr>
-    <td align="center" width="33%"><img src="docs/screenshots/title.png" alt="Title screen"><p><em><b>Title</b> · insert coin</em></p></td>
+    <td align="center" width="33%"><img src="docs/screenshots/title.png" alt="Title screen"><p><em><b>Title</b> · pull up a chair</em></p></td>
     <td align="center" width="33%"><img src="docs/screenshots/picker.png" alt="Game picker"><p><em><b>Six games</b> — pick one, pick your rivals</em></p></td>
     <td align="center" width="33%"><img src="docs/screenshots/draw.png" alt="Five-Card Draw with HOLD buttons"><p><em><b>Five-Card Draw</b> — HOLD the keepers</em></p></td>
   </tr>
@@ -29,10 +29,9 @@ download a model.
     <td align="center" width="33%"><img src="docs/screenshots/models.png" alt="Models screen"><p><em><b>Models</b> — download one, or bring your own GGUF</em></p></td>
   </tr>
   <tr>
-    <td align="center" colspan="3">
-      <img src="docs/screenshots/tour.png" alt="Poker Tour: choose your next table" width="33%">
-      <p><em><b>Poker Tour</b> — pick your next table: low stakes or high stakes</em></p>
-    </td>
+    <td align="center"><img src="docs/screenshots/tour.png" alt="Poker Tour: choose your next table"><p><em><b>Poker Tour</b> — pick your next table: low stakes or high stakes</em></p></td>
+    <td align="center"><img src="docs/screenshots/stats.png" alt="Stats: a 13 by 13 chart of how often you played each Hold'em starting hand"><p><em><b>Stats</b> — how often you played every Hold'em hand</em></p></td>
+    <td></td>
   </tr>
 </table>
 
