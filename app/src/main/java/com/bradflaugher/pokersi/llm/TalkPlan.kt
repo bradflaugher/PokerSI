@@ -112,7 +112,9 @@ data class TalkPlan(
             val hint = pick.third()
             // Talk on some turns, not all: more likely when spoken to or under pressure.
             val spokenTo = talk.recent(3).lastOrNull()?.let { it.speaker != me } == true
-            val pressed = lastAction(context, me)?.let { line -> listOf(" bets", " raises", " all in").any { line.contains(it) } } == true
+            // Facing a real bet: more than the big blind to call, or any bet once the board is out.
+            val toCall = context.legal.toCall
+            val pressed = toCall > context.bigBlind || (toCall > 0 && context.board.isNotEmpty())
             val chance = when {
                 spokenTo -> SPEAK_ANSWER
                 pressed -> SPEAK_PRESSURE

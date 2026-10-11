@@ -85,6 +85,10 @@ class TableTalkPromptTest {
         val answering = (1..1000).count { TalkPlan.make(context, cowboy, spokenTo, random).speak }
         assertTrue("about ${TalkPlan.SPEAK_ANSWER}: $answering/1000", answering in 470..630)
         assertTrue((1..50).all { TalkPlan.make(context, cowboy, quiet, random, alwaysSpeak = true).speak })
+        // Facing a bet (whatever happened since): the pressure rate.
+        val facing = context.copy(legal = context.legal.copy(canCheck = false, toCall = context.bigBlind * 3))
+        val pressed = (1..1000).count { TalkPlan.make(facing, cowboy, quiet, random).speak }
+        assertTrue("about ${TalkPlan.SPEAK_PRESSURE}: $pressed/1000", pressed in 370..530)
     }
 
     @Test
