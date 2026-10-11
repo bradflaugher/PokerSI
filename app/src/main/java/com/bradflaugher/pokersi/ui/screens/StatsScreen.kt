@@ -1,6 +1,8 @@
 package com.bradflaugher.pokersi.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.input.pointer.pointerInput
@@ -176,8 +178,21 @@ internal fun HandChart(hands: Map<String, HandTally>) {
                 color = p.cardCream, small = true,
             )
             val spoken = chartDescription(hands, picked)
+            // TalkBack can't tap a cell: NEXT HAND / PREVIOUS HAND step through the dealt hands instead.
+            val stepThrough = StartingHands.all.filter { (hands[it]?.dealt ?: 0) > 0 }.ifEmpty { StartingHands.all }
+            fun step(by: Int): Boolean {
+                val i = stepThrough.indexOf(picked)
+                picked = stepThrough[if (i < 0) (if (by > 0) 0 else stepThrough.lastIndex) else (i + by).mod(stepThrough.size)]
+                return true
+            }
             BoxWithConstraints(
-                Modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = spoken },
+                Modifier.fillMaxWidth().clearAndSetSemantics {
+                    contentDescription = spoken
+                    customActions = listOf(
+                        CustomAccessibilityAction("Next hand") { step(1) },
+                        CustomAccessibilityAction("Previous hand") { step(-1) },
+                    )
+                },
             ) {
                 val gap = 1.dp
                 val cell = (maxWidth - gap * 12) / 13
@@ -265,7 +280,7 @@ internal fun chartDescription(hands: Map<String, HandTally>, picked: String?): S
         " Selected: ${spokenHand(cls)}, " + if (t.dealt == 0) "not dealt yet." else "dealt ${t.dealt}, played ${t.played}."
     }.orEmpty()
     return "Hold'em starting-hand chart: you played ${(played * 100 + dealt / 2) / dealt} percent of $dealt hands." +
-        (if (top.isNotEmpty()) " Played most: $top." else "") + pick + " Tap a hand on the chart for its numbers."
+        (if (top.isNotEmpty()) " Played most: $top." else "") + pick + " Use the next and previous hand actions for each hand's numbers."
 }
 
 /** "AKs" read out as "Ace King suited". */
