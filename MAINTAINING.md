@@ -105,8 +105,10 @@ most 30 characters, `short_description.txt` at most 80,
 `full_description.txt` at most 4000) and the release notes in
 `changelogs/default.txt`. The images in `images/` come from
 `tools/screenshots/`; rerun it after a visible UI change. The privacy
-policy Play links to is [`docs/privacy.html`](docs/privacy.html); keep it in
-step with what the app does (network use, permissions, storage).
+policy Play links to is <https://bradflaugher.com/privacy/pokersi/>, in the
+[bradflaugher.com](https://github.com/bradflaugher/bradflaugher.com) repository
+(`privacy/pokersi/index.html`); keep it in step with what the app does
+(network use, permissions, storage).
 
 ## Security settings that live outside the repository
 

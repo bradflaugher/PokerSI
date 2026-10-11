@@ -225,8 +225,8 @@ PokerSI has no account, ads, analytics or tracking, and turns backups off.
 Games, settings and everything the opponents say stay on the phone, and so
 does the AI. The app goes online only to download a model you chose, from
 Hugging Face. Folders of your own models are opened read-only through the
-system file picker. The full policy is in
-[`docs/privacy.html`](docs/privacy.html).
+system file picker. The full policy is at
+<https://bradflaugher.com/privacy/pokersi/>.
 
 ## Credits
 
