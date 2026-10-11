@@ -50,6 +50,12 @@ download a model.
   plain words. The reply is held to a tiny JSON shape by a grammar
   (`{"action": "raise", "amount": 120, "say": "..."}`, the decision first), the line it says
   shows up in a speech bubble, and the action is clamped to something legal.
+- **Table talk that doesn't repeat.** Each turn a character gets a
+  different nudge (react to the last bet, answer whoever spoke, tease
+  someone, the pot, the board, something in character) plus what was just
+  said at the table, so they banter with each other. The table remembers
+  every line: a character that starts repeating itself (or anyone else) is
+  cut off before the line shows.
 - **House Bot when there's no model.** With nothing loaded, a built-in
   heuristic opponent plays every seat and the table says so. It also steps
   in for any decision the model fumbles or takes too long on, so a hand
@@ -69,6 +75,13 @@ download a model.
 - **Accessible.** TalkBack reads cards ("Ace of hearts, held"), opponents
   (name, chips, last action, what they say), the pot and your chips, and
   announces each action at the table.
+- **Debug console.** For the curious: turn on SETTINGS > DEBUG CONSOLE and
+  a "~" at the table (and in MODELS, or a keyboard's backtick) drops down a
+  Quake-style terminal with every prompt sent to the model, its raw reply as
+  it streams, timings and tokens per second, the decision before and after
+  it was made legal, every House Bot fallback and why, and model loads and
+  failures. Filter, clear, or copy it as plain text. Off by default, and it
+  records nothing while off.
 - **No nagging.** Share, rate on Google Play, send feedback (a GitHub
   issue), the privacy policy and the source code are plain links under
   SETTINGS > ABOUT, never a prompt.

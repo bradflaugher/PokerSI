@@ -31,33 +31,42 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
     GitHub issue), the privacy policy and the source code: intents to the
     share sheet, Play Store and browser, never a network call. A missing
     handler returns false instead of crashing.
-  - `game/` — `GameController` (runs a table for the UI), settings, the
-    saved run, the daily record and `Stats` (lifetime records for the
-    STATS screen, fed by `GameController` at each hand's end), all in
-    SharedPreferences.
+  - `game/` — `GameController` (runs a table for the UI, and owns each
+    table's `TableTalk`), settings, the saved run, the daily record and
+    `Stats` (lifetime records for the STATS screen, fed by `GameController`
+    at each hand's end), all in SharedPreferences; `AttractLines` (the title
+    screen's cycling credits/tour/daily/records line).
+  - `debug/` — `AiLog`, the debug console's bounded (400 entries),
+    thread-safe ring buffer: prompts, grammars, streaming replies, timings,
+    parsed and coerced decisions, fallbacks, engine and table events.
   - `engine/` — the poker. **Pure Kotlin, no `android.*` imports**, fully
     unit-tested. Cards and seeded decks, the hand evaluator (high hands,
     best 5 of N, Omaha's exactly-two rule, short-deck ranking), every
     `GameVariant`, the hand state machine with side pots, the agent contract
     (`Agent.kt`), `HouseBot` (a heuristic opponent, used with no model
-    loaded and whenever the LLM fails), Monte Carlo equity.
+    loaded and whenever the LLM fails), Monte Carlo equity, and `TableTalk`
+    (what has been said at a table, for keeping lines fresh).
   - `run/` — the roguelite "Run" mode: tables (blinds) of rising stakes,
     boss opponents with rule twists, choosing your next table, seeded runs
     and the daily run. Pure Kotlin too.
   - `llm/` — `LlamaNative` (JNI surface), `LlamaEngine` (loads one model,
     serializes every call on one thread), the model catalog, downloads
     (WorkManager), model storage (app storage + user-picked SAF folders),
-    the prompt builder, GBNF grammar and reply parser (`LlmAgent`).
+    the prompt builder, GBNF grammar and reply parser (`LlmAgent`, which
+    talks to a model through `LlmBackend`), and `TalkPlan` (what a character
+    talks about this turn).
   - `ui/` — Compose. The pixel design system (`ui/pixel/`: fonts, palette,
     `PixelCard`, buttons, LED digits, green felt, CRT overlay, procedural
     pixel avatars, chiptune sound), and the screens: title, game picker,
-    table, run tour, models, how-to-play, settings, stats, and the
-    first-run tips overlay (`Tips.kt`).
+    table, run tour, models, how-to-play, settings, stats, the first-run
+    tips overlay (`Tips.kt`) and the drop-down `DebugConsole`.
 - `app/src/test/` — JVM unit tests (engine, run, prompt/grammar/parser,
-  stats, links). `InvariantsTest` checks the rules below that a compiler
-  can't.
+  table talk, the console log, stats, links). `InvariantsTest` checks the
+  rules below that a compiler can't.
 - `tools/` — `icon/gen_icon.py` (launcher icon), `screenshots/`
-  (Play/README screenshots and captions).
+  (Play/README screenshots and captions), `llm-harness/` (the real prompts
+  and grammars through llama.cpp on a desktop, single cases and whole
+  sessions of table talk).
 
 ## Design rules
 
@@ -71,6 +80,17 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
   decision first so a small model can't talk itself out of it, then
   clamped to a legal action by `LegalActions.coerce`. If generation fails
   or times out, `HouseBot` decides instead and the hand carries on.
+- **Table talk stays fresh.** Small models parrot whatever the prompt
+  repeats, so the catchphrase is not in the prompt (it is said when a
+  character sits down, and offered only now and then by `TalkPlan`). Each
+  prompt carries a short, varied hint (react to the last action, answer
+  whoever spoke, tease someone, the pot, the board, something in
+  character), the latest lines by others and the character's own last
+  lines. One `TableTalk` per table, shared by every seat (LLM and House
+  Bot) and new for each table, remembers what was said; a line that
+  repeats it (same words, mostly the same words, or the catchphrase
+  uninvited) is held back while it streams and swapped for a House Bot
+  line nobody said lately, or silence.
 - **No model? Still playable.** With no model loaded, opponents are played
   by `HouseBot` and the table says so. The game never blocks on a download.
 - **Infinitely replayable.** Random personas, six variants, the Run mode's
@@ -93,6 +113,10 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
   region, and every action button is at least 48dp tall.
 - Poker on a green table, not a deck-builder: no Jokers, no shop.
 - Keep the engine pure: all Android code lives outside `engine/` and `run/`.
+- The debug console (SETTINGS > DEBUG CONSOLE, "~" at the table and in the
+  model bay, or a keyboard's backtick) is off by default, and `AiLog`
+  records nothing unless it is on; switching it off clears it. It never
+  leaves the phone except by the player's own COPY.
 
 ## Build, test, release
 
