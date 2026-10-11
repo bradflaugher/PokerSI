@@ -24,6 +24,12 @@ data class TalkPlan(
     val catchphraseOk: Boolean = false,
     /** Which kind of hint this is ("react", "tease"...): the next turn picks a different one. */
     val kind: String = "",
+    /**
+     * Whether the character talks this turn at all. Quiet turns leave the talk
+     * out of the prompt and the reply ([PokerGrammar]): fewer tokens to read
+     * and write, so the model decides faster.
+     */
+    val speak: Boolean = true,
 ) {
     companion object {
         const val OTHERS_SHOWN = 3
@@ -31,6 +37,11 @@ data class TalkPlan(
 
         /** Chance (by weight) that a turn's hint invites the catchphrase. */
         private const val CATCHPHRASE_WEIGHT = 0.6
+
+        /** How often a character talks: when someone just spoke, when facing a bet or raise, otherwise. */
+        internal const val SPEAK_ANSWER = 0.55
+        internal const val SPEAK_PRESSURE = 0.45
+        internal const val SPEAK_OTHERWISE = 0.3
 
         private val actionVerbs = listOf(
             "folds", "checks", "calls", "bets", "raises", "completes", "draws", "stands pat", "discards", "takes a mulligan",
@@ -45,8 +56,18 @@ data class TalkPlan(
             "Give the table some unasked-for advice, in character.",
         )
 
-        /** Plans the talk for [persona]'s turn in [context], from what [talk] remembers. */
-        fun make(context: DecisionContext, persona: Persona, talk: TableTalk, random: Random, lastKind: String? = null): TalkPlan {
+        /**
+         * Plans the talk for [persona]'s turn in [context], from what [talk]
+         * remembers; [alwaysSpeak] skips the quiet turns (tests, the harness).
+         */
+        fun make(
+            context: DecisionContext,
+            persona: Persona,
+            talk: TableTalk,
+            random: Random,
+            lastKind: String? = null,
+            alwaysSpeak: Boolean = false,
+        ): TalkPlan {
             val me = persona.name
             val others = talk.recent(OTHERS_SHOWN * 3).filter { it.speaker != me }.takeLast(OTHERS_SHOWN)
             val mine = talk.saidBy(me, MINE_SHOWN)
@@ -89,7 +110,16 @@ data class TalkPlan(
             var roll = random.nextDouble() * pool.sumOf { it.second }
             val pick = pool.firstOrNull { (_, weight, _) -> roll -= weight; roll < 0 } ?: pool.last()
             val hint = pick.third()
-            return TalkPlan(hint, others, mine, catchphraseOk, pick.first)
+            // Talk on some turns, not all: more likely when spoken to or under pressure.
+            val spokenTo = talk.recent(3).lastOrNull()?.let { it.speaker != me } == true
+            val pressed = lastAction(context, me)?.let { line -> listOf(" bets", " raises", " all in").any { line.contains(it) } } == true
+            val chance = when {
+                spokenTo -> SPEAK_ANSWER
+                pressed -> SPEAK_PRESSURE
+                else -> SPEAK_OTHERWISE
+            }
+            val speak = alwaysSpeak || random.nextDouble() < chance
+            return TalkPlan(hint, others, mine, catchphraseOk && speak, pick.first, speak)
         }
 
         /** The latest betting or drawing line by someone else in this hand ("Mo raises to 60"). */

@@ -33,6 +33,8 @@ class LlmAgent(
     private val maxTokens: Int = 96,
     private val timeoutMs: Long = 25_000,
     private val random: Random = Random(persona.seed),
+    /** Talk every turn instead of now and then (tests). */
+    private val alwaysTalks: Boolean = false,
 ) : PlayerAgent {
     private val who = persona.name
 
@@ -43,13 +45,13 @@ class LlmAgent(
         val start = now()
         if (!engine.isReady) return fallBack(context, onChatter, null, "no model")
 
-        val plan = TalkPlan.make(context, persona, talk, random, lastHintKind)
+        val plan = TalkPlan.make(context, persona, talk, random, lastHintKind, alwaysSpeak = alwaysTalks)
         lastHintKind = plan.kind
         // Off-turn, the catchphrase counts as already said.
         val avoid = if (plan.catchphraseOk || persona.catchphrase.isBlank()) emptyList() else listOf(persona.catchphrase)
         val messages = PokerPrompt.build(context, persona, plan)
-        val grammar = PokerGrammar.forContext(context)
-        AiLog.add(AiLogKind.PROMPT, who, { "hand ${context.handNumber}, ${context.street}: ${plan.hint}" }) {
+        val grammar = PokerGrammar.forContext(context, plan.speak)
+        AiLog.add(AiLogKind.PROMPT, who, { "hand ${context.handNumber}, ${context.street}: ${if (plan.speak) plan.hint else "(quiet turn)"}" }) {
             messages.joinToString("\n\n") { "[${it.role}]\n${it.content.trimEnd()}" }
         }
         AiLog.add(AiLogKind.GRAMMAR, who, { "grammar (${grammar.lines().size} rules)" }) { grammar }

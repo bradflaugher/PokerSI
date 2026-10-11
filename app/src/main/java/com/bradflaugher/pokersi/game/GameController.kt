@@ -47,12 +47,12 @@ enum class GameSpeed(val factor: Double, val label: String) {
 
 /** Pauses between table events so the UI can animate them (milliseconds, at [GameSpeed.NORMAL]). */
 data class Pacing(
-    val dealMs: Long = 900,
-    val streetMs: Long = 700,
-    val actionMs: Long = 450,
+    val dealMs: Long = 700,
+    val streetMs: Long = 500,
+    val actionMs: Long = 350,
     /** Bots never answer faster than this, so their turn reads. */
-    val thinkMinMs: Long = 650,
-    val runOutMs: Long = 900,
+    val thinkMinMs: Long = 450,
+    val runOutMs: Long = 750,
     /** How long a finished line of table talk stays up: a base, a little more per character, a cap. 0 keeps lines until the street ends. */
     val chatterHoldMs: Long = 2500,
     val chatterPerCharMs: Long = 35,
@@ -147,6 +147,8 @@ class GameController(
     private val brains: OpponentBrains = HouseOnlyBrains,
     private val pacing: Pacing = Pacing(),
     private val speed: StateFlow<GameSpeed> = MutableStateFlow(GameSpeed.NORMAL),
+    /** SETTINGS > FAST FOLD: once the player has folded, the rest of the hand plays out at once ([outOfIt]). */
+    private val fastFold: StateFlow<Boolean> = MutableStateFlow(false),
     private val compute: CoroutineDispatcher = Dispatchers.Default,
     private val runSaver: RunSaver? = null,
     /** Plays the human seat and skips every wait (tests, attract mode). */
@@ -611,7 +613,7 @@ class GameController(
                 shownBoard = h.board.size
                 clearChatter()
                 publish()
-                pause(pacing.streetMs)
+                if (!outOfIt(h)) pause(pacing.streetMs)
             }
             if (seat == 0) humanAct(h) else botAct(h, seat)
             if (AiLog.enabled) {
@@ -619,7 +621,7 @@ class GameController(
             }
             logged = h.history.size
             publish()
-            pause(pacing.actionMs)
+            if (!outOfIt(h)) pause(pacing.actionMs)
         }
 
         // All-in run-outs: turn the remaining board cards one street at a time.
@@ -628,7 +630,7 @@ class GameController(
             for (n in steps) {
                 boardLimit = n
                 publish()
-                pause(pacing.runOutMs)
+                if (!outOfIt(h)) pause(pacing.runOutMs)
             }
             boardLimit = null
         }
@@ -669,8 +671,23 @@ class GameController(
         if (runState != null) saveForfeit(h)
     }
 
+    /**
+     * Fast fold: the player has folded this hand (and the setting is on), so
+     * how the others finish it doesn't matter to them. The rest plays out at
+     * once: each opponent's House Bot decides, silently, with no pauses.
+     */
+    private fun outOfIt(h: Hand): Boolean =
+        fastFold.value && autopilot == null && h.snapshot(0).seats.firstOrNull { it.seat == 0 }?.folded == true
+
     private suspend fun botAct(h: Hand, seat: Int) {
         awaitUnpaused()
+        if (outOfIt(h)) {
+            thinkingSeat = null
+            streamingSeat = null
+            removeChatter(seat)
+            h.apply(seat, fallbacks[seat].decideNow(h.context(seat)).decision)
+            return
+        }
         val id = ++decisionId
         thinkingSeat = seat
         removeChatter(seat)

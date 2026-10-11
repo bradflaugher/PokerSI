@@ -37,11 +37,13 @@ class GameControllerTest {
         replaceAfter: Int? = 1,
         pacing: Pacing = Pacing.Instant,
         recorder: HandRecorder? = null,
+        fastFold: Boolean = false,
     ) = GameController(
         scope = backgroundScope,
         brains = brains,
         pacing = pacing,
         speed = MutableStateFlow(GameSpeed.NORMAL),
+        fastFold = MutableStateFlow(fastFold),
         compute = Dispatchers.Unconfined,
         runSaver = saver,
         autopilot = autopilot,
@@ -359,6 +361,40 @@ class GameControllerTest {
         assertTrue("fast speed shortens short lines", p.chatterHoldAt("hi", GameSpeed.FAST.factor) < p.chatterHoldAt("hi", GameSpeed.NORMAL.factor))
         assertTrue("but a long one stays until it has typed out", p.chatterHoldAt(long, GameSpeed.FAST.factor) > Pacing.TYPE_MS_PER_CHAR * long.length)
         assertEquals(0, Pacing.Instant.chatterHoldAt(long, 1.0))
+    }
+
+    /** Plays the human seat by folding whenever it can, until [done]. */
+    private fun TestScope.foldEverything(c: GameController, done: () -> Boolean) {
+        var guard = 0
+        while (!done() && guard++ < 2000) {
+            runCurrent()
+            val state = c.table.value
+            val turn = state.humanTurn
+            when {
+                turn != null && turn.isDiscard -> c.confirmDiscard()
+                turn != null -> c.act(if (turn.legal.canFold && !turn.legal.canCheck) Decision.Fold else Decision.Check)
+                state.phase == TablePhase.HandOver || state.phase == TablePhase.Busted -> c.next()
+            }
+        }
+    }
+
+    private fun countingBrains(calls: MutableList<Int>) = brainsOf { seat, _ ->
+        agentOf { ctx, _ -> calls += ctx.handNumber; AgentReply(if (ctx.legal.canCheck) Decision.Check else Decision.Call, null) }
+    }
+
+    @Test
+    fun fastFoldFinishesTheHandWithoutTheModelOnceYouFold() = runTest {
+        val calls = mutableListOf<Int>()
+        val c = controller(brains = countingBrains(calls), fastFold = true)
+        c.startQuick(config(opponents = 3, seed = 4L))
+        foldEverything(c) { c.table.value.handNumber >= 4 }
+        val slow = mutableListOf<Int>()
+        val d = controller(brains = countingBrains(slow), fastFold = false)
+        d.startQuick(config(opponents = 3, seed = 4L))
+        foldEverything(d) { d.table.value.handNumber >= 4 }
+        assertTrue("the model still plays before you fold: ${calls.size}", calls.isNotEmpty())
+        assertTrue("but far less once you've folded: ${calls.size} vs ${slow.size}", calls.size < slow.size)
+        c.stop(); d.stop()
     }
 
     @Test
