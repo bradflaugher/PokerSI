@@ -22,7 +22,7 @@ object HandTalk {
             anyOf(plural),
             // Any pair: "top pair", "one pair", "a pair of"; a pair of boots is a fair loss.
             "pairs?", "overpair",
-            "trips", "three of a kind", "four of a kind", "quads", "full house", "set of",
+            "trips", "three of a kind", "four of a kind", "quads", "full house", "set of", "a set", "my set",
             // "the Royal Flush" (a dinghy, a catchphrase) and "the Holy Flush" (a quest) are
             // persona jokes; "a royal flush" is a hand.
             "(?<!the royal )(?<!holy )flush", "straight(?! face)", "kicker", "high card", "suited", "offsuit", "my cards", "the nuts",
@@ -38,10 +38,10 @@ object HandTalk {
     /**
      * Cards as the prompt writes them ("Kd", "7h", "Ts"), read case-sensitively off
      * the raw line. An ace alone ("As", "Ah", "Ad") is an ordinary word, so it only
-     * counts next to another card ("As Kd").
+     * counts next to another card ("As Kd") or after card words ("holding As").
      */
     private val card = "(?:[2-9TJQKA]|10)[shdc]"
-    private val cardCodes = Regex("\\b(?:$card[\\s,]+$card|(?:[2-9TJQK]|10)[shdc])\\b")
+    private val cardCodes = Regex("\\b(?:$card[\\s,]+$card|(?:[2-9TJQK]|10)[shdc]|(?i:holding|hold|have|got|cards?)[:\\s]+A[shdc])\\b")
 
     /** Whether [text] says what hand (or cards) its speaker holds. */
     fun revealsHand(text: String): Boolean {

@@ -88,11 +88,12 @@ class TableTalk(private val capacity: Int = 40) {
             val lastIsKnown = last in whole || lastBecomes != null || (whole + other).any { it.startsWith(last) }
             val outside = (whole - other).size + if (lastIsKnown) 0 else 1
             if (lastBecomes != null) missing -= lastBecomes
-            // Add [other]'s missing words, shortest first, while they fit.
+            // Add [other]'s missing words, shortest first, while they fit (separators not
+            // charged: punctuation already there, "word,next", can join them).
             var left = room - (lastBecomes?.let { it.length - last.length } ?: 0)
             var added = 0
             for (word in missing.sortedBy { it.length }) {
-                left -= word.length + 1
+                left -= word.length
                 if (left < 0) break
                 added++
             }

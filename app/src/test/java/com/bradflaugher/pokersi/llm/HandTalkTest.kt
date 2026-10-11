@@ -27,6 +27,8 @@ class HandTalkTest {
             "I have a royal flush!",
             "I have As Kd, partner.",
             "Holding 7h, nothing more.",
+            "I'm holding As, partner.",
+            "I flopped a set, yeehaw.",
             "Nine four offsuit, yikes.",
         ).forEach { assertTrue(it, HandTalk.revealsHand(it)) }
     }
@@ -43,6 +45,7 @@ class HandTalkTest {
             "My horse Biscuit says hush.",
             "Ah, as I said: I'm in!",
             "As if, partner.",
+            "We're all set, let's play.",
             "",
         ).forEach { assertFalse(it, HandTalk.revealsHand(it)) }
     }
