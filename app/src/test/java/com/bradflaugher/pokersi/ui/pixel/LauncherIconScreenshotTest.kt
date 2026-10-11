@@ -53,7 +53,7 @@ class LauncherIconScreenshotTest {
     }
 
     @Test
-    fun launcherIcon() = renderToPng(File(screenshotDir, "design/launcher_icon.png"), 1080, 760, 420) {
+    fun launcherIcon() = renderToPng(File(screenshotDir, "design/launcher_icon.png"), 1080, 900, 420) {
         Column(Modifier.fillMaxSize()) {
             // Big: circle, squircle and themed masks.
             Row(

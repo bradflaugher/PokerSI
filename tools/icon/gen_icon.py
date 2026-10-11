@@ -206,20 +206,29 @@ def chip_art():
     return g.rows(), mono.rows()
 
 
+FELT_GRID = 36  # the felt is drawn in 3dp blocks: two art pixels, as in the app
+
+
 def felt_background():
-    """Lamp-lit green felt, ordered-dithered with the app's Table felt tones."""
-    tones = ["#FF021C15", "#FF053324", "#FF0A4C34", "#FF106444", "#FF187C53"]
-    bayer = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]
+    """Lamp-lit green felt like the app's FeltBackground: the Table tones and
+    their midpoints, twill-dithered, in blocks twice the art's pixel size."""
+    base = ["#FF021C15", "#FF053324", "#FF0A4C34", "#FF106444", "#FF187C53"]
+    tones = [base[0]]
+    for a, b in zip(base, base[1:]):
+        mid = "#FF" + "".join("%02X" % ((int(a[i:i + 2], 16) + int(b[i:i + 2], 16)) // 2) for i in (3, 5, 7))
+        tones += [mid, b]
+    twill = [(4 * ((x + y) % 4) + (0, 2, 1, 3)[x] + 0.5) / 16 for y in range(4) for x in range(4)]
     rows = []
-    for y in range(GRID):
+    for y in range(FELT_GRID):
         row = []
-        for x in range(GRID):
-            dx = (x + 0.5) / GRID - 0.5
-            dy = (y + 0.5) / GRID - 0.40
+        for x in range(FELT_GRID):
+            dx = (x + 0.5) / FELT_GRID - 0.5
+            dy = (y + 0.5) / FELT_GRID - 0.40
             lamp = max(0.0, 1 - (math.hypot(dx, dy) / 0.55) ** 2)
-            v = min(1.0, max(0.0, 0.08 + lamp * 0.9)) * (len(tones) - 1)
-            base = math.floor(v)
-            k = base + 1 if v - base > (bayer[(y % 4) * 4 + x % 4] + 0.5) / 16 else base
+            v = min(1.0, max(0.0, 0.06 + lamp * 0.92)) * (len(tones) - 1)
+            k = math.floor(v)
+            if v - k > twill[(y % 4) * 4 + x % 4]:
+                k += 1
             row.append(chr(ord("A") + min(k, len(tones) - 1)))
         rows.append("".join(row))
     legend = {chr(ord("A") + i): t for i, t in enumerate(tones)}
@@ -230,9 +239,11 @@ def fmt(v):
     return ("%.1f" % v).rstrip("0").rstrip(".")
 
 
-def paths(rows, legend, mono=None):
-    """One <path> per color: each horizontal run of a color becomes a rect."""
-    by_color = {}
+def paths(rows, legend, mono=None, px=PX):
+    """One <path> per color: horizontal runs of a color, merged downwards
+    with identical runs on the rows below into rectangles (fewer, larger
+    shapes: shorter paths and no hairline seams between rows)."""
+    runs = {}  # (color, x, width) -> list of rows
     for y, row in enumerate(rows):
         x = 0
         while x < len(row):
@@ -244,12 +255,21 @@ def paths(rows, legend, mono=None):
             while x < len(row) and row[x] == ch:
                 x += 1
             color = mono if mono else legend[ch]
-            w = (x - start) * PX
-            by_color.setdefault(color, []).append(
-                "M%s,%sh%sv%sh-%sz" % (fmt(start * PX), fmt(y * PX), fmt(w), fmt(PX), fmt(w))
-            )
+            runs.setdefault((color, start, x - start), []).append(y)
+    by_color = {}
+    for (color, start, w), ys in sorted(runs.items(), key=lambda kv: (kv[1][0], kv[0][1])):
+        top = prev = ys[0]
+        for y in ys[1:] + [None]:
+            if y is not None and y == prev + 1:
+                prev = y
+                continue
+            by_color.setdefault(color, []).append((top, start, w, prev - top + 1))
+            if y is not None:
+                top = prev = y
     out = []
-    for color, segs in by_color.items():
+    for color, rects in by_color.items():
+        segs = ["M%s,%sh%sv%sh-%sz" % (fmt(x * px), fmt(y * px), fmt(w * px), fmt(h * px), fmt(w * px))
+                for (y, x, w, h) in sorted(rects)]
         # Keep each path short (lint's VectorPath limit is 800 chars).
         chunk = ""
         for seg in segs + [None]:
@@ -327,13 +347,15 @@ def main():
     fg, mono = chip_art()
     bg, bg_legend = felt_background()
     if "--preview" in sys.argv:
-        preview(fg, (bg, bg_legend), mono, sys.argv[sys.argv.index("--preview") + 1])
+        k = GRID // FELT_GRID
+        bg_px = ["".join(ch * k for ch in row) for row in bg for _ in range(k)]
+        preview(fg, (bg_px, bg_legend), mono, sys.argv[sys.argv.index("--preview") + 1])
     drawable = os.path.join(RES, "drawable")
     mipmap = os.path.join(RES, "mipmap-anydpi")
     os.makedirs(drawable, exist_ok=True)
     os.makedirs(mipmap, exist_ok=True)
     with open(os.path.join(drawable, "ic_launcher_background.xml"), "w") as f:
-        f.write(vector(paths(bg, bg_legend)))
+        f.write(vector(paths(bg, bg_legend, px=108 / FELT_GRID)))
     with open(os.path.join(drawable, "ic_launcher_foreground.xml"), "w") as f:
         f.write(vector(paths(fg, COLORS)))
     with open(os.path.join(drawable, "ic_launcher_monochrome.xml"), "w") as f:
