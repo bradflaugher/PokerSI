@@ -19,7 +19,7 @@ download a model.
 
 <table>
   <tr>
-    <td align="center" width="33%"><img src="docs/screenshots/title.png" alt="Title screen"><p><em><b>Title</b> · insert coin</em></p></td>
+    <td align="center" width="33%"><img src="docs/screenshots/title.png" alt="Title screen"><p><em><b>Title</b> · pull up a chair</em></p></td>
     <td align="center" width="33%"><img src="docs/screenshots/picker.png" alt="Game picker"><p><em><b>Six games</b> — pick one, pick your rivals</em></p></td>
     <td align="center" width="33%"><img src="docs/screenshots/draw.png" alt="Five-Card Draw with HOLD buttons"><p><em><b>Five-Card Draw</b> — HOLD the keepers</em></p></td>
   </tr>

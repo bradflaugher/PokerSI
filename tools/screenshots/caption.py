@@ -67,7 +67,7 @@ CAPTIONS = {
         ("run_table", "CLIMB THE\nTOUR", "Poker Tour: rising stakes, chips carry over"),
         ("run_choose", "PICK YOUR\nNEXT TABLE", "Low stakes or high: bigger risk, bigger bonus"),
         ("models", "BRING YOUR\nOWN BRAIN", "Download a tiny model, or load your own GGUF"),
-        ("title", "INSERT\nCOIN", "No ads. No account. No real money."),
+        ("title", "PULL UP\nA CHAIR", "No ads. No account. No real money."),
     ],
     "tablet": [
         ("table_holdem", "POKER VS.\nA TINY AI", "Every rival is an AI running on your tablet"),
