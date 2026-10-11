@@ -1,14 +1,16 @@
 package com.bradflaugher.pokersi.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import com.bradflaugher.pokersi.ui.pixel.PixelPalette
 import com.bradflaugher.pokersi.game.StartingHands
 import com.bradflaugher.pokersi.game.HandTally
 import com.bradflaugher.pokersi.engine.Rank
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.size
@@ -16,7 +18,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
@@ -158,7 +159,8 @@ private fun BestHandPanel(stats: LifetimeStats) {
  * The classic 13x13 Hold'em chart, coloured by how often the player played
  * each starting hand (called, bet or raised before the flop): pairs on the
  * diagonal, suited above, offsuit below. Hands never dealt stay dark. Tap
- * one for its numbers.
+ * one for its numbers: the whole grid is one large touch target (a cell is
+ * far below 48dp), and one TalkBack node that reads out the chart.
  */
 @Composable
 internal fun HandChart(hands: Map<String, HandTally>) {
@@ -173,15 +175,29 @@ internal fun HandChart(hands: Map<String, HandTally>) {
                 else "How often you played each starting hand (called or raised before the flop). Pairs run down the middle, suited hands above, offsuit below.",
                 color = p.cardCream, small = true,
             )
-            BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val spoken = chartDescription(hands, picked)
+            BoxWithConstraints(
+                Modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = spoken },
+            ) {
                 val gap = 1.dp
                 val cell = (maxWidth - gap * 12) / 13
-                Column(verticalArrangement = Arrangement.spacedBy(gap)) {
+                val pitch = with(LocalDensity.current) { (cell + gap).toPx() }
+                Column(
+                    Modifier.pointerInput(pitch) {
+                        detectTapGestures { at ->
+                            val row = (at.y / pitch).toInt().coerceIn(0, 12)
+                            val col = (at.x / pitch).toInt().coerceIn(0, 12)
+                            val cls = StartingHands.at(row, col)
+                            picked = if (picked == cls) null else cls
+                        }
+                    },
+                    verticalArrangement = Arrangement.spacedBy(gap),
+                ) {
                     for (row in 0 until 13) {
                         Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
                             for (col in 0 until 13) {
                                 val cls = StartingHands.at(row, col)
-                                ChartCell(cls, hands[cls], cls == picked, cell) { picked = if (picked == cls) null else cls }
+                                ChartCell(cls, hands[cls], cls == picked, cell)
                             }
                         }
                     }
@@ -212,18 +228,15 @@ private fun heat(p: PixelPalette, rate: Int?): Color = when {
 }
 
 @Composable
-private fun ChartCell(cls: String, tally: HandTally?, picked: Boolean, size: Dp, onClick: () -> Unit) {
+private fun ChartCell(cls: String, tally: HandTally?, picked: Boolean, size: Dp) {
     val p = PixelTheme.palette
     val rate = tally?.playRate
     val fill = heat(p, rate)
-    val spoken = spokenHand(cls) + (if (rate == null) ", not dealt yet" else ", dealt ${tally.dealt}, played ${tally.played}")
     Box(
         Modifier
             .size(size)
             .background(fill)
-            .then(if (picked) Modifier.border(2.dp, p.white) else Modifier)
-            .clickable(role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = spoken },
+            .then(if (picked) Modifier.border(2.dp, p.white) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
         PixelText(
@@ -234,6 +247,25 @@ private fun ChartCell(cls: String, tally: HandTally?, picked: Boolean, size: Dp,
             maxLines = 1,
         )
     }
+}
+
+/**
+ * What TalkBack reads for the chart: the totals, the hands played most
+ * often, and the picked hand's numbers.
+ */
+internal fun chartDescription(hands: Map<String, HandTally>, picked: String?): String {
+    val dealt = hands.values.sumOf { it.dealt }
+    if (dealt == 0) return "Hold'em starting-hand chart: no hands yet."
+    val played = hands.values.sumOf { it.played }
+    val top = hands.filterValues { it.played > 0 }.entries
+        .sortedWith(compareByDescending<Map.Entry<String, HandTally>> { it.value.playRate }.thenByDescending { it.value.dealt })
+        .take(5).joinToString(", ") { (cls, t) -> "${spokenHand(cls)} ${t.playRate} percent" }
+    val pick = picked?.let { cls ->
+        val t = hands[cls] ?: HandTally()
+        " Selected: ${spokenHand(cls)}, " + if (t.dealt == 0) "not dealt yet." else "dealt ${t.dealt}, played ${t.played}."
+    }.orEmpty()
+    return "Hold'em starting-hand chart: you played ${(played * 100 + dealt / 2) / dealt} percent of $dealt hands." +
+        (if (top.isNotEmpty()) " Played most: $top." else "") + pick + " Tap a hand on the chart for its numbers."
 }
 
 /** "AKs" read out as "Ace King suited". */
