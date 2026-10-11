@@ -687,7 +687,10 @@ class GameController(
             removeChatter(seat)
             // The House Bot's equity sampling is real work: off the table's thread, like any agent.
             val ctx = h.context(seat)
-            h.apply(seat, withContext(compute) { fallbacks[seat].decideNow(ctx) }.decision)
+            val reply = withContext(compute) { fallbacks[seat].decideNow(ctx) }
+            // A pause that began while it was deciding holds the hand, as for any opponent.
+            awaitUnpaused()
+            h.apply(seat, reply.decision)
             return
         }
         val id = ++decisionId

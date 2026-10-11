@@ -127,6 +127,25 @@ class TableTalkPromptTest {
     }
 
     @Test
+    fun aQuietTurnStaysQuietWhenTheHouseBotTakesOver() = runBlocking {
+        val broken = object : LlmBackend {
+            override val isReady = true
+            override suspend fun generate(
+                messages: List<ChatMessage>, grammar: String?, maxTokens: Int, temperature: Float, seed: Int, timeoutMs: Long,
+                onText: (String) -> Boolean,
+            ): String = "not json at all"
+        }
+        val agent = LlmAgent(broken, cowboy, houseBot, talkWith("Miss Quill" to "hi"), random = object : Random() {
+            override fun nextBits(bitCount: Int) = (1 shl bitCount) - 1
+        })
+        val bubble = mutableListOf<String>()
+        val reply = agent.decide(context) { bubble += it }
+        assertEquals(Decision.Check, reply.decision)
+        assertEquals("the House Bot's \"House!\" is dropped", null, reply.say)
+        assertTrue(bubble.isEmpty())
+    }
+
+    @Test
     fun hintsReactToTheTableAndVary() {
         assertEquals("Dusty Boots checks", TalkPlan.lastAction(context, cowboy.name))
         val talk = talkWith("Miss Quill" to "Shhh! I'm raising.")
@@ -197,11 +216,11 @@ class TableTalkPromptTest {
     fun theConsoleRecordsOnlyWhenEnabled() = runBlocking {
         AiLog.enabled = false
         val backend = ScriptedBackend("""{"action": "raise", "amount": 99999, "say": "Yeehaw!"}""")
-        LlmAgent(backend, cowboy, houseBot).decide(context)
+        LlmAgent(backend, cowboy, houseBot, alwaysTalks = true).decide(context)
         assertTrue(AiLog.entries.value.isEmpty())
 
         AiLog.enabled = true
-        LlmAgent(backend, cowboy, houseBot).decide(context)
+        LlmAgent(backend, cowboy, houseBot, alwaysTalks = true).decide(context)
         val kinds = AiLog.entries.value.map { it.kind }
         assertEquals(listOf(AiLogKind.PROMPT, AiLogKind.GRAMMAR, AiLogKind.REPLY, AiLogKind.DECISION), kinds)
         val entries = AiLog.entries.value
@@ -223,7 +242,7 @@ class TableTalkPromptTest {
                 onText: (String) -> Boolean,
             ): String = error("boom")
         }
-        val reply = LlmAgent(broken, cowboy, houseBot).decide(context)
+        val reply = LlmAgent(broken, cowboy, houseBot, alwaysTalks = true).decide(context)
         assertEquals(AgentReply(Decision.Check, "House!"), reply)
         val error = AiLog.entries.value.last { it.kind == AiLogKind.ERROR }
         assertTrue(error.title, error.title.contains("House Bot decides (error: boom)"))
@@ -250,7 +269,7 @@ class TableTalkPromptTest {
             }
         }
         val bubble = mutableListOf<String>()
-        val reply = LlmAgent(dies, cowboy, chatty, TableTalk()).decide(context) { bubble += it }
+        val reply = LlmAgent(dies, cowboy, chatty, TableTalk(), alwaysTalks = true).decide(context) { bubble += it }
         assertEquals(Decision.Check, reply.decision)
         assertEquals("the model's line is kept", line, reply.say)
         assertTrue("streamed: $bubble", bubble.none { it == "House!" })
