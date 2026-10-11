@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">PokerSI</string>
+
+    <!-- Model downloads (llm/ModelDownloadWorker) -->
+    <string name="download_channel">Model downloads</string>
+    <string name="download_title">Downloading %1$s</string>
+    <string name="download_progress">%1$s of %2$s · %3$s/s</string>
+    <string name="download_cancel">Cancel</string>
+    <string name="download_no_space">Not enough free space for this model.</string>
+</resources>
