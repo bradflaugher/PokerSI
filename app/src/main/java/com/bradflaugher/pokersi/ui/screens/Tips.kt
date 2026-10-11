@@ -47,7 +47,7 @@ private val TIPS = listOf(
     Tip("MODELS", { it.cabinetLight }, "Download a brain in MODELS. Until then, the House Bot plays every seat."),
     Tip("QUICK", { it.suitRed }, "QUICK GAME is one table, any of six games. POKER TOUR climbs ten tables of rising stakes."),
     Tip("HOLD", { it.gold }, "Draw games: tap cards to HOLD the keepers, then DRAW the rest."),
-    Tip("II", { it.gray }, "II (or Back) pauses a hand: change the speed or quit."),
+    Tip("PAUSE", { it.gray }, "The pause button (or Back) pauses a hand: change the speed or quit."),
 )
 
 /**
@@ -100,7 +100,7 @@ fun TipsOverlay(onDismiss: () -> Unit, modifier: Modifier = Modifier) {
                                     PixelTag(
                                         tip.key,
                                         tip.color(p),
-                                        textColor = if (tip.key == "HOLD" || tip.key == "II") p.ink else p.white,
+                                        textColor = if (tip.key == "HOLD" || tip.key == "PAUSE") p.ink else p.white,
                                         style = PixelType.Small.copy(fontSize = 9.sp),
                                     )
                                 }

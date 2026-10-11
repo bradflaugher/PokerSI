@@ -88,6 +88,7 @@ import com.bradflaugher.pokersi.ui.pixel.Mood
 import com.bradflaugher.pokersi.ui.pixel.PixelAvatar
 import com.bradflaugher.pokersi.ui.pixel.PixelButton
 import com.bradflaugher.pokersi.ui.pixel.PixelButtonVariant
+import com.bradflaugher.pokersi.ui.pixel.PixelGlyph
 import com.bradflaugher.pokersi.ui.pixel.PixelCardDefaults
 import com.bradflaugher.pokersi.ui.pixel.PixelText
 import com.bradflaugher.pokersi.ui.pixel.PixelTheme
@@ -222,7 +223,7 @@ private const val SPOT_HUMAN = -2
 private fun TableHeader(state: TableUiState, callbacks: TableCallbacks) {
     val p = PixelTheme.palette
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        PixelButton("II", callbacks.onPause, Modifier.size(48.dp, 48.dp).semantics { contentDescription = "Pause" }, variant = PixelButtonVariant.Gray, textStyle = PixelType.Small)
+        PixelButton("PAUSE", callbacks.onPause, Modifier.size(48.dp, 48.dp).semantics { contentDescription = "Pause" }, variant = PixelButtonVariant.Gray, icon = PixelGlyph.Pause)
         callbacks.onConsole?.let { ConsoleButton(it) }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             PixelText(state.variant.displayName.uppercase(), style = PixelType.Small, color = p.yellow, maxLines = 1)
@@ -809,7 +810,7 @@ private fun BannerLayer(state: TableUiState, maxWidth: Dp, spots: Map<Int, Rect>
     val sub: String?
     val won: Boolean
     when (state.phase) {
-        TablePhase.Busted -> { text = "BUSTED!"; sub = "Insert coin to continue"; won = false }
+        TablePhase.Busted -> { text = "BUSTED!"; sub = "Out of chips"; won = false }
         TablePhase.TableWon -> { text = "TABLE CLEARED!"; sub = "Every opponent is broke"; won = true }
         else -> {
             val b = state.banner ?: return

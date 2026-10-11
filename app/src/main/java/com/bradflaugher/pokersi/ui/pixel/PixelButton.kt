@@ -46,7 +46,9 @@ private fun colorsFor(variant: PixelButtonVariant, enabled: Boolean): ButtonColo
 /**
  * A big rectangular video poker cabinet button: ink outline, bevelled face,
  * and a raised side that disappears when pressed (the face drops by two
- * chrome pixels). Plays [sound] and a haptic tick on click.
+ * chrome pixels). Plays [sound] and a haptic tick on click. With [icon]
+ * the face shows that glyph instead of [text]; give the button a content
+ * description then.
  */
 @Composable
 fun PixelButton(
@@ -59,6 +61,7 @@ fun PixelButton(
     sound: Sfx? = Sfx.Blip,
     haptics: Boolean = true,
     subtitle: String? = null,
+    icon: PixelGlyph? = null,
 ) {
     val unit = LocalPixelUnit.current
     val colors = colorsFor(variant, enabled)
@@ -102,7 +105,9 @@ fun PixelButton(
         contentAlignment = Alignment.Center,
     ) {
         Box(Modifier.offset { IntOffset(0, if (down) depth else 0) }, contentAlignment = Alignment.Center) {
-            if (subtitle == null) {
+            if (icon != null) {
+                PixelGlyphBox(icon, colors.text, if (enabled) colors.shadow else null)
+            } else if (subtitle == null) {
                 PixelText(text, style = textStyle, color = colors.text, shadowColor = colors.shadow, shadowUnits = if (enabled) 1 else 0, textAlign = TextAlign.Center)
             } else {
                 androidx.compose.foundation.layout.Column(horizontalAlignment = Alignment.CenterHorizontally) {

@@ -54,7 +54,7 @@ class TitleCallbacks(
 
 /**
  * The attract screen: the POKER S.I. marquee, a royal flush fanned out,
- * the cabinet's attract line cycling through [attract] (credits, tour, daily,
+ * the cabinet's attract line cycling through [attract] (tour, daily,
  * records: see [com.bradflaugher.pokersi.game.AttractLines]), the menu and a
  * status strip saying who plays the opponents.
  */
@@ -65,7 +65,7 @@ fun TitleScreen(
     callbacks: TitleCallbacks,
     modifier: Modifier = Modifier,
     dailyLabel: String = "DAILY TOUR",
-    attract: List<String> = listOf("INSERT COIN  -  PRESS START"),
+    attract: List<String> = listOf("PRESS START"),
 ) {
     val p = PixelTheme.palette
     ArcadeScreen(modifier) {
@@ -134,7 +134,7 @@ private fun CardFan(size: androidx.compose.ui.unit.Dp = 54.dp) {
 @Composable
 private fun AttractLine(lines: List<String>) {
     val p = PixelTheme.palette
-    val messages = lines.ifEmpty { listOf("FREE PLAY") }
+    val messages = lines.ifEmpty { listOf("PRESS START") }
     var index by remember(messages) { mutableIntStateOf(0) }
     var typed by remember(messages) { mutableIntStateOf(Int.MAX_VALUE) }
     var lit by remember { mutableStateOf(true) }
@@ -212,6 +212,5 @@ private fun StatusLine(brainLabel: String) {
     ) {
         PixelText("OPPONENTS:", style = PixelType.Label.copy(fontSize = 11.sp), color = p.gray, shadowUnits = 0)
         PixelText(brainLabel.uppercase(), Modifier.weight(1f), style = PixelType.LabelBold.copy(fontSize = 11.sp), color = p.ledGreen, maxLines = 1)
-        PixelText("FREE PLAY", style = PixelType.Label.copy(fontSize = 11.sp), color = p.ledAmber, shadowUnits = 0)
     }
 }
