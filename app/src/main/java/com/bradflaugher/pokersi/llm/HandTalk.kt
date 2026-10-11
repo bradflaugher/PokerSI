@@ -32,6 +32,8 @@ object HandTalk {
             // "an ace and a king", "a queen with a jack"
             "${anyOf(singular)} (?:and|with) (?:an? )?${anyOf(singular)}",
             "${anyOf(singular)} of ${anyOf(suits)}",
+            // One card in words after card words: "im holding an ace", "ive got a king".
+            "(?:holding|hold|have|got) (?:an? |the )?${anyOf(singular)}",
         ).joinToString("|", "\\b(?:", ")\\b"),
     )
 
@@ -49,18 +51,20 @@ object HandTalk {
             "$card[\\s,]+$card", "(?i:$lowCard[\\s,]+$card|$card[\\s,]+$lowCard)",
             // One non-ace as written ("Kd", "7h").
             lowCard,
-            // An ace after card words, any case of suit ("hold AS"; "have as much" stays fine).
-            "(?i:holding|hold|have|got|cards?)[:\\s]+A[shdcSHDC]",
+            // After card words: a non-ace in any case ("hold kd"), an ace with any case of
+            // suit ("hold AS"; "have as much" stays fine).
+            "(?i:holding|hold|have|got|cards?)[:\\s]+(?:(?i:$lowCard)|A[shdcSHDC])",
         ).joinToString("|", "\\b(?:", ")\\b"),
     )
 
     /** Whether [text] says what hand (or cards) its speaker holds. */
     fun revealsHand(text: String): Boolean {
         if (cardCodes.containsMatchIn(text)) return true
-        // "High five" is a celebration, not a hand of fives.
-        val words = TableTalk.normalize(text).replace(highFive, "")
+        // "The king's decree" is not "kings"; "high five" is a celebration, not a hand of fives.
+        val words = TableTalk.normalize(text.replace(possessive, "")).replace(highFive, "")
         return reveal.containsMatchIn(words)
     }
 
     private val highFive = Regex("\\bhigh fives?\\b")
+    private val possessive = Regex("['’]s\\b")
 }
