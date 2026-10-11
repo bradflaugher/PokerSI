@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -110,16 +111,33 @@ private fun previewLines(kind: AiLogKind): Int = when (kind) {
     else -> 2
 }
 
-/** The "~" that opens the console (table top bar, model bay), drawn as pixel art: no pixel font has a readable tilde. */
+/**
+ * The console's one "~" toggle, pinned to the top right of the screen over
+ * the screens that offer the console (the table and the model bay) and over
+ * the console itself, so it opens and closes it in the same place. Laid out
+ * like the screens (safe area, tablet scaling): it lands in the slot their
+ * headers keep free for it ([CONSOLE_SLOT]).
+ */
 @Composable
-fun ConsoleButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun ConsoleToggle(open: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
+    TabletScaled(modifier.fillMaxSize().safeDrawingPadding()) {
+        ConsoleButton(open, onToggle, Modifier.align(Alignment.TopEnd).padding(top = 4.dp, end = 8.dp))
+    }
+}
+
+/** The width headers keep free, at their top right, for [ConsoleToggle]. */
+val CONSOLE_SLOT = 48.dp
+
+/** The "~" itself, drawn as pixel art (no pixel font has a readable tilde); lit green while the console is [open]. */
+@Composable
+fun ConsoleButton(open: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val ink = PixelTheme.palette.ink
     val unit = PixelTheme.unit
-    Box(modifier.size(48.dp, 48.dp)) {
+    Box(modifier.size(CONSOLE_SLOT, CONSOLE_SLOT)) {
         PixelButton(
             " ", onClick,
-            Modifier.fillMaxSize().semantics { contentDescription = "Debug console" },
-            variant = PixelButtonVariant.Gray,
+            Modifier.fillMaxSize().semantics { contentDescription = if (open) "Close debug console" else "Open debug console" },
+            variant = if (open) PixelButtonVariant.Call else PixelButtonVariant.Gray,
         )
         Canvas(Modifier.matchParentSize()) {
             val px = unit * 2
@@ -227,7 +245,8 @@ private fun ConsolePanel(
                     style = consoleText.copy(color = Phosphor.dim, fontSize = 16.sp),
                 )
             }
-            ConsoleButton(onClose)
+            // The toggle ([ConsoleToggle]) sits here, over the console.
+            Spacer(Modifier.size(CONSOLE_SLOT))
         }
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 2.dp),

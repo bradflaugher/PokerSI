@@ -335,6 +335,45 @@ class GameControllerTest {
         c.stop()
     }
 
+    /** A table whose opponents always say something, with a 1s hold on every line. */
+    private fun TestScope.talkyTable(): GameController {
+        val brains = brainsOf { _, _ -> agentOf { ctx, _ -> AgentReply(if (ctx.legal.canCheck) Decision.Check else Decision.Call, "hi") } }
+        val c = controller(brains = brains, pacing = Pacing.Instant.copy(chatterHoldMs = 1_000, chatterPerCharMs = 0, chatterMaxMs = 1_000))
+        c.startQuick(config(opponents = 2, seed = 4L))
+        var guard = 0
+        while (c.table.value.humanTurn == null && guard++ < 100) runCurrent()
+        return c
+    }
+
+    private fun GameController.talking() = table.value.opponents.filter { !it.chatter.isNullOrEmpty() }.map { it.seat }
+
+    @Test
+    fun tableTalkExpiresAfterAShortHold() = runTest {
+        val c = talkyTable()
+        assertNotNull("waiting for the human", c.table.value.humanTurn)
+        assertTrue("someone is talking", c.talking().isNotEmpty())
+        advanceTimeBy(900); runCurrent()
+        assertTrue("still up before the hold ends", c.talking().isNotEmpty())
+        advanceTimeBy(300); runCurrent()
+        assertEquals("gone after it", emptyList<Int>(), c.talking())
+        c.stop()
+    }
+
+    @Test
+    fun tableTalkHoldsWhileThePauseMenuIsOpen() = runTest {
+        val c = talkyTable()
+        val speaking = c.talking()
+        assertTrue(speaking.isNotEmpty())
+        advanceTimeBy(500); runCurrent()
+        c.setPaused(PauseReason.Menu, true)
+        advanceTimeBy(5_000); runCurrent()
+        assertEquals("frozen while paused", speaking, c.talking())
+        c.setPaused(PauseReason.Menu, false)
+        advanceTimeBy(700); runCurrent()
+        assertEquals("then the rest of the hold runs out", emptyList<Int>(), c.talking())
+        c.stop()
+    }
+
     @Test
     fun opponentsAtANewTableSayTheirCatchphrase() = runTest {
         val c = controller()

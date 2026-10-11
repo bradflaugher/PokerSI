@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -42,7 +43,7 @@ import com.bradflaugher.pokersi.llm.LocalModel
 import com.bradflaugher.pokersi.llm.ModelLocation
 import com.bradflaugher.pokersi.llm.ModelStore
 import com.bradflaugher.pokersi.ui.pixel.CrtOverlay
-import com.bradflaugher.pokersi.ui.screens.ConsoleButton
+import com.bradflaugher.pokersi.ui.screens.CONSOLE_SLOT
 import com.bradflaugher.pokersi.ui.pixel.LocalPixelPalette
 import com.bradflaugher.pokersi.ui.pixel.PanelStyle
 import com.bradflaugher.pokersi.ui.pixel.PixelButton
@@ -62,8 +63,8 @@ data class ModelsUiState(
     val folders: List<Uri>,
     /** Single files the user imported; only these can be forgotten one by one (folder models go with their folder). */
     val importedFiles: List<Uri> = emptyList(),
-    /** Shows the debug console's "~" (SETTINGS > DEBUG CONSOLE): load errors land there. */
-    val consoleButton: Boolean = false,
+    /** Keeps the header's top right free for the debug console's "~" (SETTINGS > DEBUG CONSOLE): load errors land there. */
+    val consoleSlot: Boolean = false,
 )
 
 /** What the model bay's buttons do. */
@@ -77,12 +78,11 @@ interface ModelsActions {
     fun addFile()
     fun removeFolder(uri: Uri)
     fun back()
-    fun console() {}
 }
 
 /** The model bay, wired to [LlamaEngine] and [ModelStore]. */
 @Composable
-fun ModelsScreen(onBack: () -> Unit, onConsole: (() -> Unit)? = null) {
+fun ModelsScreen(onBack: () -> Unit, consoleSlot: Boolean = false) {
     val context = LocalContext.current
     val engine = remember(context) { LlamaEngine.get(context) }
     val store = remember(context) { ModelStore.get(context) }
@@ -139,9 +139,8 @@ fun ModelsScreen(onBack: () -> Unit, onConsole: (() -> Unit)? = null) {
         override fun addFile() = pickFile.launch(arrayOf("application/octet-stream", "*/*"))
         override fun removeFolder(uri: Uri) = store.removeFolder(uri)
         override fun back() = onBack()
-        override fun console() { onConsole?.invoke() }
     }
-    ModelsContent(ModelsUiState(engineState, models, folders, importedFiles, consoleButton = onConsole != null), actions)
+    ModelsContent(ModelsUiState(engineState, models, folders, importedFiles, consoleSlot = consoleSlot), actions)
 }
 
 /** The model bay itself: what's loaded, the catalog, and the player's own GGUFs. */
@@ -160,7 +159,7 @@ fun ModelsContent(state: ModelsUiState, actions: ModelsActions, modifier: Modifi
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     item {
-                        Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                             PixelButton("BACK", actions::back, variant = PixelButtonVariant.Gray, textStyle = PixelType.Small)
                             Spacer(Modifier.padding(6.dp))
                             // The titles take what's left, so the console button always keeps its width.
@@ -171,7 +170,7 @@ fun ModelsContent(state: ModelsUiState, actions: ModelsActions, modifier: Modifi
                                     maxLines = 1, overflow = TextOverflow.Ellipsis,
                                 )
                             }
-                            if (state.consoleButton) ConsoleButton(actions::console)
+                            if (state.consoleSlot) Spacer(Modifier.size(CONSOLE_SLOT))
                         }
                     }
                     item { EnginePanel(state.engine, actions) }

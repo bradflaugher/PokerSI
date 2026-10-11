@@ -92,6 +92,11 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
   repeats it (same words, mostly the same words, or the catchphrase
   uninvited) is held back while it streams and swapped for a House Bot
   line nobody said lately, or silence.
+- **Bubbles come and go.** At most the two latest speakers' lines show,
+  laid out together so they never overlap (`stackBubbles`), and a finished
+  line goes away by itself after a short hold (`Pacing.chatterHold`: a
+  base plus a little per character, capped; scaled by game speed, frozen
+  while paused).
 - **No model? Still playable.** With no model loaded, opponents are played
   by `HouseBot` and the table says so. The game never blocks on a download.
 - **Infinitely replayable.** Random personas, six variants, the Run mode's
@@ -114,8 +119,9 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
   region, and every action button is at least 48dp tall.
 - Poker on a green table, not a deck-builder: no Jokers, no shop.
 - Keep the engine pure: all Android code lives outside `engine/` and `run/`.
-- The debug console (SETTINGS > DEBUG CONSOLE, "~" at the table and in the
-  model bay, or a keyboard's backtick) is off by default, and `AiLog`
+- The debug console (SETTINGS > DEBUG CONSOLE, then the "~" toggle pinned
+  top right at the table and in the model bay, which stays put over the open
+  console to close it, or a keyboard's backtick) is off by default, and `AiLog`
   records nothing unless it is on; switching it off clears it. It never
   leaves the phone except by the player's own COPY.
 

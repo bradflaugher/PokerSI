@@ -57,6 +57,7 @@ import com.bradflaugher.pokersi.ui.screens.SettingsCallbacks
 import com.bradflaugher.pokersi.ui.screens.SettingsScreen
 import com.bradflaugher.pokersi.ui.screens.SettingsUi
 import com.bradflaugher.pokersi.ui.screens.TableCallbacks
+import com.bradflaugher.pokersi.ui.screens.ConsoleToggle
 import com.bradflaugher.pokersi.ui.screens.TableScreen
 import com.bradflaugher.pokersi.ui.screens.TitleCallbacks
 import com.bradflaugher.pokersi.ui.screens.TitleScreen
@@ -102,7 +103,7 @@ fun PokerSiApp(vm: PokerViewModel) {
                     Screen.Picker -> PickerRoute(vm)
                     Screen.Table -> TableRoute(vm, run = null)
                     Screen.Run -> RunRoute(vm)
-                    Screen.Models -> ModelsScreen(onBack = { vm.back() }, onConsole = if (debug) vm::toggleConsole else null)
+                    Screen.Models -> ModelsScreen(onBack = { vm.back() }, consoleSlot = debug)
                     Screen.HowTo -> HowToPlayScreen(onBack = { vm.back() })
                     Screen.Settings -> SettingsRoute(vm)
                     Screen.Stats -> StatsScreen(
@@ -115,6 +116,15 @@ fun PokerSiApp(vm: PokerViewModel) {
                 if (debug) {
                     val entries by AiLog.entries.collectAsStateWithLifecycle()
                     DebugConsole(entries, console, onClose = vm::closeConsole, onClear = AiLog::clear)
+                    // One "~", top right, that opens and closes the console in the same place:
+                    // at the table and in the model bay, and over the console wherever it is open.
+                    val run by vm.controller.run.collectAsStateWithLifecycle()
+                    val offered = when (vm.backStack.last()) {
+                        Screen.Table, Screen.Models -> true
+                        Screen.Run -> run?.screen == RunScreen.Table
+                        else -> false
+                    }
+                    if (console || offered) ConsoleToggle(open = console, onToggle = vm::toggleConsole)
                     // Composed last, so Back closes the console before anything under it.
                     BackHandler(enabled = console) { vm.closeConsole() }
                 }
@@ -257,7 +267,7 @@ private fun TableRoute(vm: PokerViewModel, run: RunUiState?) {
                 onPlayAgain = vm::newQuickTable,
                 onMenu = vm::toTitle,
                 onPause = { menu = true },
-                onConsole = if (vm.settings.debugConsole.collectAsStateWithLifecycle().value) vm::toggleConsole else null,
+                consoleSlot = vm.settings.debugConsole.collectAsStateWithLifecycle().value,
             ),
             run = run,
         )

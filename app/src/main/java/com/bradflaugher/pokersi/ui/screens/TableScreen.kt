@@ -108,8 +108,8 @@ class TableCallbacks(
     val onPlayAgain: () -> Unit = {},
     val onMenu: () -> Unit = {},
     val onPause: () -> Unit = {},
-    /** Opens the debug console; null hides the "~" button (the setting is off). */
-    val onConsole: (() -> Unit)? = null,
+    /** Keep the header's top right free for the debug console's "~" ([ConsoleToggle]); the setting is on. */
+    val consoleSlot: Boolean = false,
 )
 
 /** Sizes for one table layout, from the window size. */
@@ -226,7 +226,6 @@ private fun TableHeader(state: TableUiState, callbacks: TableCallbacks) {
     val p = PixelTheme.palette
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         PixelButton("PAUSE", callbacks.onPause, Modifier.size(48.dp, 48.dp).semantics { contentDescription = "Pause" }, variant = PixelButtonVariant.Gray, icon = PixelGlyph.Pause)
-        callbacks.onConsole?.let { ConsoleButton(it) }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             PixelText(state.variant.displayName.uppercase(), style = PixelType.Small, color = p.yellow, maxLines = 1)
             val blinds = state.blinds
@@ -238,6 +237,7 @@ private fun TableHeader(state: TableUiState, callbacks: TableCallbacks) {
             PixelText("AI", style = PixelType.Label.copy(fontSize = 9.sp), color = p.gray, shadowUnits = 0)
             PixelText(state.brainLabel.uppercase(), Modifier.widthIn(max = 130.dp), style = PixelType.Label.copy(fontSize = 10.sp), color = p.teal, maxLines = 2, textAlign = TextAlign.End)
         }
+        if (callbacks.consoleSlot) Spacer(Modifier.size(CONSOLE_SLOT))
     }
 }
 
@@ -455,14 +455,17 @@ private fun BubbleLayer(state: TableUiState, spots: Map<Int, Rect>, compact: Boo
     Layout(
         content = {
             speakers.forEach { (seat, rect, thinking) ->
-                val onRight = rect.center.x > seatsRight / 2f + 1f
-                SpeechBubble(
-                    text = seat.chatter.orEmpty(),
-                    streaming = seat.chatterStreaming,
-                    thinking = thinking,
-                    tail = if (onRight) BubbleTail.TopEnd else BubbleTail.TopStart,
-                    textStyle = if (compact) PixelType.BodySmall else PixelType.Body,
-                )
+                // Keyed by seat: a bubble keeps its typewriter progress when others come and go.
+                key(seat.seat) {
+                    val onRight = rect.center.x > seatsRight / 2f + 1f
+                    SpeechBubble(
+                        text = seat.chatter.orEmpty(),
+                        streaming = seat.chatterStreaming,
+                        thinking = thinking,
+                        tail = if (onRight) BubbleTail.TopEnd else BubbleTail.TopStart,
+                        textStyle = if (compact) PixelType.BodySmall else PixelType.Body,
+                    )
+                }
             }
         },
         modifier = Modifier.fillMaxSize().zIndex(3f),
