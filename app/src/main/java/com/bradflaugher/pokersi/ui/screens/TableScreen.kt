@@ -38,6 +38,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
@@ -431,40 +433,81 @@ private fun SeatCards(cards: List<CardUi>, cardSize: Dp, handNumber: Int, modifi
 
 // ---------------------------------------------------------------- bubbles
 
-/** Speech bubbles hang under their speaker's seat, tail pointing at the speaker. */
+/**
+ * Speech bubbles hang under their speaker's seat, tail pointing at the speaker.
+ * They are laid out together so two opponents talking at once never overlap:
+ * placed top to bottom, a bubble that would land on an earlier one drops just
+ * below it ([stackBubbles]).
+ */
 @Composable
 private fun BubbleLayer(state: TableUiState, spots: Map<Int, Rect>, compact: Boolean, wide: Boolean) {
-    state.opponents.forEach { seat ->
-        val rect = spots[seat.seat] ?: return@forEach
+    val seatsRight = spots.filterKeys { it > 0 }.values.maxOfOrNull { it.right } ?: 0f
+    val speakers = state.opponents.mapNotNull { seat ->
+        val rect = spots[seat.seat] ?: return@mapNotNull null
         val text = seat.chatter
         val thinking = seat.thinking && text.isNullOrEmpty()
-        if (text.isNullOrEmpty() && !thinking) return@forEach
-        val onRight = rect.center.x > (spots.filterKeys { it > 0 }.values.maxOfOrNull { it.right } ?: 0f) / 2f + 1f
-        Layout(
-            content = {
+        if (text.isNullOrEmpty() && !thinking) return@mapNotNull null
+        Triple(seat, rect, thinking)
+    }
+    if (speakers.isEmpty()) return
+    Layout(
+        content = {
+            speakers.forEach { (seat, rect, thinking) ->
+                val onRight = rect.center.x > seatsRight / 2f + 1f
                 SpeechBubble(
-                    text = text.orEmpty(),
+                    text = seat.chatter.orEmpty(),
                     streaming = seat.chatterStreaming,
                     thinking = thinking,
                     tail = if (onRight) BubbleTail.TopEnd else BubbleTail.TopStart,
                     textStyle = if (compact) PixelType.BodySmall else PixelType.Body,
                 )
-            },
-            modifier = Modifier.fillMaxSize().zIndex(3f),
-        ) { measurables, constraints ->
-            val margin = 8.dp.roundToPx()
-            // Wide layouts keep bubbles over the opponents' column, clear of your cards.
-            val right = if (wide) (spots[SPOT_BOARD]?.right?.toInt() ?: constraints.maxWidth) + margin else constraints.maxWidth
-            val maxW = minOf(right - 2 * margin, (if (compact) 230 else 300).dp.roundToPx())
-            val bubble = measurables[0].measure(Constraints(maxWidth = maxW))
-            val nudge = 6.dp.roundToPx()
-            val x = if (onRight) rect.right.toInt() - bubble.width - nudge else rect.left.toInt() + nudge
-            val y = rect.bottom.toInt() - 12.dp.roundToPx()
-            layout(constraints.maxWidth, constraints.maxHeight) {
-                bubble.place(x.coerceIn(margin, (right - bubble.width - margin).coerceAtLeast(margin)), y)
             }
+        },
+        modifier = Modifier.fillMaxSize().zIndex(3f),
+    ) { measurables, constraints ->
+        val margin = 8.dp.roundToPx()
+        // Wide layouts keep bubbles over the opponents' column, clear of your cards.
+        val right = if (wide) (spots[SPOT_BOARD]?.right?.toInt() ?: constraints.maxWidth) + margin else constraints.maxWidth
+        val maxW = minOf(right - 2 * margin, (if (compact) 230 else 300).dp.roundToPx())
+        val nudge = 6.dp.roundToPx()
+        val placeables = measurables.map { it.measure(Constraints(maxWidth = maxW)) }
+        val wanted = speakers.mapIndexed { i, (_, rect, _) ->
+            val bubble = placeables[i]
+            val onRight = rect.center.x > seatsRight / 2f + 1f
+            val x = if (onRight) rect.right.toInt() - bubble.width - nudge else rect.left.toInt() + nudge
+            IntRect(
+                IntOffset(x.coerceIn(margin, (right - bubble.width - margin).coerceAtLeast(margin)), rect.bottom.toInt() - 12.dp.roundToPx()),
+                IntSize(bubble.width, bubble.height),
+            )
+        }
+        val placed = stackBubbles(wanted, gap = 4.dp.roundToPx())
+        layout(constraints.maxWidth, constraints.maxHeight) {
+            placeables.forEachIndexed { i, bubble -> bubble.place(placed[i].topLeft) }
         }
     }
+}
+
+/**
+ * Where each bubble goes so none overlap: each keeps its x and its wanted y
+ * unless an already-placed bubble (taken top to bottom, then left to right)
+ * is in the way, in which case it drops to just below that one, [gap] apart.
+ * Returns the rectangles in the order given.
+ */
+internal fun stackBubbles(wanted: List<IntRect>, gap: Int): List<IntRect> {
+    val order = wanted.indices.sortedWith(compareBy({ wanted[it].top }, { wanted[it].left }))
+    val placed = arrayOfNulls<IntRect>(wanted.size)
+    val done = mutableListOf<IntRect>()
+    for (i in order) {
+        var r = wanted[i]
+        while (true) {
+            val hit = done.filter { it.left < r.right && r.left < it.right && it.top < r.bottom + gap && r.top < it.bottom + gap }
+            if (hit.isEmpty()) break
+            r = r.translate(0, hit.maxOf { it.bottom } + gap - r.top)
+        }
+        placed[i] = r
+        done += r
+    }
+    return placed.map { it!! }
 }
 
 // ---------------------------------------------------------------- board

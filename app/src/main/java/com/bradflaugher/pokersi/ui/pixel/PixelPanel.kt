@@ -7,6 +7,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -21,7 +22,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 
 enum class PanelStyle { Cabinet, Felt, Dark, Paper }
@@ -96,7 +100,9 @@ data class PayRow(val name: String, val pays: String)
 
 /**
  * A video poker pay table: yellow rows on cabinet blue, with the
- * [highlight]ed row (the hand just made) flashing red.
+ * [highlight]ed row (the hand just made, or the one picked) flashing red.
+ * With [onRowClick] the rows can be picked: each is a selectable row with
+ * the cabinet's blip and a haptic tick.
  */
 @Composable
 fun PayTable(
@@ -104,7 +110,10 @@ fun PayTable(
     modifier: Modifier = Modifier,
     title: String? = null,
     highlight: Int? = null,
+    onRowClick: ((Int) -> Unit)? = null,
 ) {
+    val haptic = LocalHapticFeedback.current
+    val player = LocalSoundPlayer.current
     val p = LocalPixelPalette.current
     val unit = LocalPixelUnit.current
     val density = LocalDensity.current
@@ -119,6 +128,14 @@ fun PayTable(
                 Row(
                     Modifier
                         .fillMaxWidth()
+                        .then(
+                            if (onRowClick == null) Modifier
+                            else Modifier.selectable(selected = hot, role = Role.RadioButton) {
+                                haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
+                                player.play(Sfx.Blip)
+                                onRowClick(i)
+                            },
+                        )
                         .drawBehind { if (hot) notchedRect(0, 0, size.width.toInt(), size.height.toInt(), unit, 1, if (on) p.suitRed else p.redDark) }
                         .padding(horizontal = with(density) { (unit * 2).toDp() }, vertical = with(density) { unit.toDp() }),
                     verticalAlignment = Alignment.CenterVertically,

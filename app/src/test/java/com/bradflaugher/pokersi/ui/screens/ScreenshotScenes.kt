@@ -131,6 +131,17 @@ object ScreenshotScenes {
         return TableStates.fromHand(hand, extras, humanTurn = turnFor(hand))
     }
 
+    /** The same flop with the whole table talking at once: the bubbles stack instead of overlapping. */
+    fun holdemCrosstalk(): TableUiState {
+        val base = holdemMidHand()
+        val lines = mapOf(
+            1 to "I folded, but I am still emotionally invested in this pot.",
+            2 to "Checking. Not scared. Just pacing myself, like a marathon.",
+            3 to "Big bet. Huge. You don't have the chips for my bluffs, meatbag.",
+        )
+        return base.copy(seats = base.seats.map { s -> lines[s.seat]?.let { s.copy(chatter = it, chatterStreaming = false) } ?: s })
+    }
+
     /** Five-card draw at the draw: three queens HELD, Disco Fifi chirping. */
     fun drawWithHolds(): TableUiState {
         val names = listOf("You", FIFI.name, BOB.name)
@@ -289,6 +300,7 @@ object ScreenshotScenes {
         Scene("table_holdem") { PixelTheme { TableScreen(holdemMidHand(), TableCallbacks()) } },
         Scene("table_draw") { PixelTheme { TableScreen(drawWithHolds(), TableCallbacks()) } },
         Scene("table_showdown") { PixelTheme { TableScreen(showdownWin(), TableCallbacks()) } },
+        Scene("table_crosstalk") { PixelTheme { TableScreen(holdemCrosstalk(), TableCallbacks()) } },
         Scene("run_table") {
             val (t, r) = runTourTable()
             PixelTheme { TableScreen(t, TableCallbacks(), run = r) }

@@ -46,7 +46,7 @@ const val FEATURE_DPI = 320
 /**
  * The Play feature graphic, drawn with the app's own pixel design system:
  * a crisp royal flush fanned across the right, the marquee logo over its
- * first card, the tagline below, and the winking robot chip talking trash;
+ * first card, the tagline below, and the robot chip talking trash;
  * all on the lamp-lit felt.
  */
 @Composable

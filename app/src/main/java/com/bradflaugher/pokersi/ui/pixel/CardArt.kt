@@ -571,7 +571,7 @@ object CardArt {
 
 /**
  * The PokerSI emblem: a red casino chip with the SI robot's head on its
- * inlay (a heart on its antenna, one eye winking). The launcher icon is
+ * inlay (a heart on its antenna, two LED eyes, a smile). The launcher icon is
  * the same design (tools/icon/gen_icon.py); this is its card-back size.
  */
 internal object RobotChip {
@@ -587,8 +587,8 @@ internal object RobotChip {
         "..ooooomoooooo.",
         ".oMMMMMMMMMMMno",
         ".oMvvvvvvvvvmno",
-        "noMvyyvvvvyvvno",
-        "noMvyYvvvyvyvno",
+        "noMvyyvvvvyyvno",
+        "noMvYYvvvvYYvno",
         ".oMmvvvvvvvvmno",
         ".oMpmommmmompno",
         ".oMmmmoooommmno",
