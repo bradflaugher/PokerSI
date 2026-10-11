@@ -32,8 +32,8 @@ object HandTalk {
             // "an ace and a king", "a queen with a jack"
             "${anyOf(singular)} (?:and|with) (?:an? )?${anyOf(singular)}",
             "${anyOf(singular)} of ${anyOf(suits)}",
-            // One card in words after card words: "im holding an ace", "ive got a king".
-            "(?:holding|hold|have|got) (?:an? |the )?${anyOf(singular)}",
+            // One card in words after card words: "im holding an ace", "i drew a king".
+            "(?:holding|hold|have|got|drew|draw|dealt|caught) (?:me )?(?:an? |the )?${anyOf(singular)}",
         ).joinToString("|", "\\b(?:", ")\\b"),
     )
 
@@ -60,11 +60,14 @@ object HandTalk {
     /** Whether [text] says what hand (or cards) its speaker holds. */
     fun revealsHand(text: String): Boolean {
         if (cardCodes.containsMatchIn(text)) return true
-        // "The king's decree" is not "kings"; "high five" is a celebration, not a hand of fives.
-        val words = TableTalk.normalize(text.replace(possessive, "")).replace(highFive, "")
+        // "The king's decree" names no card: a possessive rank becomes a plain word, and
+        // other possessives lose their 's. "High five" is a celebration, not a hand of fives.
+        val plain = text.replace(rankPossessive, "someone").replace(possessive, "")
+        val words = TableTalk.normalize(plain).replace(highFive, "")
         return reveal.containsMatchIn(words)
     }
 
     private val highFive = Regex("\\bhigh fives?\\b")
-    private val possessive = Regex("['’]s\\b")
+    private val rankPossessive = Regex("\\b${anyOf(singular)}['’]s\\b", RegexOption.IGNORE_CASE)
+    private val possessive = Regex("['’]s\\b", RegexOption.IGNORE_CASE)
 }
