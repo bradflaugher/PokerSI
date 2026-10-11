@@ -40,6 +40,28 @@ class AiLogTest {
     }
 
     @Test
+    fun aWriteThatRacedSwitchingOffNeverLands() {
+        AiLog.enabled = true
+        val id = AiLog.note(AiLogKind.TABLE, "TABLE", "before")
+        // An add that saw the console on, built its text, then lost the race to the switch.
+        AiLog.enabled = false
+        assertEquals(0L, AiLog.put(AiLogKind.PROMPT, "Mo", "late", "a very long prompt"))
+        AiLog.update(id, title = "late update")
+        assertTrue(AiLog.entries.value.isEmpty())
+
+        // And under real contention: once it is off, it stays empty.
+        repeat(20) {
+            AiLog.enabled = true
+            val writers = (1..4).map { n ->
+                Thread { repeat(500) { AiLog.add(AiLogKind.TABLE, "T$n", { "line $it" }) } }.also(Thread::start)
+            }
+            AiLog.enabled = false
+            writers.forEach(Thread::join)
+            assertTrue(AiLog.entries.value.isEmpty())
+        }
+    }
+
+    @Test
     fun copiesAsPlainText() {
         val text = AiLog.plainText(
             listOf(AiLogEntry(1, 3_723_004L, AiLogKind.DECISION, "Mo", "FOLD", "say: \"Nope.\"")),

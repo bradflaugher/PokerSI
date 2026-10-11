@@ -246,7 +246,8 @@ class GameController(
                     return
                 }
             }
-            val arrivals = seatNewcomers(m)
+            // Everyone at a fresh table sits down with a hello; later, only newcomers.
+            val arrivals = seatNewcomers(m) + if (m.handsPlayed == 0) seatedOpponents(m) else emptySet()
             val h = m.startNextHand()
             playHand(h, arrivals)
             m.settle()
@@ -270,6 +271,9 @@ class GameController(
      * for [replaceBustedAfterHands] hands, so a table never runs dry. Returns
      * the seats that changed hands.
      */
+    /** The opponent seats with chips: who sits down at a fresh table. */
+    private fun seatedOpponents(m: Match): Set<Int> = m.chips.indices.filter { it != 0 && m.chips[it] > 0 }.toSet()
+
     private fun seatNewcomers(m: Match): Set<Int> {
         val config = quick ?: return emptySet()
         val after = replaceBustedAfterHands ?: return emptySet()
@@ -354,11 +358,12 @@ class GameController(
         val m = match!!
         while (true) {
             val state = runState!!
+            val arrivals = if (m.handsPlayed == 0) seatedOpponents(m) else emptySet()
             val h = state.startNextHand(m)
             handScored = false
             hand = h
             saveForfeit(h)
-            playHand(h)
+            playHand(h, arrivals)
             val status = scoreRunHand(h)
 
             when (status) {

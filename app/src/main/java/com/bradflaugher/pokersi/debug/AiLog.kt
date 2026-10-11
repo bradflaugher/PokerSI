@@ -46,14 +46,19 @@ data class AiLogEntry(
 object AiLog {
     const val CAPACITY = 400
 
+    private val lock = Any()
+
+    /**
+     * Switching off clears the buffer. The flag changes under the buffer's lock, and
+     * every write rechecks it there, so a write that raced the switch can't land after the clear.
+     */
     @Volatile
     var enabled: Boolean = false
-        set(value) {
+        set(value) = synchronized(lock) {
             field = value
             if (!value) clear()
         }
 
-    private val lock = Any()
     private val buffer = ArrayDeque<AiLogEntry>()
     private var nextId = 1L
     private val _entries = MutableStateFlow<List<AiLogEntry>>(emptyList())
@@ -72,6 +77,7 @@ object AiLog {
 
     @PublishedApi
     internal fun put(kind: AiLogKind, source: String, title: String, body: String): Long = synchronized(lock) {
+        if (!enabled) return 0L
         val entry = AiLogEntry(nextId++, clock(), kind, source, title, body)
         buffer.addLast(entry)
         while (buffer.size > CAPACITY) buffer.removeFirst()
@@ -83,6 +89,7 @@ object AiLog {
     fun update(id: Long, title: String? = null, body: String? = null) {
         if (!enabled || id == 0L) return
         synchronized(lock) {
+            if (!enabled) return
             val i = buffer.indexOfLast { it.id == id }
             if (i < 0) return
             val old = buffer[i]

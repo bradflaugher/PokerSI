@@ -277,7 +277,8 @@ private fun ConsoleLine(e: AiLogEntry, expanded: Boolean, zone: TimeZone, onTogg
     Column(
         Modifier
             .fillMaxWidth()
-            .then(if (clickable) Modifier.clickable(onClick = onToggle) else Modifier)
+            // A tappable entry is a touch target: at least 48dp tall.
+            .then(if (clickable) Modifier.heightIn(min = 48.dp).clickable(onClick = onToggle) else Modifier)
             .padding(vertical = 2.dp),
     ) {
         Row {

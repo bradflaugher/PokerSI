@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.bradflaugher.pokersi.llm.DownloadProgress
@@ -162,14 +163,15 @@ fun ModelsContent(state: ModelsUiState, actions: ModelsActions, modifier: Modifi
                         Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                             PixelButton("BACK", actions::back, variant = PixelButtonVariant.Gray, textStyle = PixelType.Small)
                             Spacer(Modifier.padding(6.dp))
-                            Column {
-                                PixelText("MODEL BAY", style = PixelType.Title, color = p.yellow)
-                                PixelText("Pick a brain for your opponents", style = PixelType.BodySmall, color = p.cabinetGlow, shadowUnits = 0)
+                            // The titles take what's left, so the console button always keeps its width.
+                            Column(Modifier.weight(1f)) {
+                                PixelText("MODEL BAY", style = PixelType.Title, color = p.yellow, maxLines = 1)
+                                PixelText(
+                                    "Pick a brain for your opponents", style = PixelType.BodySmall, color = p.cabinetGlow, shadowUnits = 0,
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                )
                             }
-                            if (state.consoleButton) {
-                                Spacer(Modifier.weight(1f))
-                                ConsoleButton(actions::console)
-                            }
+                            if (state.consoleButton) ConsoleButton(actions::console)
                         }
                     }
                     item { EnginePanel(state.engine, actions) }

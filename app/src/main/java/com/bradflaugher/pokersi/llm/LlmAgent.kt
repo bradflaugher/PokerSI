@@ -73,7 +73,7 @@ class LlmAgent(
                 val full = LlmReply.sayPrefix(soFar, Int.MAX_VALUE)
                 val say = full?.let { LlmReply.sayPrefix(soFar) }
                 // Held back while it could still turn out to be a line already said.
-                if (!say.isNullOrEmpty() && say != shown && !talk.mightRepeat(say, avoid)) {
+                if (!say.isNullOrEmpty() && say != shown && !talk.mightRepeat(say, avoid, who)) {
                     shown = say
                     onChatter(say)
                 }
@@ -124,12 +124,16 @@ class LlmAgent(
         start: Long = now(),
         avoid: List<String> = emptyList(),
     ): AgentReply {
-        val reply = fallback.decide(context, onChatter)
+        // The House Bot's own line is not streamed: the model's line may still be kept,
+        // and a bubble must not flash the one that loses.
+        val reply = fallback.decide(context) {}
         AiLog.add(AiLogKind.ERROR, who, { "House Bot decides (${why.lineSequence().first().take(80)}): ${describe(reply.decision)}" }) {
             "after ${now() - start} ms\n$why"
         }
         val kept = say?.let { fresh(it, reply.decision, context, avoid) }
-        return if (kept != null) reply.copy(say = kept) else reply
+        val final = if (kept != null) reply.copy(say = kept) else reply
+        final.say?.let(onChatter)
+        return final
     }
 
     private fun timing(start: Long, firstTokenAt: Long, end: Long, tokens: Int): String {

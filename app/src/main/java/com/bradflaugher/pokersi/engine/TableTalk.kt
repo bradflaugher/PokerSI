@@ -52,15 +52,38 @@ class TableTalk(private val capacity: Int = 40) {
 
     /**
      * Whether a line still being written that starts with [prefix] may turn out
-     * to be a repeat (it is the start of a remembered line, or a remembered line
-     * is the start of it), so a streaming speech bubble should hold it back.
+     * to be a repeat by [isRepeat]'s rules, so a streaming speech bubble should
+     * hold it back: it is the start of a remembered line (or [also]), a
+     * remembered line is the start of it, or it is on its way to sharing
+     * [SIMILAR] of its words with one of [speaker]'s recent lines, the table's
+     * latest ones or [also] ("Well, I reckon..." after "I reckon..."). Until it
+     * has [JUDGE_WORDS] whole words it is held while it could still get there;
+     * after that, while [SIMILAR] of its words are that line's. The last word
+     * of [prefix] may be cut off mid-word, so it only counts once it can't be
+     * the start of a word of the line it is compared with.
      */
-    fun mightRepeat(prefix: String, also: Collection<String> = emptyList()): Boolean {
+    fun mightRepeat(prefix: String, also: Collection<String> = emptyList(), speaker: String? = null): Boolean {
         val start = normalize(prefix)
-        val known = synchronized(lines) { lines.map { it.text } } + also
-        return known.any { line ->
+        if (start.isEmpty()) return false
+        val (all, close) = synchronized(lines) {
+            lines.map { it.text } to (lines.filter { it.speaker == speaker }.takeLast(OWN_LINES) + lines.takeLast(TABLE_LINES)).map { it.text }
+        }
+        val samePrefix = (all + also).any { line ->
             val n = normalize(line)
             n.isNotEmpty() && (n.startsWith(start) || start == n || start.startsWith("$n "))
+        }
+        if (samePrefix) return true
+        val words = start.split(' ')
+        val whole = words.dropLast(1).toSet()
+        val last = words.last()
+        return (close + also).any { line ->
+            val other = normalize(line).split(' ').filter { it.isNotEmpty() }.toSet()
+            if (other.isEmpty()) return@any false
+            // The best the finished line can do is add only [other]'s words, so the
+            // overlap can still reach |other| / |other + words outside it|.
+            val outside = (whole - other) + (if (last in whole || other.any { it.startsWith(last) }) emptySet() else setOf(last))
+            val reachable = other.size.toDouble() / (other.size + outside.size) >= SIMILAR
+            reachable && (whole.size < JUDGE_WORDS || (whole intersect other).size.toDouble() / whole.size >= SIMILAR)
         }
     }
 
@@ -73,6 +96,9 @@ class TableTalk(private val capacity: Int = 40) {
     companion object {
         private const val OWN_LINES = 8
         private const val TABLE_LINES = 12
+
+        /** Whole words a streaming line needs before [mightRepeat] judges it by its own words. */
+        const val JUDGE_WORDS = 4
 
         /** Word overlap (0..1) at or above which two lines count as the same line. */
         const val SIMILAR = 0.6

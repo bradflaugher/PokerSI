@@ -44,9 +44,30 @@ class TableTalkTest {
         assertTrue(talk.mightRepeat("Saddle"))
         assertTrue(talk.mightRepeat("Saddle up, partner"))
         assertTrue(talk.mightRepeat("Saddle up, partner. Yee"))
-        assertFalse(talk.mightRepeat("Howdy"))
-        assertFalse(talk.mightRepeat("Saddlebags"))
+        // A word or two can't be judged yet: "Howdy, saddle up partner" would be a repeat.
+        assertTrue(talk.mightRepeat("Howdy"))
+        assertFalse(talk.mightRepeat("Howdy there, the river"))
+        assertFalse(talk.mightRepeat("Saddlebags full of"))
         assertTrue(talk.mightRepeat("Arr", also = listOf("Arr, matey!")))
+    }
+
+    @Test
+    fun streamingNearRepeatsAreHeldBackToo() {
+        val talk = TableTalk()
+        talk.record("Dusty", "I reckon the cards ain't lookin' my way.")
+        // Mostly the same words, not the same start: held all the way, as isRepeat would drop it.
+        val nearRepeat = "Well, I reckon the cards ain't lookin' my way"
+        for (end in 1..nearRepeat.length) assertTrue(nearRepeat.take(end), talk.mightRepeat(nearRepeat.take(end), speaker = "Dusty"))
+        assertTrue(talk.isRepeat(nearRepeat, "Dusty"))
+        // A fresh line streams once it has a few words of its own.
+        assertFalse(talk.mightRepeat("My horse Biscuit could play", speaker = "Dusty"))
+        assertFalse(talk.isRepeat("My horse Biscuit could play better.", "Dusty"))
+        // An uninvited catchphrase with a word in front is held too, and a line that
+        // only starts like it streams once it clearly isn't it.
+        val catchphrase = listOf("Yeehaw, saddle up partner and pay up!")
+        assertTrue(talk.mightRepeat("Well yeehaw, saddle up partner and", also = catchphrase, speaker = "Dusty"))
+        assertTrue(talk.isRepeat("Well yeehaw, saddle up partner and pay up", "Dusty", also = catchphrase))
+        assertFalse(talk.mightRepeat("Yeehaw, the river came in hot tonight", also = catchphrase, speaker = "Dusty"))
     }
 
     @Test

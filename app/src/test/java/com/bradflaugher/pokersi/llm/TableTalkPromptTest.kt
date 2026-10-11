@@ -177,4 +177,31 @@ class TableTalkPromptTest {
         assertTrue(error.title, error.title.contains("House Bot decides (error: boom)"))
         assertNotEquals(0, AiLog.entries.value.size)
     }
+
+    @Test
+    fun aFallbackAfterAStreamedLineNeverFlashesTheHouseBotsLine() = runBlocking {
+        val line = "Howdy there, my horse Biscuit says hush"
+        val dies = object : LlmBackend {
+            override val isReady = true
+            override suspend fun generate(
+                messages: List<ChatMessage>, grammar: String?, maxTokens: Int, temperature: Float, seed: Int, timeoutMs: Long,
+                onText: (String) -> Boolean,
+            ): String {
+                onText("""{"action": "check", "amount": 0, "say": "$line""")
+                error("boom")
+            }
+        }
+        val chatty = object : PlayerAgent {
+            override suspend fun decide(context: DecisionContext, onChatter: (String) -> Unit): AgentReply {
+                onChatter("House!")
+                return AgentReply(Decision.Check, "House!")
+            }
+        }
+        val bubble = mutableListOf<String>()
+        val reply = LlmAgent(dies, cowboy, chatty, TableTalk()).decide(context) { bubble += it }
+        assertEquals(Decision.Check, reply.decision)
+        assertEquals("the model's line is kept", line, reply.say)
+        assertTrue("streamed: $bubble", bubble.none { it == "House!" })
+        assertEquals(line, bubble.last())
+    }
 }

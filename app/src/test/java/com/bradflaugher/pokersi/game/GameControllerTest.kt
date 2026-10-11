@@ -323,13 +323,40 @@ class GameControllerTest {
         val said = memories[0].recent(100)
         assertTrue(said.isNotEmpty())
         assertTrue("with the speakers' names", said.all { line -> c.table.value.opponents.any { it.name == line.speaker } })
-        assertEquals("line 0", said.first().text)
+        // Everyone sits down with their catchphrase, then the agents talk.
+        val hellos = c.table.value.opponents.mapNotNull { it.profile?.catchphrase?.takeIf(String::isNotBlank) }
+        assertEquals(hellos.toSet(), said.take(hellos.size).map { it.text }.toSet())
+        assertEquals("line 0", said[hellos.size].text)
 
         c.playAgain()
         runCurrent()
         assertEquals(6, memories.size)
         assertTrue("a new table, a new memory", memories[3] !== memories[0] && memories.drop(3).all { it === memories[3] })
         c.stop()
+    }
+
+    @Test
+    fun opponentsAtANewTableSayTheirCatchphrase() = runTest {
+        val c = controller()
+        c.startQuick(config(opponents = 3, seed = 9L))
+        runCurrent()
+        val opponents = c.table.value.opponents
+        assertEquals(1, c.table.value.handNumber)
+        val phrases = opponents.mapNotNull { s -> s.profile?.catchphrase?.takeIf(String::isNotBlank)?.let { s.name to it } }
+        assertTrue(phrases.isNotEmpty())
+        val said = c.talk.recent(100).map { it.speaker to it.text }
+        assertTrue("every opponent says hello: $said", phrases.all { it in said })
+        c.stop()
+
+        // A tour table too, on its first hand only.
+        val t = controller()
+        t.startRun(RunState.new(5))
+        t.beginTable()
+        runCurrent()
+        val tourSaid = t.talk.recent(100).map { it.speaker to it.text }
+        val tourPhrases = t.table.value.opponents.mapNotNull { s -> s.profile?.catchphrase?.takeIf(String::isNotBlank)?.let { s.name to it } }
+        assertTrue("tour opponents say hello: $tourSaid", tourPhrases.all { it in tourSaid })
+        t.stop()
     }
 
     @Test
