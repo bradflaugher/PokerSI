@@ -58,9 +58,8 @@ class LlmAgent(
         AiLog.add(AiLogKind.GRAMMAR, who, { "grammar (${grammar.lines().size} rules)" }) { grammar }
         val replyId = AiLog.add(AiLogKind.REPLY, who, { "streaming…" })
 
+        // What the bubble shows (whole words): kept if the House Bot has to decide.
         var shown: String? = null
-        // The latest say cleared to stream (cut-off word and all): kept if the House Bot has to decide.
-        var vetted: String? = null
         var firstTokenAt = 0L
         var tokens = 0
         val raw = try {
@@ -77,35 +76,32 @@ class LlmAgent(
                 AiLog.update(replyId, body = soFar)
                 val full = LlmReply.sayPrefix(soFar, Int.MAX_VALUE)
                 val say = full?.let { LlmReply.sayPrefix(soFar) }
-                // Whole words only: a cut-off word can't be judged yet ("ace" of "aces").
-                val words = say?.substringBeforeLast(' ', "")?.trimEnd(' ', ',', ';', ':', '-')
+                // Whole words only until the say is closed: a cut-off word can't be judged yet ("ace" of "aces").
+                val words = if (say == null || sayClosed.containsMatchIn(soFar)) say else say.substringBeforeLast(' ', "").trimEnd(' ', ',', ';', ':', '-')
                 // Held back while it could still turn out to be a line already said, or gives the hand away.
-                if (!say.isNullOrEmpty() && say != vetted && !talk.mightRepeat(say, avoid, who, PokerGrammar.SAY_MAX) && !HandTalk.revealsHand(say)) {
-                    vetted = say
-                    if (!words.isNullOrEmpty() && words != shown) {
-                        shown = words
-                        onChatter(words)
-                    }
+                if (!words.isNullOrEmpty() && words != shown && !talk.mightRepeat(say!!, avoid, who, PokerGrammar.SAY_MAX) && !HandTalk.revealsHand(say)) {
+                    shown = words
+                    onChatter(words)
                 }
                 // The decision comes first; stop once the say has run long (it gets trimmed anyway).
                 full == null || full.length <= PokerGrammar.SAY_MAX + 10
             }
         } catch (e: TimeoutCancellationException) {
             AiLog.update(replyId, title = "timed out")
-            return fallBack(context, onChatter, vetted, "timed out after ${timeoutMs / 1000} s", start, avoid, quiet = !plan.speak)
+            return fallBack(context, onChatter, shown, "timed out after ${timeoutMs / 1000} s", start, avoid, quiet = !plan.speak)
         } catch (e: CancellationException) {
             AiLog.update(replyId, title = "cancelled")
             throw e
         } catch (e: Exception) {
             AiLog.update(replyId, title = "failed")
-            return fallBack(context, onChatter, vetted, "error: ${e.message}", start, avoid, quiet = !plan.speak)
+            return fallBack(context, onChatter, shown, "error: ${e.message}", start, avoid, quiet = !plan.speak)
         }
         val end = now()
         AiLog.update(replyId, title = "${raw.length} chars", body = raw)
 
         val reply = LlmReply.parse(raw, context.legal, context.holeCards.size)
-        val decision = reply.decision ?: return fallBack(context, onChatter, reply.say ?: vetted, "unusable reply: $raw", start, avoid, quiet = !plan.speak)
-        val say = fresh(reply.say ?: vetted, decision, context, avoid)
+        val decision = reply.decision ?: return fallBack(context, onChatter, reply.say ?: shown, "unusable reply: $raw", start, avoid, quiet = !plan.speak)
+        val say = fresh(reply.say ?: shown, decision, context, avoid)
         say?.let(onChatter)
         AiLog.add(AiLogKind.DECISION, who, {
             val coerced = if (reply.parsed != null && reply.parsed != decision) " (model said ${describe(reply.parsed)})" else ""
@@ -164,6 +160,9 @@ class LlmAgent(
     private fun now(): Long = System.nanoTime() / 1_000_000
 
     companion object {
+        /** A finished say field (the grammar allows no quotes inside it). */
+        private val sayClosed = Regex(""""say"\s*:\s*"[^"]*"""")
+
         /** A decision in console words: "RAISE 120", "DISCARD 1 3". */
         fun describe(d: Decision): String = when (d) {
             Decision.Fold -> "FOLD"

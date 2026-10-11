@@ -92,6 +92,10 @@ class TableTalkTest {
             if (talk.isRepeat(line, "Dusty")) assertFalse("\"$line\" was shown, then dropped", shownEarly)
         }
         assertTrue(talk.isRepeat(lines[0], "Dusty") && talk.isRepeat(lines[1], "Dusty"))
+        // A cut-off word that can become one the line already has adds nothing new.
+        val nice = TableTalk().apply { record("Granny", "Nice bet") }
+        assertTrue(nice.mightRepeat("Well, nice bet, b", speaker = "Dusty", maxLength = 80))
+        assertTrue(nice.isRepeat("Well, nice bet, bet!", "Dusty"))
         assertFalse(talk.isRepeat(lines[3], "Dusty"))
     }
 

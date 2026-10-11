@@ -284,8 +284,10 @@ class TableTalkPromptTest {
         val bubble = mutableListOf<String>()
         val reply = LlmAgent(dies, cowboy, chatty, TableTalk(), alwaysTalks = true).decide(context) { bubble += it }
         assertEquals(Decision.Check, reply.decision)
-        assertEquals("the model's line is kept", line, reply.say)
+        // Up to its last whole word: the stream died, so "hush" may have been cut off.
+        val kept = line.substringBeforeLast(' ')
+        assertEquals("the model's line is kept", kept, reply.say)
         assertTrue("streamed: $bubble", bubble.none { it == "House!" })
-        assertEquals(line, bubble.last())
+        assertEquals(kept, bubble.last())
     }
 }

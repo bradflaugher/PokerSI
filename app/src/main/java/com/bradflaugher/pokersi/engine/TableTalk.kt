@@ -82,9 +82,11 @@ class TableTalk(private val capacity: Int = 40) {
             val other = normalize(line).split(' ').filter { it.isNotEmpty() }.toSet()
             if (other.isEmpty()) return@any false
             val missing = (other - whole).toMutableList()
-            // The cut-off last word may still become one of [other]'s words.
+            // The cut-off last word may still become one of [other]'s missing words, or
+            // one already in the line ("Well, nice bet, b" -> "bet"), adding nothing outside.
             val lastBecomes = if (last in whole) null else missing.filter { it.startsWith(last) }.minByOrNull { it.length }
-            val outside = (whole - other).size + if (last in whole || lastBecomes != null) 0 else 1
+            val lastIsKnown = last in whole || lastBecomes != null || (whole + other).any { it.startsWith(last) }
+            val outside = (whole - other).size + if (lastIsKnown) 0 else 1
             if (lastBecomes != null) missing -= lastBecomes
             // Add [other]'s missing words, shortest first, while they fit.
             var left = room - (lastBecomes?.let { it.length - last.length } ?: 0)

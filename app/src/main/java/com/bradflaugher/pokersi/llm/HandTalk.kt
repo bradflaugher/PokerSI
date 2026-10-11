@@ -7,8 +7,8 @@ import com.bradflaugher.pokersi.engine.TableTalk
  * Table talk that gives a hand away. The prompt tells the model what it holds
  * in words ("Your hand is Pair of Kings"), and a small model happily says so
  * out loud while it bets, which spoils the betting. A line that names a hand
- * ("two pair", "a flush", "pocket aces", "ace-king", "my cards") is held back
- * while it streams and swapped like a repeat.
+ * ("two pair", "a flush", "pocket aces", "ace-king", "an ace and a king",
+ * "my cards") is held back while it streams and swapped like a repeat.
  */
 object HandTalk {
     private val singular = Rank.entries.map { it.label.lowercase() } + "deuce"
@@ -27,6 +27,8 @@ object HandTalk {
             "(?<!royal )(?<!holy )flush", "straight(?! face)", "kicker", "high card", "suited", "my cards", "the nuts",
             "${anyOf(singular)} high",
             "${anyOf(faces)} ${anyOf(singular)}",
+            // "an ace and a king", "a queen with a jack"
+            "${anyOf(singular)} (?:and|with) (?:an? )?${anyOf(singular)}",
             "${anyOf(singular)} of ${anyOf(suits)}",
         ).joinToString("|", "\\b(?:", ")\\b"),
     )
