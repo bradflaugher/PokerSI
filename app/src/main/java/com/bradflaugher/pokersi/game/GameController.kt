@@ -26,6 +26,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -184,6 +185,11 @@ class GameController(
     private val chatter = LinkedHashMap<Int, String>()
     /** Each shown line's countdown ([expireChatter]), by seat. */
     private val chatterExpiry = HashMap<Int, Job>()
+    /**
+     * Parent of the countdowns: not the game loop's job, so they never keep a
+     * finished table "running", and they start even before that job is assigned.
+     */
+    private val chatterJobs = SupervisorJob(scope.coroutineContext[Job])
     private var streamingSeat: Int? = null
     private var thinkingSeat: Int? = null
 
@@ -526,6 +532,7 @@ class GameController(
     fun stop() {
         job?.cancel()
         job = null
+        clearChatter()
         humanDecision = null
         humanTurn = null
         proceed = null
@@ -733,16 +740,17 @@ class GameController(
      */
     private fun expireChatter(seat: Int, text: String) {
         val hold = pacing.chatterHold(text)
-        val game = job ?: return
         if (hold <= 0) return
-        chatterExpiry[seat] = scope.launch(game) {
+        chatterExpiry[seat] = scope.launch(chatterJobs) {
             var left = hold
             while (left > 0) {
                 awaitUnpaused()
                 val step = minOf(left, 100L)
                 delay((step * speed.value.factor).toLong().coerceAtLeast(1))
-                left -= step
+                // Only time spent unpaused counts: a pause that began mid-step keeps the step.
+                if (autopilot != null || pauses.value.isEmpty()) left -= step
             }
+            awaitUnpaused()
             if (chatter[seat] == text) {
                 chatter.remove(seat)
                 chatterExpiry.remove(seat)

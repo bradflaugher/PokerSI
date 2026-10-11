@@ -182,7 +182,7 @@ fun TableScreen(
                 if (m.wide) {
                     Row(Modifier.fillMaxSize().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Column(Modifier.weight(1.4f).fillMaxHeight()) {
-                            TableHeader(state, callbacks)
+                            TableHeader(state, callbacks, consoleSlot = false)
                             if (run != null) RunHud(run, Modifier.padding(bottom = 6.dp))
                             OpponentsArea(state, m, track)
                             Spacer(Modifier.weight(1f))
@@ -190,6 +190,8 @@ fun TableScreen(
                             Spacer(Modifier.weight(1f))
                         }
                         Column(Modifier.weight(1f).fillMaxHeight().padding(bottom = 6.dp), verticalArrangement = Arrangement.Bottom) {
+                            // The console's "~" ([ConsoleToggle]) sits at the top of this column.
+                            if (callbacks.consoleSlot) Spacer(Modifier.height(CONSOLE_SLOT + 4.dp))
                             LogPanel(state, Modifier.weight(1f).padding(top = 8.dp))
                             HumanArea(state, m, callbacks, track(SPOT_HUMAN))
                             ActionArea(state, callbacks, run)
@@ -197,7 +199,7 @@ fun TableScreen(
                     }
                 } else {
                     Column(Modifier.fillMaxSize().padding(horizontal = 8.dp).padding(bottom = 6.dp)) {
-                        TableHeader(state, callbacks)
+                        TableHeader(state, callbacks, consoleSlot = callbacks.consoleSlot)
                         if (run != null) RunHud(run, Modifier.padding(bottom = 6.dp))
                         OpponentsArea(state, m, track)
                         Spacer(Modifier.weight(1f))
@@ -222,7 +224,7 @@ private const val SPOT_HUMAN = -2
 // ---------------------------------------------------------------- header
 
 @Composable
-private fun TableHeader(state: TableUiState, callbacks: TableCallbacks) {
+private fun TableHeader(state: TableUiState, callbacks: TableCallbacks, consoleSlot: Boolean) {
     val p = PixelTheme.palette
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         PixelButton("PAUSE", callbacks.onPause, Modifier.size(48.dp, 48.dp).semantics { contentDescription = "Pause" }, variant = PixelButtonVariant.Gray, icon = PixelGlyph.Pause)
@@ -237,7 +239,7 @@ private fun TableHeader(state: TableUiState, callbacks: TableCallbacks) {
             PixelText("AI", style = PixelType.Label.copy(fontSize = 9.sp), color = p.gray, shadowUnits = 0)
             PixelText(state.brainLabel.uppercase(), Modifier.widthIn(max = 130.dp), style = PixelType.Label.copy(fontSize = 10.sp), color = p.teal, maxLines = 2, textAlign = TextAlign.End)
         }
-        if (callbacks.consoleSlot) Spacer(Modifier.size(CONSOLE_SLOT))
+        if (consoleSlot) Spacer(Modifier.size(CONSOLE_SLOT))
     }
 }
 

@@ -360,6 +360,20 @@ class GameControllerTest {
     }
 
     @Test
+    fun aPauseThatStartsMidTickStillFreezesTheLastStretch() = runTest {
+        val c = talkyTable()
+        val speaking = c.talking()
+        advanceTimeBy(950); runCurrent()
+        c.setPaused(PauseReason.Menu, true)
+        advanceTimeBy(5_000); runCurrent()
+        assertEquals("never expires behind the pause menu", speaking, c.talking())
+        c.setPaused(PauseReason.Menu, false)
+        advanceTimeBy(300); runCurrent()
+        assertEquals(emptyList<Int>(), c.talking())
+        c.stop()
+    }
+
+    @Test
     fun tableTalkHoldsWhileThePauseMenuIsOpen() = runTest {
         val c = talkyTable()
         val speaking = c.talking()
