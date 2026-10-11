@@ -9,6 +9,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.bradflaugher.pokersi.game.HandTally
 import com.bradflaugher.pokersi.ui.pixel.PixelTheme
 import com.bradflaugher.pokersi.ui.screenshot.registerComponentActivity
+import org.junit.Assert.assertFalse
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
@@ -37,6 +38,16 @@ class StatsAccessibilityTest {
             act("Previous hand")
             act("Previous hand")
             chart.assertContentDescriptionContains("Selected: Seven Two offsuit, dealt 11, played 0", substring = true)
+        }
+    }
+
+    @Test
+    fun anEmptyChartOffersNothingToStepThrough() {
+        registerComponentActivity()
+        runComposeUiTest {
+            setContent { PixelTheme { HandChart(emptyMap()) } }
+            val node = onNodeWithContentDescription("Hold'em starting-hand chart: no hands yet.").fetchSemanticsNode()
+            assertFalse(node.config.contains(SemanticsActions.CustomActions))
         }
     }
 }

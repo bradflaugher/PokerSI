@@ -179,7 +179,8 @@ internal fun HandChart(hands: Map<String, HandTally>) {
             )
             val spoken = chartDescription(hands, picked)
             // TalkBack can't tap a cell: NEXT HAND / PREVIOUS HAND step through the dealt hands instead.
-            val stepThrough = StartingHands.all.filter { (hands[it]?.dealt ?: 0) > 0 }.ifEmpty { StartingHands.all }
+            // (With nothing dealt yet there is nothing to step through, so no actions.)
+            val stepThrough = StartingHands.all.filter { (hands[it]?.dealt ?: 0) > 0 }
             fun step(by: Int): Boolean {
                 val i = stepThrough.indexOf(picked)
                 picked = stepThrough[if (i < 0) (if (by > 0) 0 else stepThrough.lastIndex) else (i + by).mod(stepThrough.size)]
@@ -188,10 +189,12 @@ internal fun HandChart(hands: Map<String, HandTally>) {
             BoxWithConstraints(
                 Modifier.fillMaxWidth().clearAndSetSemantics {
                     contentDescription = spoken
-                    customActions = listOf(
-                        CustomAccessibilityAction("Next hand") { step(1) },
-                        CustomAccessibilityAction("Previous hand") { step(-1) },
-                    )
+                    if (stepThrough.isNotEmpty()) {
+                        customActions = listOf(
+                            CustomAccessibilityAction("Next hand") { step(1) },
+                            CustomAccessibilityAction("Previous hand") { step(-1) },
+                        )
+                    }
                 },
             ) {
                 val gap = 1.dp
