@@ -69,13 +69,20 @@ class DesignShowcaseScreenshotTest {
     }
 
     @Test
-    fun cardCloseUp() = renderToPng(out("cards_closeup"), 1080, 900, 420) {
+    fun cardCloseUp() = renderToPng(out("cards_closeup"), 1080, 1340, 420) {
         PixelTheme {
-            Row(
+            Column(
                 Modifier.fillMaxSize().background(PixelPalette.Default.feltDark).padding(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                listOf("Ks", "Qh", "Jd", "As").forEach { PixelCard(Card.parse(it), size = 84.dp) }
+                listOf(listOf("Ks", "Qh", "Jd", "As"), listOf("Kh", "Qc", "Js", null)).forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        row.forEach { if (it == null) PixelCard(null, faceUp = false, size = 84.dp) else PixelCard(Card.parse(it), size = 84.dp) }
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    listOf("Kd", "Qs", "Jc", "Ah", "Qd", "Kc", "Jh").forEach { PixelCard(Card.parse(it), size = 46.dp) }
+                }
             }
         }
     }
