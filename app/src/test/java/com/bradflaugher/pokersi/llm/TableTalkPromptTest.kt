@@ -62,7 +62,7 @@ class TableTalkPromptTest {
             "Miss Quill" to "Shhh! I'm raising.",
             "Calamity Kate" to "My horse could bluff better.",
         )
-        val plan = TalkPlan.make(context, cowboy, talk, Random(3))
+        val plan = TalkPlan.make(context, cowboy, talk, Random(3), alwaysSpeak = true)
         val user = PokerPrompt.build(context, cowboy, plan)[1].content
         assertTrue(user.contains("Table talk:\n- Miss Quill: \"Shhh! I'm raising.\""))
         assertTrue(user.contains("You already said \"Yeehaw, deal 'em!\", \"My horse could bluff better.\". Don't repeat yourself."))
@@ -72,6 +72,77 @@ class TableTalkPromptTest {
         // Talk isn't repeated in the hand's history.
         val chatty = context.copy(history = context.history + "Miss Quill says \"Shhh! I'm raising.\"")
         assertFalse(PokerPrompt.build(chatty, cowboy, null)[1].content.contains("says \""))
+    }
+
+    @Test
+    fun charactersTalkOnSomeTurnsNotAll() {
+        val quiet = TableTalk()
+        val random = Random(11)
+        val talking = (1..1000).count { TalkPlan.make(context, cowboy, quiet, random).speak }
+        assertTrue("about ${TalkPlan.SPEAK_OTHERWISE}: $talking/1000", talking in 220..380)
+        // Spoken to in this hand since our last move: more often.
+        val talkedAt = context.copy(history = context.history + "Miss Quill says \"Shhh! I'm raising.\"")
+        val answering = (1..1000).count { TalkPlan.make(talkedAt, cowboy, quiet, random).speak }
+        assertTrue("about ${TalkPlan.SPEAK_ANSWER}: $answering/1000", answering in 470..630)
+        // Once we've acted since, the boost is used up, however recent the line in TableTalk.
+        val answered = talkedAt.copy(history = talkedAt.history + "${cowboy.name} checks")
+        val after = (1..1000).count { TalkPlan.make(answered, cowboy, talkWith("Miss Quill" to "Shhh! I'm raising."), random).speak }
+        assertTrue("back to about ${TalkPlan.SPEAK_OTHERWISE}: $after/1000", after in 220..380)
+        assertTrue((1..50).all { TalkPlan.make(context, cowboy, quiet, random, alwaysSpeak = true).speak })
+        // Facing a bet (whatever happened since): the pressure rate.
+        val facing = context.copy(legal = context.legal.copy(canCheck = false, toCall = context.bigBlind * 3))
+        val pressed = (1..1000).count { TalkPlan.make(facing, cowboy, quiet, random).speak }
+        assertTrue("about ${TalkPlan.SPEAK_PRESSURE}: $pressed/1000", pressed in 370..530)
+    }
+
+    @Test
+    fun aQuietTurnLeavesTheTalkOutOfThePromptAndTheReply() {
+        val talk = talkWith("Miss Quill" to "Shhh! I'm raising.")
+        val plan = (1..200).map { TalkPlan.make(context, cowboy, talk, Random(it)) }.first { !it.speak }
+        val user = PokerPrompt.build(context, cowboy, plan)[1].content
+        assertTrue(user.contains("Stay quiet this turn"))
+        assertFalse("no table talk to read", user.contains("Table talk:"))
+        assertFalse(user.contains("For \"say\""))
+        assertFalse("never offers the catchphrase on a quiet turn", plan.catchphraseOk)
+        val grammar = PokerGrammar.forContext(context, speak = false)
+        assertFalse("the reply can't talk", grammar.lines().first().contains("say"))
+        assertTrue(PokerGrammar.forContext(context).lines().first().contains("say"))
+        // The system prompt is the same either way.
+        assertEquals(PokerPrompt.build(context, cowboy, plan)[0], PokerPrompt.build(context, cowboy, plan.copy(speak = true))[0])
+    }
+
+    @Test
+    fun aQuietReplyDecidesAndSaysNothing() = runBlocking {
+        val backend = ScriptedBackend("""{"action": "check", "amount": 0}""")
+        // A random that always rolls high: every turn is quiet.
+        val agent = LlmAgent(backend, cowboy, houseBot, talkWith("Miss Quill" to "hi"), random = object : Random() {
+            override fun nextBits(bitCount: Int) = (1 shl bitCount) - 1
+        })
+        val bubble = mutableListOf<String>()
+        val reply = agent.decide(context) { bubble += it }
+        assertEquals(Decision.Check, reply.decision)
+        assertEquals(null, reply.say)
+        assertTrue(bubble.isEmpty())
+        assertTrue(backend.prompts.single()[1].content.contains("Stay quiet this turn"))
+    }
+
+    @Test
+    fun aQuietTurnStaysQuietWhenTheHouseBotTakesOver() = runBlocking {
+        val broken = object : LlmBackend {
+            override val isReady = true
+            override suspend fun generate(
+                messages: List<ChatMessage>, grammar: String?, maxTokens: Int, temperature: Float, seed: Int, timeoutMs: Long,
+                onText: (String) -> Boolean,
+            ): String = "not json at all"
+        }
+        val agent = LlmAgent(broken, cowboy, houseBot, talkWith("Miss Quill" to "hi"), random = object : Random() {
+            override fun nextBits(bitCount: Int) = (1 shl bitCount) - 1
+        })
+        val bubble = mutableListOf<String>()
+        val reply = agent.decide(context) { bubble += it }
+        assertEquals(Decision.Check, reply.decision)
+        assertEquals("the House Bot's \"House!\" is dropped", null, reply.say)
+        assertTrue(bubble.isEmpty())
     }
 
     @Test
@@ -116,7 +187,7 @@ class TableTalkPromptTest {
     fun aRepeatedLineNeverReachesTheBubble() = runBlocking {
         val talk = talkWith("Calamity Kate" to "Saddle up, partner.")
         val backend = ScriptedBackend("""{"action": "check", "amount": 0, "say": "Saddle up, partner."}""")
-        val agent = LlmAgent(backend, cowboy, houseBot, talk, random = Random(2))
+        val agent = LlmAgent(backend, cowboy, houseBot, talk, random = Random(2), alwaysTalks = true)
         val bubble = mutableListOf<String>()
         val reply = agent.decide(context) { bubble += it }
         assertEquals(Decision.Check, reply.decision)
@@ -130,7 +201,7 @@ class TableTalkPromptTest {
     fun aFreshLineStreamsAndIsKept() = runBlocking {
         val talk = talkWith("Miss Quill" to "Shhh! I'm raising.")
         val backend = ScriptedBackend("""{"action": "check", "amount": 0, "say": "Howdy, Miss Quill, my horse says hush."}""")
-        val agent = LlmAgent(backend, cowboy, houseBot, talk)
+        val agent = LlmAgent(backend, cowboy, houseBot, talk, alwaysTalks = true)
         val bubble = mutableListOf<String>()
         val reply = agent.decide(context) { bubble += it }
         assertEquals("Howdy, Miss Quill, my horse says hush.", reply.say)
@@ -145,11 +216,11 @@ class TableTalkPromptTest {
     fun theConsoleRecordsOnlyWhenEnabled() = runBlocking {
         AiLog.enabled = false
         val backend = ScriptedBackend("""{"action": "raise", "amount": 99999, "say": "Yeehaw!"}""")
-        LlmAgent(backend, cowboy, houseBot).decide(context)
+        LlmAgent(backend, cowboy, houseBot, alwaysTalks = true).decide(context)
         assertTrue(AiLog.entries.value.isEmpty())
 
         AiLog.enabled = true
-        LlmAgent(backend, cowboy, houseBot).decide(context)
+        LlmAgent(backend, cowboy, houseBot, alwaysTalks = true).decide(context)
         val kinds = AiLog.entries.value.map { it.kind }
         assertEquals(listOf(AiLogKind.PROMPT, AiLogKind.GRAMMAR, AiLogKind.REPLY, AiLogKind.DECISION), kinds)
         val entries = AiLog.entries.value
@@ -171,7 +242,7 @@ class TableTalkPromptTest {
                 onText: (String) -> Boolean,
             ): String = error("boom")
         }
-        val reply = LlmAgent(broken, cowboy, houseBot).decide(context)
+        val reply = LlmAgent(broken, cowboy, houseBot, alwaysTalks = true).decide(context)
         assertEquals(AgentReply(Decision.Check, "House!"), reply)
         val error = AiLog.entries.value.last { it.kind == AiLogKind.ERROR }
         assertTrue(error.title, error.title.contains("House Bot decides (error: boom)"))
@@ -198,7 +269,7 @@ class TableTalkPromptTest {
             }
         }
         val bubble = mutableListOf<String>()
-        val reply = LlmAgent(dies, cowboy, chatty, TableTalk()).decide(context) { bubble += it }
+        val reply = LlmAgent(dies, cowboy, chatty, TableTalk(), alwaysTalks = true).decide(context) { bubble += it }
         assertEquals(Decision.Check, reply.decision)
         assertEquals("the model's line is kept", line, reply.say)
         assertTrue("streamed: $bubble", bubble.none { it == "House!" })

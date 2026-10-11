@@ -82,6 +82,12 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
   decision first so a small model can't talk itself out of it, then
   clamped to a legal action by `LegalActions.coerce`. If generation fails
   or times out, `HouseBot` decides instead and the hand carries on.
+- **Fast enough to play.** A character only talks on some turns
+  (`TalkPlan.speak`: more often when spoken to or facing a bet); on a quiet
+  turn the prompt leaves the talk out and the grammar has no `say`, so the
+  model reads and writes less. The system prompt is the same either way.
+  SETTINGS > FAST FOLD (on by default): once the player has folded, the
+  rest of the hand plays out at once, each opponent's `HouseBot` deciding.
 - **Table talk stays fresh.** Small models parrot whatever the prompt
   repeats, so the catchphrase is not in the prompt (it is said when a
   character sits down, and offered only now and then by `TalkPlan`). Each

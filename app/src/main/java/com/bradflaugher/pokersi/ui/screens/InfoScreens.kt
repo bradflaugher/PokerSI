@@ -136,6 +136,7 @@ data class SettingsUi(
     val cardSway: Boolean = true,
     val debugConsole: Boolean = false,
     val speed: GameSpeed = GameSpeed.NORMAL,
+    val fastFold: Boolean = true,
     val hasSavedRun: Boolean = false,
     /** BuildConfig.VERSION_NAME, for the ABOUT panel. */
     val version: String = "dev",
@@ -148,6 +149,7 @@ class SettingsCallbacks(
     val onCardSway: (Boolean) -> Unit = {},
     val onDebugConsole: (Boolean) -> Unit = {},
     val onSpeed: (GameSpeed) -> Unit = {},
+    val onFastFold: (Boolean) -> Unit = {},
     val onResetRun: () -> Unit = {},
     val onShowTips: () -> Unit = {},
     // The links (Links.kt) say whether something could open them.
@@ -179,6 +181,7 @@ fun SettingsScreen(settings: SettingsUi, callbacks: SettingsCallbacks, modifier:
                         ToggleRow("CARD SWAY", "Cards bob gently", settings.cardSway, callbacks.onCardSway)
                         SectionHeading("GAME SPEED")
                         ChoiceRow(GameSpeed.entries, settings.speed, { it.label }, callbacks.onSpeed)
+                        ToggleRow("FAST FOLD", "Once you fold, the rest of the hand plays out at once", settings.fastFold, callbacks.onFastFold)
                     }
                 }
                 PixelPanel(Modifier.readable(), title = "POKER TOUR", style = PanelStyle.Dark, paddingUnits = 2) {

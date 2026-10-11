@@ -55,7 +55,11 @@ download a model.
   someone, the pot, the board, something in character) plus what was just
   said at the table, so they banter with each other. The table remembers
   every line: a character that starts repeating itself (or anyone else) is
-  cut off before the line shows.
+  cut off before the line shows. Characters talk on some turns, not every
+  one, which also keeps the game quick: a quiet turn is a shorter prompt and
+  a shorter reply.
+- **No waiting on hands you're out of.** With FAST FOLD (on by default),
+  once you fold the rest of the hand plays out at once.
 - **House Bot when there's no model.** With nothing loaded, a built-in
   heuristic opponent plays every seat and the table says so. It also steps
   in for any decision the model fumbles or takes too long on, so a hand

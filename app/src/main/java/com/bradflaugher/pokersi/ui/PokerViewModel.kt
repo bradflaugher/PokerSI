@@ -37,7 +37,7 @@ class PokerViewModel(app: Application) : AndroidViewModel(app) {
     val daily = DailyRecord(prefs)
     val stats = Stats(prefs)
     val brains = AppServices.brains(app)
-    val controller = GameController(viewModelScope, brains, Pacing(), settings.speed, runSaver = runSaver, recorder = stats)
+    val controller = GameController(viewModelScope, brains, Pacing(), settings.speed, settings.fastFold, runSaver = runSaver, recorder = stats)
 
     private val _tips = MutableStateFlow(!prefs.getBoolean(KEY_TIPS_SEEN, false))
 

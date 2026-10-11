@@ -49,7 +49,9 @@ object PokerPrompt {
         } else {
             appendLine("""{"action": "<one legal action>", "amount": <chips>, "say": "<table talk>"}""")
         }
-        append("\"say\" is one short, funny sentence in your voice, under 12 words, different every time. Family friendly. Never mention your cards.")
+        appendLine("\"say\" is one short, funny sentence in your voice, under 12 words, different every time. Family friendly. Never mention your cards.")
+        // The same on every turn (talking or quiet), so the system prompt never changes mid-table.
+        append("Leave \"say\" out on turns when you are told to stay quiet.")
     }
 
     private fun bettingSituation(c: DecisionContext, persona: Persona, talk: TalkPlan?): String = buildString {
@@ -146,6 +148,10 @@ object PokerPrompt {
      */
     private fun StringBuilder.talk(plan: TalkPlan?, persona: Persona) {
         plan ?: return
+        if (!plan.speak) {
+            appendLine("Stay quiet this turn: no \"say\".")
+            return
+        }
         if (plan.others.isNotEmpty()) {
             appendLine("Table talk:")
             for (line in plan.others) appendLine("- ${line.speaker}: \"${line.text}\"")
