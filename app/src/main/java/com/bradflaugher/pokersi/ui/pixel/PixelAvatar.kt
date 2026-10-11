@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import kotlin.math.hypot
 import kotlin.random.Random
 
 /** Facial expressions for [PixelAvatar]. */
@@ -187,10 +188,20 @@ object AvatarArt {
     fun draw(look: AvatarLook, mood: Mood, background: Boolean, eyesClosed: Boolean, p: PixelPalette): PixelCanvas {
         val c = PixelCanvas(SIZE, SIZE)
         if (background) {
+            // A backdrop with a spotlight behind the head and shadowed
+            // corners: the same lamp as the table.
             c.fill(1, 0, SIZE - 2, SIZE, look.background)
             c.fill(0, 1, SIZE, SIZE - 2, look.background)
-            val light = lerp(look.background, Color.White, 0.18f)
-            for (y in 0 until SIZE) for (x in 0 until SIZE) if ((x + y) % 8 < 2 && c[x, y] != 0) c.set(x, y, light)
+            val light = lerp(look.background, Color.White, 0.2f)
+            val dark = lerp(look.background, p.ink, 0.3f)
+            for (y in 0 until SIZE) for (x in 0 until SIZE) {
+                if (c[x, y] == 0) continue
+                val d = hypot(x - 11.5, y - 8.5)
+                when {
+                    d < 9.6 -> c.set(x, y, light)
+                    d > 14.2 -> c.set(x, y, dark)
+                }
+            }
         }
 
         val f = PixelCanvas(SIZE, SIZE)
@@ -200,27 +211,49 @@ object AvatarArt {
         val skinShade = lerp(look.skin, p.ink, 0.22f)
         val hairDark = lerp(look.hairColor, p.ink, 0.35f)
 
-        // Behind the head: long hair and afros.
+        // Behind the head: long hair and afros, shaded on the right.
+        fun backHair(y: Int, w: Int) {
+            f.row(y, w, look.hairColor)
+            f.hline(12 + w / 2 - 2, y, 2, hairDark)
+        }
         when (look.hair) {
             AvatarLook.Hair.Afro -> for (y in top - 3..top + 9) {
-                val w = listOf(10, 14, 16, 18, 18, 20, 20, 20, 20, 18, 18, 16, 12)[y - (top - 3)]
-                f.row(y, w, look.hairColor)
+                backHair(y, listOf(10, 14, 16, 18, 18, 20, 20, 20, 20, 18, 18, 16, 12)[y - (top - 3)])
             }
-            AvatarLook.Hair.Long -> for (y in top..bottom + 3) f.row(y, shape.getOrElse(y - top) { 12 } + 4, look.hairColor)
-            AvatarLook.Hair.Bob -> for (y in top..top + 10) f.row(y, shape.getOrElse(y - top) { 12 } + 2, look.hairColor)
+            AvatarLook.Hair.Long -> for (y in top..bottom + 3) backHair(y, shape.getOrElse(y - top) { 12 } + 4)
+            AvatarLook.Hair.Bob -> for (y in top..top + 10) backHair(y, shape.getOrElse(y - top) { 12 } + 2)
             else -> {}
         }
+        if (look.hair == AvatarLook.Hair.Afro) {
+            f.hline(12 - 7, top - 1, 3, lerp(look.hairColor, Color.White, 0.3f))
+            f.hline(12 - 8, top, 2, lerp(look.hairColor, Color.White, 0.3f))
+        }
 
-        // Shoulders and neck.
+        // Shoulders and neck: the shirt is lit on the left, shaded on the
+        // right, with a little V of neck at the collar.
+        val shirtDark = lerp(look.shirt, p.ink, 0.3f)
+        val shirtLight = lerp(look.shirt, Color.White, 0.3f)
         f.row(19, 4, skinShade)
-        for (y in 20 until SIZE) f.row(y, minOf(22, 14 + (y - 20) * 3), look.shirt)
-        f.row(20, 6, lerp(look.shirt, Color.White, 0.35f))
+        for (y in 20 until SIZE) {
+            val w = minOf(22, 14 + (y - 20) * 3)
+            f.row(y, w, look.shirt)
+            f.set(12 - w / 2, y, shirtLight)
+            f.hline(12 + w / 2 - 3, y, 3, shirtDark)
+        }
+        f.row(20, 6, shirtLight)
         f.row(20, 2, skinShade)
+        f.row(21, 2, shirtDark)
 
         // Head.
         shape.forEachIndexed { i, w -> f.row(top + i, w, look.skin) }
-        // Cheek shading on the right edge.
-        shape.forEachIndexed { i, w -> if (i > 2) f.set(12 + w / 2 - 1, top + i, skinShade) }
+        // Cheek shading on the right edge, a rim of light on the left.
+        val skinLight = lerp(look.skin, Color.White, 0.3f)
+        shape.forEachIndexed { i, w ->
+            if (i > 2) f.set(12 + w / 2 - 1, top + i, skinShade)
+            if (i in 1 until shape.size - 2) f.set(12 - w / 2, top + i, skinLight)
+        }
+        // A shadow under the chin.
+        f.row(bottom, (shape.last() - 2).coerceAtLeast(2), skinShade)
         val half = shape.max() / 2
 
         // Ears (humans/monsters), bolts (robots).
@@ -250,7 +283,10 @@ object AvatarArt {
                 // Fringe: a side part.
                 f.hline(12 - shape[3] / 2, top + 3, shape[3] / 2 + 1, look.hairColor)
                 f.set(12 - shape[3] / 2, top + 4, look.hairColor)
-                f.hline(12 - shape[2] / 2 + 1, top + 1, 3, hairDark)
+                // Sheen on the lit side, shadow on the far side.
+                f.hline(12 - shape[0] / 2, top, 3, lerp(look.hairColor, Color.White, 0.35f))
+                f.set(12 - shape[1] / 2 + 1, top + 1, lerp(look.hairColor, Color.White, 0.2f))
+                f.hline(12 + shape[1] / 2 - 2, top + 1, 2, hairDark)
                 if (look.hair == AvatarLook.Hair.Spiky) {
                     for (i in 0 until 4) { f.set(7 + i * 3, top - 2, look.hairColor); f.set(8 + i * 3, top - 3, look.hairColor) }
                     f.row(top - 2, shape[0], look.hairColor)

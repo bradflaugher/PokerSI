@@ -53,32 +53,43 @@ internal object ChipArt {
     private fun draw(stacks: List<Pair<Chips.Denomination, Int>>, ink: Color): PixelCanvas {
         val cols = stacks.size.coerceAtLeast(1)
         val w = cols * (CHIP_W + 1) + 3
-        val h = MAX_PER_STACK * 2 + 5 + 3
+        val h = MAX_PER_STACK * 2 + 4 + 3
         val c = PixelCanvas(w, h)
         // Stacks lean slightly for character: alternate one pixel offsets.
+        fun lean(k: Int) = (if (k % 3 == 1) 1 else 0) - (if (k % 5 == 3) 1 else 0)
         stacks.forEachIndexed { i, (d, n) ->
             val x0 = 1 + i * (CHIP_W + 1)
             val base = h - 2
             val dark = lerp(d.color, ink, 0.4f)
+            val light = lerp(d.color, Color.White, 0.35f)
+            val stripeDark = lerp(d.stripe, ink, 0.3f)
+            // Edges: a lit band over a shaded one, with the edge spots
+            // stepping round from chip to chip so the stack looks stacked.
             for (k in 0 until n) {
                 val y = base - 2 - k * 2
-                val wob = if (k % 3 == 1) 1 else 0
-                val x = x0 + wob - (if (k % 5 == 3) 1 else 0)
-                c.hline(x + 1, y, CHIP_W - 2, d.color)
-                c.hline(x + 1, y + 1, CHIP_W - 2, dark)
-                c.set(x, y, d.color); c.set(x + CHIP_W - 1, y, dark)
-                for (s in intArrayOf(2, 6, 9)) c.set(x + s, y, d.stripe)
+                val x = x0 + lean(k)
+                c.hline(x, y, CHIP_W, d.color)
+                c.hline(x, y + 1, CHIP_W, dark)
+                c.set(x, y, light)
+                c.set(x + CHIP_W - 1, y, dark)
+                for (s in intArrayOf(1, 5, 9)) {
+                    val sx = x + s + (k % 2) * 2
+                    if (sx < x + CHIP_W - 1) { c.set(sx, y, d.stripe); c.set(sx, y + 1, stripeDark) }
+                }
             }
-            // Top face: an ellipse with stripes and an inner ring.
-            val ty = base - 2 - n * 2 - 3
-            val tx = x0 + (if ((n - 1) % 3 == 1) 1 else 0) - (if ((n - 1) % 5 == 3) 1 else 0)
-            c.hline(tx + 2, ty, CHIP_W - 4, d.color)
-            c.hline(tx + 1, ty + 1, CHIP_W - 2, d.color)
-            c.hline(tx, ty + 2, CHIP_W, d.color)
-            c.hline(tx + 1, ty + 3, CHIP_W - 2, d.color)
-            c.hline(tx + 3, ty + 1, CHIP_W - 6, lerp(d.color, Color.White, 0.35f))
-            c.set(tx + 1, ty + 2, d.stripe); c.set(tx + CHIP_W - 2, ty + 2, d.stripe); c.set(tx + 5, ty, d.stripe); c.set(tx + 6, ty + 3, d.stripe)
-            c.hline(tx + 4, ty + 2, 4, lerp(d.color, ink, 0.2f))
+            // Top face, seen low across the table: a flat ellipse flush on
+            // the edge band below it.
+            val ty = base - n * 2 - 3
+            val tx = x0 + lean(n - 1)
+            c.hline(tx + 2, ty, 8, d.color)
+            c.hline(tx, ty + 1, 12, d.color)
+            c.hline(tx, ty + 2, 12, d.color)
+            // Edge spots round the rim, an inlay ring and a glint.
+            for ((sx, sy) in listOf(2 to 0, 9 to 0, 0 to 2, 11 to 2, 5 to 2, 6 to 2)) c.set(tx + sx, ty + sy, d.stripe)
+            c.hline(tx + 4, ty, 4, light)
+            c.hline(tx + 3, ty + 1, 6, lerp(d.color, Color.White, 0.18f))
+            c.set(tx + 1, ty + 1, light)
+            c.set(tx + 4, ty, lerp(d.color, Color.White, 0.65f))
         }
         c.outline(ink)
         return c

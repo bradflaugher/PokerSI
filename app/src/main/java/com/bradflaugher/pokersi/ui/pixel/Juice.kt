@@ -67,7 +67,8 @@ fun Modifier.shake(trigger: Any?, strength: Dp = 8.dp, durationMillis: Int = 420
 
 /**
  * A big arcade announcement ("FULL HOUSE!") that pops in with an
- * overshooting scale bounce and a wobble when [visible] becomes true.
+ * overshooting scale bounce and a wobble when [visible] becomes true; it
+ * settles level, so its pixels rest on the grid.
  * Chunky pixel text with an 8-way ink outline and a hard drop shadow on a
  * bevelled ribbon.
  */
@@ -86,16 +87,16 @@ fun BigBanner(
     val animated = PixelTheme.animated
     val player = LocalSoundPlayer.current
     val scale = remember { Animatable(if (visible && !animated) 1f else 0f) }
-    val tilt = remember { Animatable(-3f) }
+    val tilt = remember { Animatable(0f) }
     LaunchedEffect(visible, text) {
         if (!visible) { scale.snapTo(0f); return@LaunchedEffect }
-        if (!animated) { scale.snapTo(1f); tilt.snapTo(-3f); return@LaunchedEffect }
+        if (!animated) { scale.snapTo(1f); tilt.snapTo(0f); return@LaunchedEffect }
         sound?.let(player::play)
         scale.snapTo(0.2f)
         tilt.snapTo(-14f)
         launchBoth(
             { scale.animateTo(1f, spring(dampingRatio = 0.38f, stiffness = Spring.StiffnessMediumLow)) },
-            { tilt.animateTo(-3f, spring(dampingRatio = 0.3f, stiffness = Spring.StiffnessLow)) },
+            { tilt.animateTo(0f, spring(dampingRatio = 0.3f, stiffness = Spring.StiffnessLow)) },
         )
     }
     if (scale.value <= 0f) return
