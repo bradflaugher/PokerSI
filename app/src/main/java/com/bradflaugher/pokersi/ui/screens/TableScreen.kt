@@ -487,7 +487,7 @@ private fun BubbleLayer(state: TableUiState, spots: Map<Int, Rect>, compact: Boo
             stackBubbles(rectsFor(measurables.map { m -> m.maxIntrinsicWidth(Constraints.Infinity).coerceAtMost(w).let { bw -> IntSize(bw, m.maxIntrinsicHeight(bw)) } }), gap)
         }
         val placeables = measurables.map { it.measure(Constraints(maxWidth = width)) }
-        val placed = clampBubbles(stackBubbles(rectsFor(placeables.map { IntSize(it.width, it.height) }), gap), floor)
+        val placed = clampBubbles(stackBubbles(rectsFor(placeables.map { IntSize(it.width, it.height) }), gap), floor, gap)
         layout(constraints.maxWidth, constraints.maxHeight) {
             placeables.forEachIndexed { i, bubble -> bubble.place(placed[i].topLeft) }
         }
@@ -503,9 +503,25 @@ internal fun fitBubbleWidth(candidates: List<Int>, floor: Int, stack: (Int) -> L
     return (tried.firstOrNull { it.second <= floor } ?: tried.minBy { it.second }).first
 }
 
-/** Last resort when even the narrowest bubbles don't fit: lift any that run past [floor] back above it. */
-internal fun clampBubbles(rects: List<IntRect>, floor: Int): List<IntRect> =
-    rects.map { r -> if (r.bottom > floor) r.translate(0, (floor - r.bottom).coerceAtLeast(-r.top)) else r }
+/**
+ * Last resort when even the narrowest bubbles don't fit: lift the ones that
+ * run past [floor] back above it, stacking upward from the bottom so a lifted
+ * bubble stays [gap] above any bubble below it that it would touch. Nothing
+ * goes above the top; only if there is truly no room left can bubbles meet.
+ */
+internal fun clampBubbles(rects: List<IntRect>, floor: Int, gap: Int = 0): List<IntRect> {
+    val out = rects.toMutableList()
+    val done = mutableListOf<IntRect>()
+    for (i in rects.indices.sortedByDescending { rects[it].bottom }) {
+        val r = rects[i]
+        val below = done.filter { it.left < r.right && r.left < it.right }
+        val limit = minOf(floor, below.minOfOrNull { it.top - gap } ?: floor)
+        val moved = if (r.bottom > limit) r.translate(0, (limit - r.bottom).coerceAtLeast(-r.top)) else r
+        out[i] = moved
+        done += moved
+    }
+    return out
+}
 
 /**
  * Where each bubble goes so none overlap: each keeps its x and its wanted y

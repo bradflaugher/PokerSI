@@ -5,6 +5,7 @@ import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BubbleStackTest {
@@ -69,5 +70,15 @@ class BubbleStackTest {
         assertEquals(400, clamped[1].bottom)
         val tall = clampBubbles(listOf(box(0, 50, 200, 600)), floor = 400)
         assertEquals(0, tall[0].top) // never pushed off the top
+    }
+
+    @Test
+    fun clampingAStackLiftsItAsAStackWithoutOverlap() {
+        // Two stacked bubbles in one column, both running past the floor.
+        val stacked = stackBubbles(listOf(box(0, 200, 200, 120), box(50, 200, 200, 120)), gap = 4)
+        val clamped = clampBubbles(stacked, floor = 400, gap = 4)
+        assertNoOverlap(clamped)
+        clamped.forEach { assertTrue("${it} past the floor", it.bottom <= 400) }
+        assertEquals(400, clamped.maxOf { it.bottom })
     }
 }
