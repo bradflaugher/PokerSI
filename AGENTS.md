@@ -34,7 +34,8 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
   - `game/` — `GameController` (runs a table for the UI, and owns each
     table's `TableTalk`), settings, the saved run, the daily record and
     `Stats` (lifetime records for the STATS screen, fed by `GameController`
-    at each hand's end), all in SharedPreferences; `AttractLines` (the title
+    at each hand's end, including the Hold'em starting-hand chart counted
+    by `StartingHands`), all in SharedPreferences; `AttractLines` (the title
     screen's cycling credits/tour/daily/records line).
   - `debug/` — `AiLog`, the debug console's bounded (400 entries),
     thread-safe ring buffer: prompts, grammars, streaming replies, timings,

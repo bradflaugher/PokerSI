@@ -101,6 +101,49 @@ class StatsTest {
         assertTrue(r.won)
         assertEquals(HandCategory.FULL_HOUSE, r.best?.category)
         assertEquals(40, r.potSize)
+        assertEquals("K7s", r.startingHand)
+        assertFalse("checking the big blind isn't choosing to play", r.playedPreflop)
+    }
+
+    @Test
+    fun callingBeforeTheFlopCountsAsPlayingTheHand() {
+        val hand = ScreenshotScenes.stackedHand(
+            GameVariant.TEXAS_HOLDEM, listOf("You", "Bob"), listOf(1000, 1000), button = 0,
+            holes = mapOf(0 to "Qh Jd", 1 to "Ad Kc"), board = "2c 5d 9h Ts 3s",
+        )
+        while (!hand.isFinished) {
+            val seat = hand.toAct!!
+            hand.apply(seat, if (hand.legalActions(seat).canCheck) Decision.Check else Decision.Call)
+        }
+        val r = HandRecord.from(hand)!!
+        assertEquals("QJo", r.startingHand)
+        assertTrue(r.playedPreflop)
+    }
+
+    @Test
+    fun onlyTexasHoldemFillsTheChart() {
+        val hand = ScreenshotScenes.stackedHand(
+            GameVariant.OMAHA, listOf("You", "Bob"), listOf(1000, 1000), button = 0,
+            holes = mapOf(0 to "Qh Jd Ts 9c", 1 to "Ad Kc 2s 3h"),
+        ).script(Decision.Fold to null)
+        assertNull(HandRecord.from(hand)!!.startingHand)
+    }
+
+    @Test
+    fun theChartTalliesDealtAndPlayed() {
+        val s = LifetimeStats()
+            .withHand(HandRecord(GameVariant.TEXAS_HOLDEM, true, 100, null, "AKs", playedPreflop = true))
+            .withHand(HandRecord(GameVariant.TEXAS_HOLDEM, false, 100, null, "AKs", playedPreflop = false))
+            .withHand(HandRecord(GameVariant.TEXAS_HOLDEM, false, 100, null, "72o", playedPreflop = false))
+            .withHand(record(won = true, variant = GameVariant.OMAHA))
+        assertEquals(HandTally(2, 1), s.holdemHands["AKs"])
+        assertEquals(50, s.holdemHands["AKs"]!!.playRate)
+        assertEquals(HandTally(1, 0), s.holdemHands["72o"])
+        assertEquals(2, s.holdemHands.size)
+        // And it survives a save.
+        assertEquals(s, LifetimeStats.fromJson(s.toJson()))
+        // Older saves (no chart yet) still load.
+        assertEquals(emptyMap<String, HandTally>(), LifetimeStats.fromJson("""{"handsPlayed": 3}""")!!.holdemHands)
     }
 
     @Test

@@ -68,7 +68,9 @@ download a model.
   downloading a model you pick, from Hugging Face.
 - **Stats.** Lifetime hands played and won, win rate, biggest pot, your
   favorite game, Poker Tour bests and the best hand you've ever held,
-  dealt out as pixel cards. They stay on the phone; RESET STATS wipes them.
+  dealt out as pixel cards, plus a 13x13 Texas Hold'em chart of how often
+  you played each starting hand (tap one for its numbers). They stay on the
+  phone; RESET STATS wipes them.
 - **First-run tips.** One screen on first launch says what nobody would
   guess (the AI lives on your phone, MODELS, the two modes, HOLD, pause).
   A tap dismisses it; SETTINGS > SHOW TIPS brings it back.
