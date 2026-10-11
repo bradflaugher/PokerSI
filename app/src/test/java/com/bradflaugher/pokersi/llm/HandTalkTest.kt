@@ -35,6 +35,7 @@ class HandTalkTest {
             "I've got a king up here.",
             "I drew an ace, yeehaw.",
             "I was dealt a king.",
+            "I drew As, partner.",
             "I flopped a set, yeehaw.",
             "Nine four offsuit, yikes.",
         ).forEach { assertTrue(it, HandTalk.revealsHand(it)) }

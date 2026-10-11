@@ -17,6 +17,9 @@ object HandTalk {
 
     private fun anyOf(words: List<String>) = words.joinToString("|", "(?:", ")")
 
+    /** Words a card follows when a player names what they hold or drew. */
+    private val cardWords = anyOf(listOf("holding", "hold", "have", "got", "drew", "draw", "dealt", "caught"))
+
     private val reveal = Regex(
         listOf(
             anyOf(plural),
@@ -33,14 +36,14 @@ object HandTalk {
             "${anyOf(singular)} (?:and|with) (?:an? )?${anyOf(singular)}",
             "${anyOf(singular)} of ${anyOf(suits)}",
             // One card in words after card words: "im holding an ace", "i drew a king".
-            "(?:holding|hold|have|got|drew|draw|dealt|caught) (?:me )?(?:an? |the )?${anyOf(singular)}",
+            "$cardWords (?:me )?(?:an? |the )?${anyOf(singular)}",
         ).joinToString("|", "\\b(?:", ")\\b"),
     )
 
     /**
      * Cards as the prompt writes them ("Kd", "7h", "Ts"), read off the raw line. An
      * ace alone ("As", "Ah", "Ad") is an ordinary word, so it only counts next to
-     * another card ("As Kd") or after card words ("holding As").
+     * another card ("As Kd") or after card words ("holding As", "drew As").
      */
     private val card = "(?:[2-9TJQKA]|10)[shdc]"
     private val lowCard = "(?:[2-9TJQK]|10)[shdc]"
@@ -53,7 +56,7 @@ object HandTalk {
             lowCard,
             // After card words: a non-ace in any case ("hold kd"), an ace with any case of
             // suit ("hold AS"; "have as much" stays fine).
-            "(?i:holding|hold|have|got|cards?)[:\\s]+(?:(?i:$lowCard)|A[shdcSHDC])",
+            "(?i:$cardWords|cards?)[:\\s]+(?:(?i:$lowCard)|A[shdcSHDC])",
         ).joinToString("|", "\\b(?:", ")\\b"),
     )
 

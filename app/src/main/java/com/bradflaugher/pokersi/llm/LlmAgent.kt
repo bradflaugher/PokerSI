@@ -79,7 +79,10 @@ class LlmAgent(
                 // Whole words only until the say is closed: a cut-off word can't be judged yet ("ace" of "aces").
                 val words = if (say == null || sayClosed.containsMatchIn(soFar)) say else say.substringBeforeLast(' ', "").trimEnd(' ', ',', ';', ':', '-')
                 // Held back while it could still turn out to be a line already said, or gives the hand away.
-                if (!words.isNullOrEmpty() && words != shown && !talk.mightRepeat(say!!, avoid, who, PokerGrammar.SAY_MAX) && !HandTalk.revealsHand(say)) {
+                // The bubble shows [words], which may end sooner than [say]: both are checked.
+                if (!words.isNullOrEmpty() && words != shown && !talk.mightRepeat(say!!, avoid, who, PokerGrammar.SAY_MAX) &&
+                    !talk.isRepeat(words, who, avoid) && !HandTalk.revealsHand(say)
+                ) {
                     shown = words
                     onChatter(words)
                 }
