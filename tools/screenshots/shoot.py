@@ -8,7 +8,7 @@ No emulator: StoreScreenshotTest (app/src/test/.../ui/screens/) renders
 every ScreenshotScenes scene with Robolectric's native graphics at each
 Play class (phone 1080x1920, 7-inch 1224x2176, 10-inch 1620x2880, all
 exactly 9:16, at densities that give each class its real window size in
-dp), plus the feature graphic's logo and cards and the launcher icon, into
+dp), plus the whole feature graphic and the launcher icon, into
 build/screenshots/<class>/. It only runs with -Pstore, so a plain `test`
 stays fast. caption.py then writes the captioned store images into
 fastlane/metadata/android/en-US/images/, the feature graphic and icons, and

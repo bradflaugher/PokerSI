@@ -10,7 +10,7 @@ writes:
 
   phone|tab7|tab10  fastlane/metadata/android/en-US/images/<class dir>/N_scene.png,
                     the size of the capture (exact 9:16, so Play accepts them)
-  feature           featureGraphic.png, 1024x500
+  feature           featureGraphic.png, 1024x500 (drawn whole by the test)
   icon              icon.png (512x512, Play) and docs/screenshots/icon.png (192)
   docs              the uncaptioned README shots in docs/screenshots/
 
@@ -34,7 +34,6 @@ DOCS = REPO / "docs/screenshots"
 FONTS = REPO / "app/src/main/res/font"
 ARCADE = FONTS / "press_start_2p.ttf"
 TERMINAL = FONTS / "vt323.ttf"
-LABEL = FONTS / "silkscreen_bold.ttf"
 
 if shutil.which("magick"):
     CONVERT = [shutil.which("magick")]
@@ -47,9 +46,7 @@ else:
 PNGQUANT = shutil.which("pngquant")
 OPTIPNG = shutil.which("optipng")
 
-# The app's palette (ui/pixel/PixelTheme.kt): felt, gold, cream, red.
-FELT = "#0E6E5E"
-FEATURE_KEY = "#03231F"  # StoreScreenshotTest.KEY, keyed out of feature/cards.png
+# The app's palette (ui/pixel/PixelTheme.kt): gold, cream, red.
 GOLD = "#FFC22E"
 GOLD_DARK = "#B9780C"
 YELLOW = "#FFF04A"
@@ -128,18 +125,49 @@ def raw_capture(cls, scene):
     return path
 
 
+# The app's table felt (ui/pixel/FeltBackground.kt: FeltColors.Table and FeltArt).
+FELT_TONES = ["#021C15", "#053324", "#0A4C34", "#106444", "#187C53"]
+
+
+def _hash(x, y):
+    n = (x * 374761393 + y * 668265263) & 0xFFFFFFFF
+    n = ((n ^ (n >> 13)) * 1274126177) & 0xFFFFFFFF
+    n ^= n >> 16
+    return (n & 0xFFFF) / 65536
+
+
 def felt(tmp, w, h, u, pinline=True):
-    """Table felt: noisy green under a vignette, with a gold pinline inset from the edge."""
+    """The app's pixel felt (the same lamp, rail shadow, lint and twill
+    dither as FeltArt), in hard blocks, with a gold pinline inset from the edge."""
+    block = max(2, round(8 * u))
+    bw, bh = -(-w // block), -(-h // block)
+    rgb = [tuple(int(t[i:i + 2], 16) for i in (1, 3, 5)) for t in FELT_TONES]
+    tones = [rgb[0]]
+    for i in range(1, len(rgb)):
+        tones += [tuple((a + b) // 2 for a, b in zip(rgb[i - 1], rgb[i])), rgb[i]]
+    steps = len(tones) - 1
+    twill = [(4 * ((x + y) % 4) + (0, 2, 1, 3)[x] + 0.5) / 16 for y in range(4) for x in range(4)]
+    pixels = bytearray()
+    for y in range(bh):
+        for x in range(bw):
+            dx = (x + 0.5) / bw - 0.5
+            dy = ((y + 0.5) / bh - 0.42) * min(bh / bw, 1.8) * 0.75
+            lamp = min(1.0, max(0.0, 1 - ((dx * dx + dy * dy) ** 0.5 / 0.75) ** 2))
+            edge = min(1.0, min(min(x + 0.5, bw - x - 0.5), min(y + 0.5, bh - y - 0.5)) / bw / 0.09)
+            v = (0.10 + lamp * 0.80) * (0.55 + 0.45 * edge)
+            if _hash(x, y) > 0.985:
+                v += 0.12
+            v = min(1.0, max(0.0, v)) * steps
+            k = int(v)
+            if v - k > twill[(y % 4) * 4 + x % 4]:
+                k += 1
+            pixels += bytes(tones[min(k, steps)])
+    raw = tmp / "felt.ppm"
+    raw.write_bytes(b"P6 %d %d 255\n" % (bw, bh) + bytes(pixels))
     out = tmp / "felt.png"
     inset, line = int(22 * u), max(2, int(4 * u))
     radius = int(36 * u)
-    args = [
-        # Pixel felt: noise at a third of the size, scaled up in hard blocks.
-        "-size", f"{-(-w // 3)}x{-(-h // 3)}", f"xc:{FELT}",
-        "-attenuate", "0.45", "+noise", "Gaussian", "-scale", "300%", "-crop", f"{w}x{h}+0+0", "+repage",
-        "(", "-size", f"{w}x{int(h * 1.15)}", f"radial-gradient:#ffffff-#383838", "-gravity", "center", "-extent", f"{w}x{h}", ")",
-        "-compose", "multiply", "-composite", "-compose", "over",
-    ]
+    args = [raw, "-filter", "point", "-resize", f"{bw * block}x{bh * block}!", "-crop", f"{w}x{h}+0+0", "+repage"]
     if pinline:
         args += [
             "-fill", "none", "-stroke", GOLD_DARK, "-strokewidth", str(line),
@@ -296,33 +324,16 @@ def caption(raw, out, head_text, sub_text):
 
 
 def feature_graphic():
-    """1024x500: the marquee logo and a tagline on the left, a fanned royal flush on the right."""
+    """1024x500, drawn whole by StoreScreenshotTest with the app's own pixel
+    art (FeatureGraphic.kt: logo over a fanned royal flush, tagline, the
+    robot chip talking trash); here it is only flattened and optimized."""
     out = IMAGES / "featureGraphic.png"
-    logo = raw_capture("feature", "logo")
-    cards = raw_capture("feature", "cards")
-    with tempfile.TemporaryDirectory() as t:
-        tmp = Path(t)
-        u = 0.5
-        bg = felt(tmp, 1024, 500, u)
-        logo_s, logo_spread = shadowed(tmp, logo, u, "logo")
-        keyed = tmp / "cards.png"
-        magick(cards, "-fuzz", "3%", "-transparent", FEATURE_KEY, keyed)
-        tagline = tmp / "tagline.png"
-        magick("-background", "none", "-fill", CREAM, "-font", TERMINAL, "-pointsize", 44,
-               "label:Poker vs. a tiny AI that lives on your phone", tagline)
-        tags = tmp / "tags.png"
-        magick("-background", "none", "-fill", GOLD, "-font", LABEL, "-pointsize", 20,
-               "label:SIX GAMES  *  POKER TOUR  *  NO ADS  *  NO ACCOUNT", tags)
-        stripe, stripe_pad = marquee(tmp, 900, 0.6)
-        magick(
-            bg,
-            logo_s, "-gravity", "northwest", "-geometry", f"+{48 - logo_spread}+{36 - logo_spread}", "-composite",
-            keyed, "-gravity", "northwest", "-geometry", "+506+16", "-composite",
-            stripe, "-gravity", "north", "-geometry", f"+0+{356 - stripe_pad}", "-composite",
-            tagline, "-gravity", "north", "-geometry", "+0+382", "-composite",
-            tags, "-gravity", "north", "-geometry", "+0+436", "-composite",
-            "-alpha", "off", f"PNG24:{out}",
-        )
+    src = raw_capture("feature", "feature")
+    w, h = size_of(src)
+    if (w, h) != (1024, 500):
+        sys.exit(f"feature graphic is {w}x{h}, Play needs 1024x500")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    magick(src, "-alpha", "off", f"PNG24:{out}")
     optimize(out)
     print(out.relative_to(REPO))
 

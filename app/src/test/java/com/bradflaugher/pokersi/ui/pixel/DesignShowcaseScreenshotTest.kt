@@ -124,6 +124,12 @@ class DesignShowcaseScreenshotTest {
         }
     }
 
+    /** The Play feature graphic, for a quick look (the store copy comes from StoreScreenshotTest). */
+    @Test
+    fun featureGraphic() = renderToPng(out("feature_graphic"), com.bradflaugher.pokersi.ui.screens.FEATURE_W, com.bradflaugher.pokersi.ui.screens.FEATURE_H, com.bradflaugher.pokersi.ui.screens.FEATURE_DPI) {
+        com.bradflaugher.pokersi.ui.screens.FeatureGraphic()
+    }
+
     @Test
     fun felt() = renderToPng(out("felt"), 540, 960, 420) {
         PixelTheme { Box(Modifier.fillMaxSize()) { CrtOverlay(Modifier.fillMaxSize()) { FeltBackground(Modifier.fillMaxSize()) } } }
