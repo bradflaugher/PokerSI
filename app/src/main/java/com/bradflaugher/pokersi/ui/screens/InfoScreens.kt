@@ -109,6 +109,7 @@ data class SettingsUi(
     val haptics: Boolean = true,
     val crt: Boolean = true,
     val cardSway: Boolean = true,
+    val debugConsole: Boolean = false,
     val speed: GameSpeed = GameSpeed.NORMAL,
     val hasSavedRun: Boolean = false,
     /** BuildConfig.VERSION_NAME, for the ABOUT panel. */
@@ -120,6 +121,7 @@ class SettingsCallbacks(
     val onHaptics: (Boolean) -> Unit = {},
     val onCrt: (Boolean) -> Unit = {},
     val onCardSway: (Boolean) -> Unit = {},
+    val onDebugConsole: (Boolean) -> Unit = {},
     val onSpeed: (GameSpeed) -> Unit = {},
     val onResetRun: () -> Unit = {},
     val onShowTips: () -> Unit = {},
@@ -170,6 +172,9 @@ fun SettingsScreen(settings: SettingsUi, callbacks: SettingsCallbacks, modifier:
                 }
                 PixelPanel(Modifier.readable(), title = "HELP", style = PanelStyle.Dark, paddingUnits = 2) {
                     SmallButton("SHOW TIPS", callbacks.onShowTips, Modifier.fillMaxWidth(), variant = PixelButtonVariant.Hold)
+                }
+                PixelPanel(Modifier.readable(), title = "WORKSHOP", style = PanelStyle.Dark, paddingUnits = 2) {
+                    ToggleRow("DEBUG CONSOLE", "Press ~ at the table to see the AI's prompts and replies", settings.debugConsole, callbacks.onDebugConsole)
                 }
                 AboutPanel(settings.version, callbacks)
                 PixelText(

@@ -105,6 +105,8 @@ class TableCallbacks(
     val onPlayAgain: () -> Unit = {},
     val onMenu: () -> Unit = {},
     val onPause: () -> Unit = {},
+    /** Opens the debug console; null hides the "~" button (the setting is off). */
+    val onConsole: (() -> Unit)? = null,
 )
 
 /** Sizes for one table layout, from the window size. */
@@ -221,6 +223,7 @@ private fun TableHeader(state: TableUiState, callbacks: TableCallbacks) {
     val p = PixelTheme.palette
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         PixelButton("II", callbacks.onPause, Modifier.size(48.dp, 48.dp).semantics { contentDescription = "Pause" }, variant = PixelButtonVariant.Gray, textStyle = PixelType.Small)
+        callbacks.onConsole?.let { ConsoleButton(it) }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             PixelText(state.variant.displayName.uppercase(), style = PixelType.Small, color = p.yellow, maxLines = 1)
             val blinds = state.blinds

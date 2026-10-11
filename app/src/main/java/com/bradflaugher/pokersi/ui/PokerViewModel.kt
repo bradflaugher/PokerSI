@@ -7,6 +7,7 @@ import androidx.core.content.edit
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.bradflaugher.pokersi.AppServices
+import com.bradflaugher.pokersi.debug.AiLog
 import com.bradflaugher.pokersi.engine.GameVariant
 import com.bradflaugher.pokersi.game.DailyRecord
 import com.bradflaugher.pokersi.game.GameController
@@ -43,6 +44,11 @@ class PokerViewModel(app: Application) : AndroidViewModel(app) {
     /** The first-run tips are showing over the title screen. */
     val tips: StateFlow<Boolean> = _tips.asStateFlow()
 
+    private val _console = MutableStateFlow(false)
+
+    /** The debug console is dropped down (only ever while SETTINGS > DEBUG CONSOLE is on). */
+    val console: StateFlow<Boolean> = _console.asStateFlow()
+
     /** The back stack; the last entry is showing. */
     val backStack = mutableStateListOf(Screen.Title)
 
@@ -50,6 +56,13 @@ class PokerViewModel(app: Application) : AndroidViewModel(app) {
     val picker: StateFlow<QuickGameSetup> = _picker.asStateFlow()
 
     init {
+        // The console records nothing unless it is switched on (and forgets everything when switched off).
+        viewModelScope.launch {
+            settings.debugConsole.collect { on ->
+                AiLog.enabled = on
+                if (!on) _console.value = false
+            }
+        }
         // Today's daily tour: played, finished, best result (for the title screen).
         viewModelScope.launch {
             controller.run.collect { ui ->
@@ -59,6 +72,17 @@ class PokerViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
         }
+    }
+
+    // ---------------------------------------------------------------- debug console
+
+    /** Opens or closes the console ("~"); a no-op while the setting is off. */
+    fun toggleConsole() {
+        _console.value = !_console.value && settings.debugConsole.value
+    }
+
+    fun closeConsole() {
+        _console.value = false
     }
 
     // ---------------------------------------------------------------- tips

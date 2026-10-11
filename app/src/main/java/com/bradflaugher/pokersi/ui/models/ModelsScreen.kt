@@ -41,6 +41,7 @@ import com.bradflaugher.pokersi.llm.LocalModel
 import com.bradflaugher.pokersi.llm.ModelLocation
 import com.bradflaugher.pokersi.llm.ModelStore
 import com.bradflaugher.pokersi.ui.pixel.CrtOverlay
+import com.bradflaugher.pokersi.ui.screens.ConsoleButton
 import com.bradflaugher.pokersi.ui.pixel.LocalPixelPalette
 import com.bradflaugher.pokersi.ui.pixel.PanelStyle
 import com.bradflaugher.pokersi.ui.pixel.PixelButton
@@ -60,6 +61,8 @@ data class ModelsUiState(
     val folders: List<Uri>,
     /** Single files the user imported; only these can be forgotten one by one (folder models go with their folder). */
     val importedFiles: List<Uri> = emptyList(),
+    /** Shows the debug console's "~" (SETTINGS > DEBUG CONSOLE): load errors land there. */
+    val consoleButton: Boolean = false,
 )
 
 /** What the model bay's buttons do. */
@@ -73,11 +76,12 @@ interface ModelsActions {
     fun addFile()
     fun removeFolder(uri: Uri)
     fun back()
+    fun console() {}
 }
 
 /** The model bay, wired to [LlamaEngine] and [ModelStore]. */
 @Composable
-fun ModelsScreen(onBack: () -> Unit) {
+fun ModelsScreen(onBack: () -> Unit, onConsole: (() -> Unit)? = null) {
     val context = LocalContext.current
     val engine = remember(context) { LlamaEngine.get(context) }
     val store = remember(context) { ModelStore.get(context) }
@@ -134,8 +138,9 @@ fun ModelsScreen(onBack: () -> Unit) {
         override fun addFile() = pickFile.launch(arrayOf("application/octet-stream", "*/*"))
         override fun removeFolder(uri: Uri) = store.removeFolder(uri)
         override fun back() = onBack()
+        override fun console() { onConsole?.invoke() }
     }
-    ModelsContent(ModelsUiState(engineState, models, folders, importedFiles), actions)
+    ModelsContent(ModelsUiState(engineState, models, folders, importedFiles, consoleButton = onConsole != null), actions)
 }
 
 /** The model bay itself: what's loaded, the catalog, and the player's own GGUFs. */
@@ -160,6 +165,10 @@ fun ModelsContent(state: ModelsUiState, actions: ModelsActions, modifier: Modifi
                             Column {
                                 PixelText("MODEL BAY", style = PixelType.Title, color = p.yellow)
                                 PixelText("Pick a brain for your opponents", style = PixelType.BodySmall, color = p.cabinetGlow, shadowUnits = 0)
+                            }
+                            if (state.consoleButton) {
+                                Spacer(Modifier.weight(1f))
+                                ConsoleButton(actions::console)
                             }
                         }
                     }

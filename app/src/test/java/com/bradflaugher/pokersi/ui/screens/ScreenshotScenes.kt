@@ -278,7 +278,12 @@ object ScreenshotScenes {
     // ---------------------------------------------------------------- the list
 
     val all: List<Scene> = listOf(
-        Scene("title") { PixelTheme { TitleScreen("QWEN 3 1.7B", hasSavedRun = true, callbacks = TitleCallbacks()) } },
+        Scene("title") {
+            val attract = com.bradflaugher.pokersi.game.AttractLines.lines(
+                com.bradflaugher.pokersi.game.TitleFacts(wallRun(), com.bradflaugher.pokersi.game.DailyResult(true, true, 4), lifetimeStats(), "QWEN 3 1.7B"),
+            )
+            PixelTheme { TitleScreen("QWEN 3 1.7B", hasSavedRun = true, callbacks = TitleCallbacks(), dailyLabel = "DAILY: BEST 4", attract = attract) }
+        },
         Scene("picker") {
             PixelTheme { PickerScreen(QuickGameSetup(GameVariant.TEXAS_HOLDEM, opponentCount = 4, stack = 1000, seed = 3L), PickerCallbacks()) }
         },
@@ -304,5 +309,16 @@ object ScreenshotScenes {
         },
         Scene("settings") { PixelTheme { SettingsScreen(SettingsUi(hasSavedRun = true), SettingsCallbacks()) } },
         Scene("models") { PixelTheme { ModelsContent(ModelsScenes.scene(), ModelsScenes.noActions) } },
+        Scene("debug_console") {
+            PixelTheme {
+                androidx.compose.foundation.layout.Box {
+                    TableScreen(holdemMidHand(), TableCallbacks(onConsole = {}))
+                    DebugConsole(
+                        ConsoleScene.entries, open = true, onClose = {}, onClear = {},
+                        zone = java.util.TimeZone.getTimeZone("UTC"), initiallyExpanded = ConsoleScene.expanded,
+                    )
+                }
+            }
+        },
     )
 }
