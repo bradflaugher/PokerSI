@@ -4,7 +4,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 import java.net.URLDecoder
 
 class LinksTest {
@@ -17,10 +16,8 @@ class LinksTest {
     }
 
     @Test
-    fun privacyPolicyIsThePublishedDocsPage() {
-        assertEquals("https://bradflaugher.github.io/PokerSI/privacy.html", Links.PRIVACY_POLICY_URL)
-        val app = File(".").canonicalFile.let { if (File(it, "src/main").isDirectory) it else File(it, "app") }
-        assertTrue("docs/privacy.html must exist", File(app.parentFile, "docs/privacy.html").isFile)
+    fun privacyPolicyIsTheBradflaugherComPage() {
+        assertEquals("https://bradflaugher.com/privacy/pokersi/", Links.PRIVACY_POLICY_URL)
     }
 
     @Test
