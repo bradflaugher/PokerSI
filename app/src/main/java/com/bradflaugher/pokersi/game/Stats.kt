@@ -2,10 +2,12 @@ package com.bradflaugher.pokersi.game
 
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import com.bradflaugher.pokersi.engine.ActionKind
 import com.bradflaugher.pokersi.engine.Card
 import com.bradflaugher.pokersi.engine.GameVariant
 import com.bradflaugher.pokersi.engine.Hand
 import com.bradflaugher.pokersi.engine.HandCategory
+import com.bradflaugher.pokersi.engine.HandEvent
 import com.bradflaugher.pokersi.engine.HandEvaluator
 import com.bradflaugher.pokersi.engine.HandValue
 import com.bradflaugher.pokersi.engine.hasBoard
@@ -64,6 +66,10 @@ data class HandRecord(
     val potSize: Int,
     /** The player's five-card hand, when they stayed in with five cards to make one. */
     val best: BestHand?,
+    /** Texas Hold'em only: the player's starting hand class ("AKs"), see [StartingHands]. */
+    val startingHand: String? = null,
+    /** Whether the player put chips in before the flop by choice (called, bet or raised; blinds don't count). */
+    val playedPreflop: Boolean = false,
 ) {
     companion object {
         /** Reads [seat]'s record from a finished [hand]; null when the seat sat it out. */
@@ -72,13 +78,22 @@ data class HandRecord(
             val me = hand.snapshot(seat).seats[seat]
             if (me.sittingOut) return null
             val shown = result.handValues[seat] ?: if (me.folded) null else madeHand(hand, seat)
+            val holdem = hand.variant == GameVariant.TEXAS_HOLDEM
             return HandRecord(
                 variant = hand.variant,
                 won = (result.collected[seat] ?: 0) > 0,
                 potSize = result.pots.sumOf { it.amount },
                 best = shown?.let { BestHand.of(it, hand.variant) },
+                startingHand = if (holdem) StartingHands.classOf(hand.holeCards(seat)) else null,
+                playedPreflop = holdem && playedPreflop(hand, seat),
             )
         }
+
+        /** A call, bet or raise by [seat] before the flop was dealt. */
+        private fun playedPreflop(hand: Hand, seat: Int): Boolean =
+            hand.events.takeWhile { it !is HandEvent.StreetDealt }.any {
+                it is HandEvent.Action && it.seat == seat && it.kind in setOf(ActionKind.CALL, ActionKind.BET, ActionKind.RAISE)
+            }
 
         /** The seat's best five, when the cards dealt so far make one (an uncalled bet ends hands early). */
         private fun madeHand(hand: Hand, seat: Int): HandValue? {
@@ -106,6 +121,8 @@ data class LifetimeStats(
     val bestTour: Int = 0,
     /** Most tables cleared in a daily tour. */
     val dailyBest: Int = 0,
+    /** Texas Hold'em starting hands: how often each class was dealt and played (the STATS chart). */
+    val holdemHands: Map<String, HandTally> = emptyMap(),
 ) {
     /** Hands won as a whole percentage, or null before the first hand. */
     val winRate: Int? get() = if (handsPlayed == 0) null else (handsWon * 100 + handsPlayed / 2) / handsPlayed
@@ -120,6 +137,10 @@ data class LifetimeStats(
         biggestPot = if (r.won) maxOf(biggestPot, r.potSize) else biggestPot,
         bestHand = if (r.best != null && r.best.beats(bestHand)) r.best else bestHand,
         handsByGame = handsByGame + (r.variant to (handsByGame[r.variant] ?: 0) + 1),
+        holdemHands = r.startingHand?.let { cls ->
+            val t = holdemHands[cls] ?: HandTally()
+            holdemHands + (cls to HandTally(t.dealt + 1, t.played + if (r.playedPreflop) 1 else 0))
+        } ?: holdemHands,
     )
 
     fun withTourStarted(): LifetimeStats = copy(toursStarted = toursStarted + 1)

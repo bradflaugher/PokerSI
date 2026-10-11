@@ -1,6 +1,27 @@
 package com.bradflaugher.pokersi.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
+import com.bradflaugher.pokersi.ui.pixel.PixelPalette
+import com.bradflaugher.pokersi.game.StartingHands
+import com.bradflaugher.pokersi.game.HandTally
+import com.bradflaugher.pokersi.engine.Rank
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -34,8 +55,9 @@ import com.bradflaugher.pokersi.ui.pixel.PixelType
 
 /**
  * The cabinet's records: lifetime hands, wins and win rate on LED counters,
- * the best hand ever as pixel cards, the pay-table of records, and the
- * Poker Tour bests. RESET STATS asks first.
+ * the best hand ever as pixel cards, the pay-table of records, the Hold'em
+ * starting-hand chart ([HandChart]) and the Poker Tour bests. RESET STATS
+ * asks first.
  */
 @Composable
 fun StatsScreen(stats: LifetimeStats, onReset: () -> Unit, onBack: () -> Unit, modifier: Modifier = Modifier) {
@@ -66,6 +88,7 @@ fun StatsScreen(stats: LifetimeStats, onReset: () -> Unit, onBack: () -> Unit, m
                     Modifier.readable(),
                     title = "LIFETIME",
                 )
+                HandChart(stats.holdemHands)
                 PayTable(
                     listOf(
                         PayRow("TOURS STARTED", "${stats.toursStarted}"),
@@ -131,5 +154,157 @@ private fun BestHandPanel(stats: LifetimeStats) {
                 BodyText("Play a hand to the end and your best five cards land here.", color = p.cardCream, align = TextAlign.Center, small = true)
             }
         }
+    }
+}
+
+/**
+ * The classic 13x13 Hold'em chart, coloured by how often the player played
+ * each starting hand (called, bet or raised before the flop): pairs on the
+ * diagonal, suited above, offsuit below. Hands never dealt stay dark. Tap
+ * one for its numbers: the whole grid is one large touch target (a cell is
+ * far below 48dp), and one TalkBack node that reads out the chart.
+ */
+@Composable
+internal fun HandChart(hands: Map<String, HandTally>) {
+    val p = PixelTheme.palette
+    var picked by rememberSaveable { mutableStateOf<String?>(null) }
+    val dealt = hands.values.sumOf { it.dealt }
+    val played = hands.values.sumOf { it.played }
+    PixelPanel(Modifier.readable(), title = "HOLD'EM HANDS", style = PanelStyle.Dark, paddingUnits = 2) {
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            BodyText(
+                if (dealt == 0) "Play some Texas Hold'em: every starting hand you're dealt lands here, coloured by how often you played it."
+                else "How often you played each starting hand (called or raised before the flop). Pairs run down the middle, suited hands above, offsuit below.",
+                color = p.cardCream, small = true,
+            )
+            val spoken = chartDescription(hands, picked)
+            // TalkBack can't tap a cell: NEXT HAND / PREVIOUS HAND step through the dealt hands instead.
+            // (With nothing dealt yet there is nothing to step through, so no actions.)
+            val stepThrough = StartingHands.all.filter { (hands[it]?.dealt ?: 0) > 0 }
+            fun step(by: Int): Boolean {
+                val i = stepThrough.indexOf(picked)
+                picked = stepThrough[if (i < 0) (if (by > 0) 0 else stepThrough.lastIndex) else (i + by).mod(stepThrough.size)]
+                return true
+            }
+            BoxWithConstraints(
+                Modifier.fillMaxWidth().clearAndSetSemantics {
+                    contentDescription = spoken
+                    if (stepThrough.isNotEmpty()) {
+                        customActions = listOf(
+                            CustomAccessibilityAction("Next hand") { step(1) },
+                            CustomAccessibilityAction("Previous hand") { step(-1) },
+                        )
+                    }
+                },
+            ) {
+                val gap = 1.dp
+                val cell = (maxWidth - gap * 12) / 13
+                val pitch = with(LocalDensity.current) { (cell + gap).toPx() }
+                Column(
+                    Modifier.pointerInput(pitch) {
+                        detectTapGestures { at ->
+                            val row = (at.y / pitch).toInt().coerceIn(0, 12)
+                            val col = (at.x / pitch).toInt().coerceIn(0, 12)
+                            val cls = StartingHands.at(row, col)
+                            picked = if (picked == cls) null else cls
+                        }
+                    },
+                    verticalArrangement = Arrangement.spacedBy(gap),
+                ) {
+                    for (row in 0 until 13) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                            for (col in 0 until 13) {
+                                val cls = StartingHands.at(row, col)
+                                ChartCell(cls, hands[cls], cls == picked, cell)
+                            }
+                        }
+                    }
+                }
+            }
+            ChartLegend()
+            val pickedLine = picked?.let { cls ->
+                val t = hands[cls] ?: HandTally()
+                if (t.dealt == 0) "$cls: NOT DEALT YET" else "$cls: DEALT ${t.dealt}, PLAYED ${t.played} (${t.playRate}%)"
+            }
+            PixelText(
+                pickedLine ?: if (dealt == 0) "NO HOLD'EM HANDS YET" else "PLAYED ${(played * 100 + dealt / 2) / dealt}% OF $dealt HANDS",
+                Modifier.fillMaxWidth(),
+                style = PixelType.Label.copy(fontSize = 11.sp),
+                color = p.yellow,
+                textAlign = TextAlign.Center,
+                shadowUnits = 0,
+            )
+        }
+    }
+}
+
+/** Never played (dark) through red to always (gold); a never-dealt hand is near black. */
+private fun heat(p: PixelPalette, rate: Int?): Color = when {
+    rate == null -> p.cabinetBlack
+    rate <= 50 -> lerp(p.cabinetDeep, p.suitRed, rate / 50f)
+    else -> lerp(p.suitRed, p.gold, (rate - 50) / 50f)
+}
+
+@Composable
+private fun ChartCell(cls: String, tally: HandTally?, picked: Boolean, size: Dp) {
+    val p = PixelTheme.palette
+    val rate = tally?.playRate
+    val fill = heat(p, rate)
+    Box(
+        Modifier
+            .size(size)
+            .background(fill)
+            .then(if (picked) Modifier.border(2.dp, p.white) else Modifier),
+        contentAlignment = Alignment.Center,
+    ) {
+        PixelText(
+            cls,
+            style = PixelType.Label.copy(fontSize = 7.sp),
+            color = if (rate != null && rate > 60) p.ink else if (rate == null) p.gray else p.cardCream,
+            shadowUnits = 0,
+            maxLines = 1,
+        )
+    }
+}
+
+/**
+ * What TalkBack reads for the chart: the totals, the hands played most
+ * often, and the picked hand's numbers.
+ */
+internal fun chartDescription(hands: Map<String, HandTally>, picked: String?): String {
+    val dealt = hands.values.sumOf { it.dealt }
+    if (dealt == 0) return "Hold'em starting-hand chart: no hands yet."
+    val played = hands.values.sumOf { it.played }
+    val top = hands.filterValues { it.played > 0 }.entries
+        .sortedWith(compareByDescending<Map.Entry<String, HandTally>> { it.value.playRate }.thenByDescending { it.value.dealt })
+        .take(5).joinToString(", ") { (cls, t) -> "${spokenHand(cls)} ${t.playRate} percent" }
+    val pick = picked?.let { cls ->
+        val t = hands[cls] ?: HandTally()
+        " Selected: ${spokenHand(cls)}, " + if (t.dealt == 0) "not dealt yet." else "dealt ${t.dealt}, played ${t.played}."
+    }.orEmpty()
+    return "Hold'em starting-hand chart: you played ${(played * 100 + dealt / 2) / dealt} percent of $dealt hands." +
+        (if (top.isNotEmpty()) " Played most: $top." else "") + pick + " Use the next and previous hand actions for each hand's numbers."
+}
+
+/** "AKs" read out as "Ace King suited". */
+private fun spokenHand(cls: String): String {
+    fun name(c: Char) = Rank.entries.first { it.letter == c }.label
+    val ranks = "${name(cls[0])} ${name(cls[1])}"
+    return when (cls.getOrNull(2)) {
+        's' -> "$ranks suited"
+        'o' -> "$ranks offsuit"
+        else -> "Pair of ${Rank.entries.first { it.letter == cls[0] }.plural}"
+    }
+}
+
+@Composable
+private fun ChartLegend() {
+    val p = PixelTheme.palette
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        PixelText("NEVER", style = PixelType.Label.copy(fontSize = 9.sp), color = p.gray, shadowUnits = 0)
+        Row(Modifier.weight(1f).height(10.dp)) {
+            for (i in 0..10) Box(Modifier.weight(1f).fillMaxHeight().background(heat(p, i * 10)))
+        }
+        PixelText("ALWAYS", style = PixelType.Label.copy(fontSize = 9.sp), color = p.gray, shadowUnits = 0)
     }
 }

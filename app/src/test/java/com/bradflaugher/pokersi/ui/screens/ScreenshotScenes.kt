@@ -1,5 +1,7 @@
 package com.bradflaugher.pokersi.ui.screens
 
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.padding
 import com.bradflaugher.pokersi.ui.models.ModelsContent
 import com.bradflaugher.pokersi.ui.models.ModelsScenes
 
@@ -282,7 +284,29 @@ object ScreenshotScenes {
             toursStarted = 23,
             bestTour = 8,
             dailyBest = 6,
+            holdemHands = sampleChart(),
         )
+    }
+
+    /**
+     * About 700 Hold'em hands of a fairly tight player: dealt in proportion to
+     * how many combos each class has, played more the stronger it is, and a
+     * few rare hands not dealt yet.
+     */
+    private fun sampleChart(): Map<String, com.bradflaugher.pokersi.game.HandTally> {
+        val random = kotlin.random.Random(12)
+        val values = com.bradflaugher.pokersi.game.StartingHands.ranks.associate { it.letter to it.value }
+        return com.bradflaugher.pokersi.game.StartingHands.all.mapNotNull { cls ->
+            val hi = values.getValue(cls[0])
+            val lo = values.getValue(cls[1])
+            val combos = when (cls.getOrNull(2)) { 's' -> 4; 'o' -> 12; else -> 6 }
+            val dealt = (combos * 700 / 1326.0 + random.nextDouble(-1.0, 1.5)).toInt()
+            if (dealt <= 0) return@mapNotNull null
+            val score = hi * 2 + lo + (if (hi == lo) 22 else 0) + (if (cls.endsWith("s")) 4 else 0) - (if (hi - lo > 4) 3 else 0)
+            val rate = ((score - 24) / 22.0).coerceIn(0.0, 1.0)
+            val played = (dealt * rate + random.nextDouble(-0.4, 0.4)).toInt().coerceIn(0, dealt)
+            cls to com.bradflaugher.pokersi.game.HandTally(dealt, played)
+        }.toMap()
     }
 
     // ---------------------------------------------------------------- the list
@@ -310,6 +334,16 @@ object ScreenshotScenes {
         Scene("run_over") { PixelTheme { RunOverScreen(RunUiState(tourRun(RunPhase.GAME_OVER), RunScreen.GameOver), victory = false, onNewRun = {}, onMenu = {}) } },
         Scene("how_to_play") { PixelTheme { HowToPlayScreen({}) } },
         Scene("stats") { PixelTheme { StatsScreen(lifetimeStats(), onReset = {}, onBack = {}) } },
+        Scene("stats_chart") {
+            PixelTheme {
+                ArcadeScreen {
+                    androidx.compose.foundation.layout.Column(
+                        androidx.compose.ui.Modifier.padding(14.dp),
+                        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                    ) { HandChart(lifetimeStats().holdemHands) }
+                }
+            }
+        },
         Scene("tips") {
             PixelTheme {
                 androidx.compose.foundation.layout.Box {
