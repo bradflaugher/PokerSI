@@ -39,8 +39,9 @@ object HandTalk {
             "${anyOf(singular)} of ${anyOf(suits)}",
             // One card in words after card words: "im holding an ace", "i drew a king".
             "$cardWords (?:me )?(?:an? |the )?${anyOf(singular)}",
-            // "my ace looks good"; "my king" / "my queen" are how a royal addresses people.
-            "my ${anyOf(singular - setOf("king", "queen"))}",
+            // "my ace looks good": only ranks that aren't everyday words ("my nine cats", "my
+            // ten chips", "my queen" as a royal says it are fine).
+            "my (?:ace|jack|deuce)",
         ).joinToString("|", "\\b(?:", ")\\b"),
     )
 
@@ -75,8 +76,11 @@ object HandTalk {
         val named = cardCodes.findAll(text).flatMap { oneCode.findAll(it.value) }.map(::parse)
         if (named.any { it !in seen }) return true
         // "The king's decree" names no card: a royal possessive becomes a plain word ("my
-        // ace's looking good" still names one), and other possessives lose their 's. "High five" is a celebration, not a hand of fives.
-        val plain = text.replace(rankPossessive, "the someone").replace(possessive, "")
+        // ace's looking good" still names one), and other possessives lose their 's. "High
+        // five" is a celebration, not a hand of fives.
+        // Seen cards spelled out are fair too: "the king of diamonds on the board".
+        val unseen = seen.fold(text) { line, c -> line.replace(Regex("\\b${c.rank.label} of ${c.suit.label}\\b", RegexOption.IGNORE_CASE), "that card") }
+        val plain = unseen.replace(rankPossessive, "the someone").replace(possessive, "")
         val words = TableTalk.normalize(plain).replace(highFive, "")
         return reveal.containsMatchIn(words)
     }
@@ -90,6 +94,7 @@ object HandTalk {
         val (rank, suit) = code.destructured
         return Card(Rank.fromLetter(rank[0]), Suit.entries.first { it.letter == suit[0].lowercaseChar() })
     }
+
     // A rank keeps its 's ("ace's" reads as "aces"), so it still names a card.
     private val possessive = Regex("(?<!\\b${anyOf(singular)})['’]s\\b", RegexOption.IGNORE_CASE)
 }

@@ -217,6 +217,9 @@ class TableTalkPromptTest {
         val reply = LlmAgent(backend, cowboy, houseBot, TableTalk(), alwaysTalks = true).decide(context) { bubble += it }
         assertEquals("Howdy, Miss Quill, my", reply.say)
         assertTrue("streamed: $bubble", bubble.none { it.endsWith("fri") })
+        // Punctuation ends a word, so a cut-off line ending in it is kept whole.
+        val punct = ScriptedBackend("""{"action": "check", "amount": 0, "say": "Howdy, partner!""")
+        assertEquals("Howdy, partner!", LlmAgent(punct, cowboy, houseBot, TableTalk(), alwaysTalks = true).decide(context).say)
     }
 
     @Test

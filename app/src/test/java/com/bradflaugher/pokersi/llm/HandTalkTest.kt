@@ -55,6 +55,8 @@ class HandTalkTest {
         assertFalse(HandTalk.revealsHand("Kd, 7h, what a board.", board))
         assertTrue(HandTalk.revealsHand("I have Qs with that Kd.", board))
         assertTrue(HandTalk.revealsHand("That Kd on the board looks dangerous."))
+        assertFalse(HandTalk.revealsHand("The king of diamonds on the board looks dangerous.", board))
+        assertTrue(HandTalk.revealsHand("The queen of spades is mine.", board))
     }
 
     @Test
@@ -76,6 +78,8 @@ class HandTalkTest {
             "I have the king's blessing.",
             "Keep a straight face",
             "Yes, my queen, I shall call.",
+            "My nine cats bring me luck.",
+            "My ten chips are in.",
             "",
         ).forEach { assertFalse(it, HandTalk.revealsHand(it)) }
     }

@@ -78,8 +78,10 @@ class LlmAgent(
                 AiLog.update(replyId, body = soFar)
                 val full = LlmReply.sayPrefix(soFar, Int.MAX_VALUE)
                 val say = full?.let { LlmReply.sayPrefix(soFar) }
-                // Whole words only until the say is closed: a cut-off word can't be judged yet ("ace" of "aces").
-                val words = if (say == null || sayClosed.containsMatchIn(soFar)) say else say.substringBeforeLast(' ', "").trimEnd(' ', ',', ';', ':', '-')
+                // Whole words only until the say is closed: a cut-off word can't be judged yet ("ace" of
+                // "aces"). Punctuation ends a word too ("Yeehaw!").
+                val words = if (say == null || sayClosed.containsMatchIn(soFar) || say.last() in wordEnds) say
+                    else say.substringBeforeLast(' ', "").trimEnd(' ', ',', ';', ':', '-')
                 // Held back while it could still turn out to be a line already said, or gives the hand away.
                 // The bubble shows [words], which may end sooner than [say]: both are checked.
                 if (!words.isNullOrEmpty() && words != shown && !talk.mightRepeat(say!!, avoid, who, PokerGrammar.SAY_MAX) &&
@@ -170,6 +172,9 @@ class LlmAgent(
     private fun now(): Long = System.nanoTime() / 1_000_000
 
     companion object {
+        /** Characters after which the last word of a streaming say is complete. */
+        private const val wordEnds = ".!?,;:…"
+
         /** A finished say field (the grammar allows no quotes inside it). */
         private val sayClosed = Regex(""""say"\s*:\s*"[^"]*"""")
 
