@@ -39,6 +39,8 @@ object HandTalk {
             "${anyOf(singular)} of ${anyOf(suits)}",
             // One card in words after card words: "im holding an ace", "i drew a king".
             "$cardWords (?:me )?(?:an? |the )?${anyOf(singular)}",
+            // "my ace looks good"; "my king" / "my queen" are how a royal addresses people.
+            "my ${anyOf(singular - setOf("king", "queen"))}",
         ).joinToString("|", "\\b(?:", ")\\b"),
     )
 
@@ -72,16 +74,17 @@ object HandTalk {
     fun revealsHand(text: String, seen: Collection<Card> = emptyList()): Boolean {
         val named = cardCodes.findAll(text).flatMap { oneCode.findAll(it.value) }.map(::parse)
         if (named.any { it !in seen }) return true
-        // "The king's decree" names no card: a possessive rank ("the king's") becomes a
-        // plain word ("my ace's looking good" still names one), and other possessives lose
-        // their 's. "High five" is a celebration, not a hand of fives.
+        // "The king's decree" names no card: a royal possessive becomes a plain word ("my
+        // ace's looking good" still names one), and other possessives lose their 's. "High five" is a celebration, not a hand of fives.
         val plain = text.replace(rankPossessive, "the someone").replace(possessive, "")
         val words = TableTalk.normalize(plain).replace(highFive, "")
         return reveal.containsMatchIn(words)
     }
 
     private val highFive = Regex("\\bhigh fives?\\b")
-    private val rankPossessive = Regex("\\bthe ${anyOf(singular)}['’]s\\b", RegexOption.IGNORE_CASE)
+    // Only royals own things ("the king's decree", "the queen's guard"); "the ace's in my
+    // hand" is "the ace is".
+    private val rankPossessive = Regex("\\bthe (?:king|queen)['’]s\\b", RegexOption.IGNORE_CASE)
 
     private fun parse(code: MatchResult): Card {
         val (rank, suit) = code.destructured

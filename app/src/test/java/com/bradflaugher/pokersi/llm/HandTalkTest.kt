@@ -41,6 +41,8 @@ class HandTalkTest {
             "I drew As, partner.",
             "My ace's looking good.",
             "A king's what I drew.",
+            "My ace looks good.",
+            "The ace's in my hand.",
             "I flopped a set, yeehaw.",
             "Nine four offsuit, yikes.",
         ).forEach { assertTrue(it, HandTalk.revealsHand(it)) }
@@ -73,6 +75,7 @@ class HandTalkTest {
             "THE KING'S DECREE STANDS!",
             "I have the king's blessing.",
             "Keep a straight face",
+            "Yes, my queen, I shall call.",
             "",
         ).forEach { assertFalse(it, HandTalk.revealsHand(it)) }
     }
