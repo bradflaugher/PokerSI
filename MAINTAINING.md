@@ -110,6 +110,22 @@ policy Play links to is <https://bradflaugher.com/privacy/pokersi/>, in the
 (`privacy/pokersi/index.html`); keep it in step with what the app does
 (network use, permissions, storage).
 
+## Play Console settings that live outside the repository
+
+Set when the app was created (October 2026); check or recreate them here:
+
+| Setting | Value |
+|---|---|
+| App | Free game, category Card; contact brad@bradflaugher.com and the GitHub repository |
+| Privacy policy URL | `https://www.bradflaugher.com/privacy/pokersi/` (the same page; the `www` form because Play cached a 404 for the bare URL from before the page existed) |
+| Closed testing - Alpha | Testers: the Google Group `testers-community@googlegroups.com` (Testers Community); feedback to brad@bradflaugher.com |
+| Countries | All, except Algeria, Iran, Libya, Qatar, South Korea and Yemen (Syria isn't offered): Play doesn't allow simulated gambling there. South Korea needs a GRAC rating first |
+| Content rating | Game with simulated gambling (playable casino games, a strong focus, no cash payouts); 18+ in most regions, ESRB Teen |
+| Target audience | 18 and over |
+| Data safety | No data collected or shared |
+| Foreground service | `FOREGROUND_SERVICE_DATA_SYNC` declared as "network processing: other" (model downloads), with an unlisted demo video: <https://www.youtube.com/watch?v=CCr1sQhnZLw> |
+| Store listing images | Not labelled as AI-generated: they're rendered by the app's own code |
+
 ## Security settings that live outside the repository
 
 These are GitHub settings, not files, so they are listed here to check or
