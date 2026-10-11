@@ -174,7 +174,7 @@ tools/screenshots/shoot.py --no-render   # captions only, from build/screenshots
   files. Each caption shows a different feature; keep them true to the app.
   Renaming or removing a scene means updating those two tables.
 - Outputs: `phoneScreenshots/` (8), `sevenInchScreenshots/` and
-  `tenInchScreenshots/` (6 each), `featureGraphic.png` (1024x500),
+  `tenInchScreenshots/` (7 each), `featureGraphic.png` (1024x500),
   `icon.png` (512x512, from the adaptive icon layers), and in
   `docs/screenshots/` the README shots plus `icon.png` (192px, rounded),
   which the README title needs.

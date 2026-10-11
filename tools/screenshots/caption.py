@@ -76,6 +76,7 @@ CAPTIONS = {
         ("table_showdown", "FULL HOUSE!", "...and the trash talk to go with it"),
         ("run_table", "CLIMB THE\nTOUR", "Poker Tour: rising stakes, chips carry over"),
         ("models", "BRING YOUR\nOWN BRAIN", "Download a tiny model, or load your own GGUF"),
+        ("stats_chart", "KNOW YOUR\nHANDS", "See how often you played every Hold'em hand"),
     ],
 }
 
@@ -89,6 +90,7 @@ README_SHOTS = {
     "tour-table": ("phone", "run_table"),
     "tour": ("phone", "run_choose"),
     "models": ("phone", "models"),
+    "stats": ("phone", "stats_chart"),
     "tablet": ("tab10", "table_holdem"),
 }
 
