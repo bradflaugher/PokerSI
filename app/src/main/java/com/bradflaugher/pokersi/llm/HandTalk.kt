@@ -13,7 +13,6 @@ import com.bradflaugher.pokersi.engine.TableTalk
 object HandTalk {
     private val singular = Rank.entries.map { it.label.lowercase() } + "deuce"
     private val plural = Rank.entries.map { it.plural.lowercase() } + "deuces"
-    private val faces = listOf("ace", "king", "queen", "jack")
     private val suits = listOf("spades", "hearts", "diamonds", "clubs")
 
     private fun anyOf(words: List<String>) = words.joinToString("|", "(?:", ")")
@@ -24,9 +23,10 @@ object HandTalk {
             "two pair", "a pair", "pair of", "pairs", "my pair", "pocket pair",
             "trips", "three of a kind", "four of a kind", "quads", "full house", "set of",
             // "Royal flush" / "Holy flush" are persona jokes (a dinghy, a quest), not a hand.
-            "(?<!royal )(?<!holy )flush", "straight(?! face)", "kicker", "high card", "suited", "my cards", "the nuts",
+            "(?<!royal )(?<!holy )flush", "straight(?! face)", "kicker", "high card", "suited", "offsuit", "my cards", "the nuts",
             "${anyOf(singular)} high",
-            "${anyOf(faces)} ${anyOf(singular)}",
+            // "ace-king", "eight-seven offsuit"
+            "${anyOf(singular)} ${anyOf(singular)}",
             // "an ace and a king", "a queen with a jack"
             "${anyOf(singular)} (?:and|with) (?:an? )?${anyOf(singular)}",
             "${anyOf(singular)} of ${anyOf(suits)}",

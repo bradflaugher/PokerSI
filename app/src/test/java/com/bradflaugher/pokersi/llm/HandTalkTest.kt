@@ -21,6 +21,8 @@ class HandTalkTest {
             "Got a straight, partner.",
             "I have an ace and a king, yeehaw.",
             "A queen with a jack, how sweet.",
+            "I have eight-seven, partner.",
+            "Nine four offsuit, yikes.",
         ).forEach { assertTrue(it, HandTalk.revealsHand(it)) }
     }
 
