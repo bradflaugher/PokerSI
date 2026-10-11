@@ -35,5 +35,5 @@ class ScreensScreenshotTest {
     fun tablet10() = render(DeviceSpec.TABLET_10)
 
     @Test
-    fun phoneLandscape() = render(DeviceSpec.PHONE.landscape(), setOf("title", "table_holdem", "table_showdown", "run_table", "tips", "stats"))
+    fun phoneLandscape() = render(DeviceSpec.PHONE.landscape(), setOf("title", "table_holdem", "table_showdown", "run_table", "tips", "stats", "table_console_closed", "debug_console"))
 }

@@ -85,6 +85,9 @@ fun ArcadeScreen(
     }
 }
 
+/** How much [TabletScaled] scales a phone layout up in a [width] x [height] space. */
+fun tabletScale(width: Dp, height: Dp): Float = minOf(width / 411.dp, height / 731.dp, height / 411.dp).coerceIn(1f, 1.6f)
+
 /**
  * Tablets: the phone layout, scaled up, reads far better than a sea of space.
  * Every screen (and the tips overlay) lays out [content] at phone density, scaled.
@@ -92,7 +95,7 @@ fun ArcadeScreen(
 @Composable
 fun TabletScaled(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
     BoxWithConstraints(modifier) {
-        val scale = minOf(maxWidth / 411.dp, maxHeight / 731.dp, maxHeight / 411.dp).coerceIn(1f, 1.6f)
+        val scale = tabletScale(maxWidth, maxHeight)
         val density = LocalDensity.current
         if (scale > 1.05f) {
             val scaled = Density(density.density * scale, density.fontScale)

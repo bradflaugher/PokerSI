@@ -18,13 +18,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -49,6 +52,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -110,16 +114,44 @@ private fun previewLines(kind: AiLogKind): Int = when (kind) {
     else -> 2
 }
 
-/** The "~" that opens the console (table top bar, model bay), drawn as pixel art: no pixel font has a readable tilde. */
+/**
+ * The console's one "~" toggle, pinned to the top right of the screen over
+ * the screens that offer the console (the table and the model bay) and over
+ * the console itself, so it opens and closes it in the same place. Laid out
+ * like the screens (safe area, tablet scaling): it lands in the slot their
+ * headers keep free for it ([CONSOLE_SLOT]).
+ */
 @Composable
-fun ConsoleButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun ConsoleToggle(open: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
+    TabletScaled(modifier.fillMaxSize().safeDrawingPadding()) {
+        ConsoleButton(open, onToggle, Modifier.align(Alignment.TopEnd).padding(top = 4.dp, end = 8.dp))
+    }
+}
+
+/** The width headers keep free, at their top right, for [ConsoleToggle] (in a tablet-scaled screen, see [ConsoleSlot]). */
+val CONSOLE_SLOT = 48.dp
+
+/**
+ * The room [ConsoleToggle] takes, for a header that is not tablet-scaled
+ * (the model bay, the console): [CONSOLE_SLOT] at the toggle's own scale.
+ */
+@Composable
+fun ConsoleSlot(modifier: Modifier = Modifier) {
+    val screen = LocalConfiguration.current
+    val scale = tabletScale(screen.screenWidthDp.dp, screen.screenHeightDp.dp)
+    Spacer(modifier.size(CONSOLE_SLOT * scale))
+}
+
+/** The "~" itself, drawn as pixel art (no pixel font has a readable tilde); lit green while the console is [open]. */
+@Composable
+fun ConsoleButton(open: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val ink = PixelTheme.palette.ink
     val unit = PixelTheme.unit
-    Box(modifier.size(48.dp, 48.dp)) {
+    Box(modifier.size(CONSOLE_SLOT, CONSOLE_SLOT)) {
         PixelButton(
             " ", onClick,
-            Modifier.fillMaxSize().semantics { contentDescription = "Debug console" },
-            variant = PixelButtonVariant.Gray,
+            Modifier.fillMaxSize().semantics { contentDescription = if (open) "Close debug console" else "Open debug console" },
+            variant = if (open) PixelButtonVariant.Call else PixelButtonVariant.Gray,
         )
         Canvas(Modifier.matchParentSize()) {
             val px = unit * 2
@@ -215,7 +247,8 @@ private fun ConsolePanel(
                 drawRect(Phosphor.green, Offset(0f, size.height - unit), Size(size.width, unit))
                 drawRect(Phosphor.dim, Offset(0f, size.height - unit * 2), Size(size.width, unit))
             }
-            .windowInsetsPadding(WindowInsets.statusBars)
+            // The same safe area (top and sides) as ConsoleToggle, so its slot lines up.
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
             .padding(horizontal = 8.dp)
             .padding(bottom = 6.dp),
     ) {
@@ -227,7 +260,8 @@ private fun ConsolePanel(
                     style = consoleText.copy(color = Phosphor.dim, fontSize = 16.sp),
                 )
             }
-            ConsoleButton(onClose)
+            // The toggle ([ConsoleToggle]) sits here, over the console.
+            ConsoleSlot()
         }
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 2.dp),

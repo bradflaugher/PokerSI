@@ -335,6 +335,77 @@ class GameControllerTest {
         c.stop()
     }
 
+    private val talkyPacing = Pacing.Instant.copy(chatterHoldMs = 1_000, chatterPerCharMs = 0, chatterMaxMs = 1_000)
+
+    /** A table whose opponents always say something, with a 1s hold on every line (or longer, while a line types out). */
+    private fun TestScope.talkyTable(): GameController {
+        val brains = brainsOf { _, _ -> agentOf { ctx, _ -> AgentReply(if (ctx.legal.canCheck) Decision.Check else Decision.Call, "hi") } }
+        val c = controller(brains = brains, pacing = talkyPacing)
+        c.startQuick(config(opponents = 2, seed = 4L))
+        var guard = 0
+        while (c.table.value.humanTurn == null && guard++ < 100) runCurrent()
+        return c
+    }
+
+    private fun GameController.talking() = table.value.opponents.filter { !it.chatter.isNullOrEmpty() }.map { it.seat }
+
+    /** The longest hold among the lines showing now. */
+    private fun GameController.longestHold() = table.value.opponents.mapNotNull { it.chatter }.maxOf { talkyPacing.chatterHoldAt(it, 1.0) }
+
+    @Test
+    fun aFastHoldNeverCutsALineOffBeforeItHasTypedOut() {
+        val p = Pacing()
+        val long = "x".repeat(120)
+        assertTrue("fast speed shortens short lines", p.chatterHoldAt("hi", GameSpeed.FAST.factor) < p.chatterHoldAt("hi", GameSpeed.NORMAL.factor))
+        assertTrue("but a long one stays until it has typed out", p.chatterHoldAt(long, GameSpeed.FAST.factor) > Pacing.TYPE_MS_PER_CHAR * long.length)
+        assertEquals(0, Pacing.Instant.chatterHoldAt(long, 1.0))
+    }
+
+    @Test
+    fun tableTalkExpiresAfterAShortHold() = runTest {
+        val c = talkyTable()
+        assertNotNull("waiting for the human", c.table.value.humanTurn)
+        assertTrue("someone is talking", c.talking().isNotEmpty())
+        val hold = c.longestHold()
+        advanceTimeBy(hold - 100); runCurrent()
+        assertTrue("still up before the hold ends", c.talking().isNotEmpty())
+        advanceTimeBy(300); runCurrent()
+        assertEquals("gone after it", emptyList<Int>(), c.talking())
+        c.stop()
+    }
+
+    @Test
+    fun aPauseThatStartsMidTickStillFreezesTheLastStretch() = runTest {
+        val c = talkyTable()
+        // Follow the line that runs out first: pause 50ms before it would.
+        val (seat, hold) = c.table.value.opponents.filter { !it.chatter.isNullOrEmpty() }
+            .map { it.seat to talkyPacing.chatterHoldAt(it.chatter!!, 1.0) }.minBy { it.second }
+        advanceTimeBy(hold - 50); runCurrent()
+        c.setPaused(PauseReason.Menu, true)
+        advanceTimeBy(5_000); runCurrent()
+        assertTrue("never expires behind the pause menu", seat in c.talking())
+        c.setPaused(PauseReason.Menu, false)
+        advanceTimeBy(300); runCurrent()
+        assertFalse("then it goes", seat in c.talking())
+        c.stop()
+    }
+
+    @Test
+    fun tableTalkHoldsWhileThePauseMenuIsOpen() = runTest {
+        val c = talkyTable()
+        val speaking = c.talking()
+        assertTrue(speaking.isNotEmpty())
+        val hold = c.longestHold()
+        advanceTimeBy(500); runCurrent()
+        c.setPaused(PauseReason.Menu, true)
+        advanceTimeBy(5_000); runCurrent()
+        assertEquals("frozen while paused", speaking, c.talking())
+        c.setPaused(PauseReason.Menu, false)
+        advanceTimeBy(hold - 500 + 200); runCurrent()
+        assertEquals("then the rest of the hold runs out", emptyList<Int>(), c.talking())
+        c.stop()
+    }
+
     @Test
     fun opponentsAtANewTableSayTheirCatchphrase() = runTest {
         val c = controller()

@@ -320,14 +320,23 @@ object ScreenshotScenes {
         },
         Scene("settings") { PixelTheme { SettingsScreen(SettingsUi(hasSavedRun = true), SettingsCallbacks()) } },
         Scene("models") { PixelTheme { ModelsContent(ModelsScenes.scene(), ModelsScenes.noActions) } },
+        Scene("table_console_closed") {
+            PixelTheme {
+                androidx.compose.foundation.layout.Box {
+                    TableScreen(holdemMidHand(), TableCallbacks(consoleSlot = true))
+                    ConsoleToggle(open = false, onToggle = {})
+                }
+            }
+        },
         Scene("debug_console") {
             PixelTheme {
                 androidx.compose.foundation.layout.Box {
-                    TableScreen(holdemMidHand(), TableCallbacks(onConsole = {}))
+                    TableScreen(holdemMidHand(), TableCallbacks(consoleSlot = true))
                     DebugConsole(
                         ConsoleScene.entries, open = true, onClose = {}, onClear = {},
                         zone = java.util.TimeZone.getTimeZone("UTC"), initiallyExpanded = ConsoleScene.expanded,
                     )
+                    ConsoleToggle(open = true, onToggle = {})
                 }
             }
         },

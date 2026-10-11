@@ -26,6 +26,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,10 +53,33 @@ data class Pacing(
     /** Bots never answer faster than this, so their turn reads. */
     val thinkMinMs: Long = 650,
     val runOutMs: Long = 900,
+    /** How long a finished line of table talk stays up: a base, a little more per character, a cap. 0 keeps lines until the street ends. */
+    val chatterHoldMs: Long = 2500,
+    val chatterPerCharMs: Long = 35,
+    val chatterMaxMs: Long = 6000,
 ) {
+    /** How long [text] stays up once it has finished streaming (at [GameSpeed.NORMAL]). */
+    fun chatterHold(text: String): Long =
+        if (chatterHoldMs <= 0) 0 else minOf(chatterMaxMs, chatterHoldMs + chatterPerCharMs * text.length)
+
+    /**
+     * The real time [text] stays up at [speedFactor]: the hold, scaled, but
+     * never less than the bubble takes to type it out plus a moment to read
+     * its end (the typewriter runs at a fixed pace, whatever the game speed).
+     */
+    fun chatterHoldAt(text: String, speedFactor: Double): Long {
+        val hold = chatterHold(text)
+        if (hold <= 0) return 0
+        return maxOf((hold * speedFactor).toLong(), TYPE_MS_PER_CHAR * text.length + READ_END_MS)
+    }
+
     companion object {
-        /** No pauses at all: tests. */
-        val Instant = Pacing(0, 0, 0, 0, 0)
+        /** No pauses at all, and table talk stays until the street ends: tests. */
+        val Instant = Pacing(0, 0, 0, 0, 0, chatterHoldMs = 0)
+
+        /** The speech bubble's typewriter pace (SpeechBubble's 40 characters a second). */
+        const val TYPE_MS_PER_CHAR = 25L
+        private const val READ_END_MS = 800L
     }
 }
 
@@ -174,6 +198,13 @@ class GameController(
 
     // Decorations of the hand in play.
     private val chatter = LinkedHashMap<Int, String>()
+    /** Each shown line's countdown ([expireChatter]), by seat. */
+    private val chatterExpiry = HashMap<Int, Job>()
+    /**
+     * Parent of the countdowns: not the game loop's job, so they never keep a
+     * finished table "running", and they start even before that job is assigned.
+     */
+    private val chatterJobs = SupervisorJob(scope.coroutineContext[Job])
     private var streamingSeat: Int? = null
     private var thinkingSeat: Int? = null
 
@@ -516,6 +547,7 @@ class GameController(
     fun stop() {
         job?.cancel()
         job = null
+        clearChatter()
         humanDecision = null
         humanTurn = null
         proceed = null
@@ -550,7 +582,7 @@ class GameController(
 
     private suspend fun playHand(h: Hand, arrivals: Set<Int> = emptySet()) {
         hand = h
-        chatter.clear()
+        clearChatter()
         streamingSeat = null
         thinkingSeat = null
         humanTurn = null
@@ -577,7 +609,7 @@ class GameController(
             if (h.street != street) {
                 street = h.street
                 shownBoard = h.board.size
-                chatter.clear()
+                clearChatter()
                 publish()
                 pause(pacing.streetMs)
             }
@@ -641,7 +673,7 @@ class GameController(
         awaitUnpaused()
         val id = ++decisionId
         thinkingSeat = seat
-        chatter.remove(seat)
+        removeChatter(seat)
         publish()
         val ctx = h.context(seat)
         val started = System.nanoTime()
@@ -664,7 +696,7 @@ class GameController(
             talk.record(ctx.seats.firstOrNull { it.seat == seat }?.name ?: "Seat $seat", say)
         } else {
             // A line that streamed and was then dropped (a repeat) must not linger.
-            chatter.remove(seat)
+            removeChatter(seat)
         }
         h.apply(seat, decision, say)
     }
@@ -689,15 +721,57 @@ class GameController(
     private fun streamChatter(id: Int, seat: Int, text: String) {
         if (id != decisionId || thinkingSeat != seat) return
         streamingSeat = seat
-        setChatter(seat, tidySay(text) ?: return)
+        setChatter(seat, tidySay(text) ?: return, expires = false)
         publish()
     }
 
-    /** Keeps the two most recent speakers' lines (bubbles crowd a phone). */
-    private fun setChatter(seat: Int, text: String) {
-        chatter.remove(seat)
+    /**
+     * Shows [text] in [seat]'s bubble, keeping the two most recent speakers'
+     * lines (bubbles crowd a phone). A finished line ([expires]; not one still
+     * streaming in) goes away on its own after a short hold.
+     */
+    private fun setChatter(seat: Int, text: String, expires: Boolean = true) {
+        removeChatter(seat)
         chatter[seat] = text
-        while (chatter.size > 2) chatter.remove(chatter.keys.first())
+        while (chatter.size > 2) removeChatter(chatter.keys.first())
+        if (expires) expireChatter(seat, text)
+    }
+
+    private fun removeChatter(seat: Int) {
+        chatter.remove(seat)
+        chatterExpiry.remove(seat)?.cancel()
+    }
+
+    private fun clearChatter() {
+        chatter.clear()
+        chatterExpiry.values.forEach { it.cancel() }
+        chatterExpiry.clear()
+    }
+
+    /**
+     * Takes [seat]'s [text] down after its hold ([Pacing.chatterHoldAt]: scaled
+     * by the game speed, but never before it has finished typing). The countdown stops while the table is paused, and a
+     * newer line from the same seat replaces this one (and its countdown).
+     */
+    private fun expireChatter(seat: Int, text: String) {
+        val hold = pacing.chatterHoldAt(text, speed.value.factor)
+        if (hold <= 0) return
+        chatterExpiry[seat] = scope.launch(chatterJobs) {
+            var left = hold
+            while (left > 0) {
+                awaitUnpaused()
+                val step = minOf(left, 100L)
+                delay(step)
+                // Only time spent unpaused counts: a pause that began mid-step keeps the step.
+                if (autopilot != null || pauses.value.isEmpty()) left -= step
+            }
+            awaitUnpaused()
+            if (chatter[seat] == text) {
+                chatter.remove(seat)
+                chatterExpiry.remove(seat)
+                publish()
+            }
+        }
     }
 
     private fun publish(showBanner: Boolean = true) {
