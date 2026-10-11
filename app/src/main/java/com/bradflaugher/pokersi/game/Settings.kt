@@ -16,6 +16,7 @@ class Settings(private val prefs: SharedPreferences) {
     private val _crt = MutableStateFlow(prefs.getBoolean(KEY_CRT, true))
     private val _cardSway = MutableStateFlow(prefs.getBoolean(KEY_SWAY, true))
     private val _debugConsole = MutableStateFlow(prefs.getBoolean(KEY_DEBUG_CONSOLE, false))
+    private val _fastFold = MutableStateFlow(prefs.getBoolean(KEY_FAST_FOLD, true))
     private val _speed = MutableStateFlow(
         prefs.getString(KEY_SPEED, null)?.let { s -> GameSpeed.entries.firstOrNull { it.name == s } } ?: GameSpeed.NORMAL,
     )
@@ -29,11 +30,15 @@ class Settings(private val prefs: SharedPreferences) {
     val debugConsole: StateFlow<Boolean> = _debugConsole.asStateFlow()
     val speed: StateFlow<GameSpeed> = _speed.asStateFlow()
 
+    /** SETTINGS > FAST FOLD: once you fold, the rest of the hand plays out at once. On by default. */
+    val fastFold: StateFlow<Boolean> = _fastFold.asStateFlow()
+
     fun setSound(on: Boolean) = put(KEY_SOUND, on, _sound)
     fun setHaptics(on: Boolean) = put(KEY_HAPTICS, on, _haptics)
     fun setCrt(on: Boolean) = put(KEY_CRT, on, _crt)
     fun setCardSway(on: Boolean) = put(KEY_SWAY, on, _cardSway)
     fun setDebugConsole(on: Boolean) = put(KEY_DEBUG_CONSOLE, on, _debugConsole)
+    fun setFastFold(on: Boolean) = put(KEY_FAST_FOLD, on, _fastFold)
 
     fun setSpeed(speed: GameSpeed) {
         _speed.value = speed
@@ -52,6 +57,7 @@ class Settings(private val prefs: SharedPreferences) {
         const val KEY_SWAY = "card_sway"
         const val KEY_DEBUG_CONSOLE = "debug_console"
         const val KEY_SPEED = "speed"
+        const val KEY_FAST_FOLD = "fast_fold"
     }
 }
 

@@ -188,6 +188,7 @@ private fun SettingsRoute(vm: PokerViewModel) {
         cardSway = s.cardSway.collectAsStateWithLifecycle().value,
         debugConsole = s.debugConsole.collectAsStateWithLifecycle().value,
         speed = s.speed.collectAsStateWithLifecycle().value,
+        fastFold = s.fastFold.collectAsStateWithLifecycle().value,
         hasSavedRun = vm.runSaver.saved.collectAsStateWithLifecycle().value,
         version = BuildConfig.VERSION_NAME,
     )
@@ -201,6 +202,7 @@ private fun SettingsRoute(vm: PokerViewModel) {
             onCardSway = s::setCardSway,
             onDebugConsole = s::setDebugConsole,
             onSpeed = s::setSpeed,
+            onFastFold = s::setFastFold,
             onResetRun = vm::resetRun,
             onShowTips = vm::showTips,
             onShare = context::shareApp,

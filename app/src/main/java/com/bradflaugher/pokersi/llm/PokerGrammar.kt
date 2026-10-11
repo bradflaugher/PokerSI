@@ -50,21 +50,21 @@ object PokerGrammar {
         }
     }
 
-    /** Grammar for a betting decision. */
-    fun betting(menu: List<ActionOption>): String {
+    /** Grammar for a betting decision; without [speak], the reply has no say. */
+    fun betting(menu: List<ActionOption>, speak: Boolean = true): String {
         val actions = menu.joinToString(" | ") { option ->
             val head = "\"\\\"${option.word}\\\", \\\"amount\\\": "
             if (option.range != null) "$head\" ${intRange(option.range.first, option.range.last)}"
             else "$head${option.amount}\""
         }
         return rules(
-            """root ::= "{\"action\": " action ", \"say\": \"" say "\"}"""",
+            if (speak) """root ::= "{\"action\": " action ", \"say\": \"" say "\"}"""" else """root ::= "{\"action\": " action "}"""",
             "action ::= $actions",
         )
     }
 
-    /** Grammar for a draw / discard decision over [handSize] cards. */
-    fun discard(handSize: Int, rule: DiscardRule): String {
+    /** Grammar for a draw / discard decision over [handSize] cards; without [speak], the reply has no say. */
+    fun discard(handSize: Int, rule: DiscardRule, speak: Boolean = true): String {
         val max = rule.max.coerceIn(0, handSize)
         val min = rule.min.coerceIn(0, max)
         val positions = (1..handSize).joinToString(" | ") { "\"$it\"" }
@@ -73,16 +73,16 @@ object PokerGrammar {
             if (n == 0) "\"\"" else List(n) { "pos" }.joinToString(" \", \" ")
         }
         return rules(
-            """root ::= "{\"discard\": [" list "], \"say\": \"" say "\"}"""",
+            if (speak) """root ::= "{\"discard\": [" list "], \"say\": \"" say "\"}"""" else """root ::= "{\"discard\": [" list "]}"""",
             "list ::= $list",
             "pos ::= $positions",
         )
     }
 
-    /** The grammar for whatever [context] asks for. */
-    fun forContext(context: DecisionContext): String {
+    /** The grammar for whatever [context] asks for, with or without the say ([speak]). */
+    fun forContext(context: DecisionContext, speak: Boolean = true): String {
         val rule = context.legal.discard
-        return if (rule != null) discard(context.holeCards.size, rule) else betting(actionMenu(context))
+        return if (rule != null) discard(context.holeCards.size, rule, speak) else betting(actionMenu(context), speak)
     }
 
     // No quotes, backslashes or control characters: the say text needs no escaping.

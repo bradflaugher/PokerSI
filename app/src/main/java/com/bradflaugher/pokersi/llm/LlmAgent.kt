@@ -33,6 +33,8 @@ class LlmAgent(
     private val maxTokens: Int = 96,
     private val timeoutMs: Long = 25_000,
     private val random: Random = Random(persona.seed),
+    /** Talk every turn instead of now and then (tests). */
+    private val alwaysTalks: Boolean = false,
 ) : PlayerAgent {
     private val who = persona.name
 
@@ -43,13 +45,13 @@ class LlmAgent(
         val start = now()
         if (!engine.isReady) return fallBack(context, onChatter, null, "no model")
 
-        val plan = TalkPlan.make(context, persona, talk, random, lastHintKind)
+        val plan = TalkPlan.make(context, persona, talk, random, lastHintKind, alwaysSpeak = alwaysTalks)
         lastHintKind = plan.kind
         // Off-turn, the catchphrase counts as already said.
         val avoid = if (plan.catchphraseOk || persona.catchphrase.isBlank()) emptyList() else listOf(persona.catchphrase)
         val messages = PokerPrompt.build(context, persona, plan)
-        val grammar = PokerGrammar.forContext(context)
-        AiLog.add(AiLogKind.PROMPT, who, { "hand ${context.handNumber}, ${context.street}: ${plan.hint}" }) {
+        val grammar = PokerGrammar.forContext(context, plan.speak)
+        AiLog.add(AiLogKind.PROMPT, who, { "hand ${context.handNumber}, ${context.street}: ${if (plan.speak) plan.hint else "(quiet turn)"}" }) {
             messages.joinToString("\n\n") { "[${it.role}]\n${it.content.trimEnd()}" }
         }
         AiLog.add(AiLogKind.GRAMMAR, who, { "grammar (${grammar.lines().size} rules)" }) { grammar }
@@ -82,19 +84,19 @@ class LlmAgent(
             }
         } catch (e: TimeoutCancellationException) {
             AiLog.update(replyId, title = "timed out")
-            return fallBack(context, onChatter, shown, "timed out after ${timeoutMs / 1000} s", start, avoid)
+            return fallBack(context, onChatter, shown, "timed out after ${timeoutMs / 1000} s", start, avoid, quiet = !plan.speak)
         } catch (e: CancellationException) {
             AiLog.update(replyId, title = "cancelled")
             throw e
         } catch (e: Exception) {
             AiLog.update(replyId, title = "failed")
-            return fallBack(context, onChatter, shown, "error: ${e.message}", start, avoid)
+            return fallBack(context, onChatter, shown, "error: ${e.message}", start, avoid, quiet = !plan.speak)
         }
         val end = now()
         AiLog.update(replyId, title = "${raw.length} chars", body = raw)
 
         val reply = LlmReply.parse(raw, context.legal, context.holeCards.size)
-        val decision = reply.decision ?: return fallBack(context, onChatter, reply.say ?: shown, "unusable reply: $raw", start, avoid)
+        val decision = reply.decision ?: return fallBack(context, onChatter, reply.say ?: shown, "unusable reply: $raw", start, avoid, quiet = !plan.speak)
         val say = fresh(reply.say ?: shown, decision, context, avoid)
         say?.let(onChatter)
         AiLog.add(AiLogKind.DECISION, who, {
@@ -123,14 +125,17 @@ class LlmAgent(
         why: String,
         start: Long = now(),
         avoid: List<String> = emptyList(),
+        /** A quiet turn ([TalkPlan.speak] false) stays quiet, whoever ends up deciding. */
+        quiet: Boolean = false,
     ): AgentReply {
         // The House Bot's own line is not streamed: the model's line may still be kept,
         // and a bubble must not flash the one that loses.
-        val reply = fallback.decide(context) {}
+        val decided = fallback.decide(context) {}
+        val reply = if (quiet) decided.copy(say = null) else decided
         AiLog.add(AiLogKind.ERROR, who, { "House Bot decides (${why.lineSequence().first().take(80)}): ${describe(reply.decision)}" }) {
             "after ${now() - start} ms\n$why"
         }
-        val kept = say?.let { fresh(it, reply.decision, context, avoid) }
+        val kept = say?.takeUnless { quiet }?.let { fresh(it, reply.decision, context, avoid) }
         val final = if (kept != null) reply.copy(say = kept) else reply
         final.say?.let(onChatter)
         return final
