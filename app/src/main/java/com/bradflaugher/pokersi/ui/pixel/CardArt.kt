@@ -3,12 +3,16 @@ package com.bradflaugher.pokersi.ui.pixel
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.toArgb
 import com.bradflaugher.pokersi.engine.Card
 import com.bradflaugher.pokersi.engine.Rank
 import com.bradflaugher.pokersi.engine.Suit
 import kotlin.math.abs
 import kotlin.math.atan2
+import kotlin.math.cos
 import kotlin.math.hypot
+import kotlin.math.roundToInt
+import kotlin.math.sin
 
 /**
  * Playing card pixel art, drawn procedurally at [W] x [H] virtual pixels
@@ -28,6 +32,9 @@ object CardArt {
     /** Face art for [card]. */
     fun face(card: Card, palette: PixelPalette = PixelPalette.Default): ImageBitmap =
         cache.getOrPut(FaceKey(card, palette)) { drawFace(card, palette).toImageBitmap() }
+
+    /** The face as an editable canvas (for art built from cards, like [CardFanArt]). */
+    internal fun faceCanvas(card: Card, palette: PixelPalette): PixelCanvas = drawFace(card, palette)
 
     /** Renders every face and the back into the cache; call off the main thread. */
     fun prewarm(palette: PixelPalette = PixelPalette.Default) {
@@ -170,29 +177,44 @@ object CardArt {
         }
     }
 
+    /**
+     * The ace: the big suit, bevelled and outlined, on a gold medallion
+     * (lit rim, shaded rim, a field of alternating rays) with sparkles.
+     */
     private fun drawAce(c: PixelCanvas, suit: Suit, p: PixelPalette) {
         val color = suitColor(suit, p)
+        val cy = 31
+        val field = lerp(p.cardCream, color, 0.08f)
+        val ray = lerp(p.cardCream, p.gold, 0.45f)
+        for (y in 0 until H) for (x in 0 until W) {
+            val dx = x - CX.toDouble()
+            val dy = y - cy.toDouble()
+            val d = hypot(dx, dy)
+            if (d > 14.5) continue
+            val lit = -(dx + dy) / (d + 0.001)
+            val col = when {
+                d > 13.6 -> p.ink
+                d > 12.2 -> if (lit > 0.35) p.yellow else if (lit < -0.35) p.goldDark else p.gold
+                d > 11.3 -> p.goldDark
+                else -> {
+                    val a = atan2(dy, dx)
+                    val seg = ((a + Math.PI) / (Math.PI * 2) * 16).toInt()
+                    if (seg % 2 == 0 && d > 3) ray else field
+                }
+            }
+            c.set(x, y, col)
+        }
+        // Rivets around the rim.
+        for (i in 0 until 8) {
+            val a = i * Math.PI / 4 + Math.PI / 8
+            c.set(CX + (12.9 * cos(a)).roundToInt(), cy + (12.9 * sin(a)).roundToInt(), p.cardHighlight)
+        }
         val big = SuitArt.big(suit)
         val art = PixelCanvas(big.width + 2, big.height + 2)
         stampBeveled(art, big, 1, 1, color, lerp(color, p.white, 0.5f), lerp(color, p.ink, 0.45f))
         art.outline(p.ink)
-        val ax = CX - art.width / 2
-        val ay = 31 - art.height / 2
-        // Ornate gold sunburst ring behind the big suit.
-        val ring = PixelCanvas(W, H)
-        for (y in 0 until H) for (x in 0 until W) {
-            val d = hypot(x - CX.toDouble(), y - 31.0)
-            if (d in 13.2..14.4) {
-                val a = atan2(y - 31.0, x - CX.toDouble())
-                val seg = ((a + Math.PI) / (Math.PI * 2) * 24).toInt()
-                ring.set(x, y, if (seg % 2 == 0) p.gold else p.goldDark)
-            }
-        }
-        c.blit(ring, 0, 0)
-        c.blit(art, ax, ay)
-        for ((sx, sy) in listOf(CX - 12 to 18, CX + 12 to 44, CX + 12 to 18, CX - 12 to 44)) {
-            sparkle(c, sx, sy, p)
-        }
+        c.blit(art, CX - art.width / 2, cy - art.height / 2)
+        for ((sx, sy) in listOf(CX + 12 to 18, CX - 12 to 44)) sparkle(c, sx, sy, p)
     }
 
     private fun sparkle(c: PixelCanvas, x: Int, y: Int, p: PixelPalette) {
@@ -216,37 +238,152 @@ object CardArt {
     }
 
     // ---- Court cards -----------------------------------------------------
+    //
+    // Hand-pixelled heads (crowns, faces, hair, beards) on procedural bodies
+    // (robes with brocade, trim, collars and a held prop), in a gold frame
+    // with a lamp-lit halo. Light comes from the top left, as everywhere.
 
-    private class CourtColors(val bg: Color, val hair: Color, val hairDark: Color, val robe: Color, val robeDark: Color, val robeLight: Color)
+    private class CourtColors(
+        val bg: Color,
+        val skin: Color,
+        val skinShade: Color,
+        val hair: Color,
+        val hairDark: Color,
+        val robe: Color,
+        val robeDark: Color,
+        val robeLight: Color,
+        val accent: Color,
+        val accentDark: Color,
+        val jewel: Color,
+    )
 
     private fun courtColors(suit: Suit, p: PixelPalette): CourtColors = when (suit) {
-        Suit.HEARTS -> CourtColors(Color(0xFFFFD9DF), Color(0xFFC0471F), Color(0xFF7E2A12), p.suitRed, p.suitRedDark, Color(0xFFFF6E7F))
-        Suit.DIAMONDS -> CourtColors(Color(0xFFFFE9B0), Color(0xFFF2B33A), Color(0xFFA9701A), p.suitRed, p.suitRedDark, Color(0xFFFF6E7F))
-        Suit.SPADES -> CourtColors(Color(0xFFD5DEFF), Color(0xFF2B2240), Color(0xFF130F21), p.suitBlack, p.ink, p.suitBlackLight)
-        Suit.CLUBS -> CourtColors(Color(0xFFCFF3E2), Color(0xFF6B3E1E), Color(0xFF3E220E), p.suitBlack, p.ink, p.suitBlackLight)
+        Suit.HEARTS -> CourtColors(
+            Color(0xFFFFE3E3), Color(0xFFFFCE9E), Color(0xFFE0915F), Color(0xFFC0471F), Color(0xFF7E2A12),
+            p.suitRed, p.suitRedDark, Color(0xFFFF6E7F), p.gold, p.goldDark, p.teal,
+        )
+        Suit.DIAMONDS -> CourtColors(
+            Color(0xFFFFEEC2), Color(0xFFE8A87C), Color(0xFFB8714A), Color(0xFFF2B33A), Color(0xFFA9701A),
+            p.suitRed, p.suitRedDark, Color(0xFFFF6E7F), p.teal, Color(0xFF0E8F84), p.teal,
+        )
+        Suit.SPADES -> CourtColors(
+            Color(0xFFDCE3FF), Color(0xFFFFDDB8), Color(0xFFD99A6C), Color(0xFF2B2240), Color(0xFF130F21),
+            p.suitBlack, p.ink, p.suitBlackLight, p.hotPink, p.hotPinkDark, p.hotPink,
+        )
+        Suit.CLUBS -> CourtColors(
+            Color(0xFFD6F5E6), Color(0xFFB9744A), Color(0xFF8A4F2C), Color(0xFF2A1A12), Color(0xFF130F21),
+            p.suitBlack, p.ink, p.suitBlackLight, p.green, p.greenDark, p.hotPink,
+        )
     }
 
-    private val skin = Color(0xFFFFCE9E)
-    private val skinShade = Color(0xFFE89A6A)
-    private val blush = Color(0xFFFF8A9A)
     private val beard = Color(0xFFF2EFF8)
     private val beardShade = Color(0xFFB9B6CF)
+    private val blush = Color(0xFFFF8A9A)
+    private val steel = Color(0xFFD3DBF0)
+    private val steelShade = Color(0xFF8D97BC)
 
-    /** Fills symmetric rows around [cx]: row i spans cx-half[i]..cx+half[i] (negative = skip). */
-    private fun sym(c: PixelCanvas, cx: Int, y0: Int, half: IntArray, color: Color) {
-        half.forEachIndexed { i, h -> if (h >= 0) c.hline(cx - h, y0 + i, h * 2 + 1, color) }
-    }
+    private val KingHead = PixelPattern.of(
+        "...o....o....o...",
+        "..ojo..ojo..ojo..",
+        "..oyo..oyo..oGo..",
+        ".oyygooyygooyGGo.",
+        ".oyjggggjggggjGo.",
+        ".oyggggggggggGGo.",
+        ".oGGGGGGGGGGGGGo.",
+        ".owwssssssssSWWo.",
+        ".owwsWWsssWWSWWo.",
+        ".owwssosssosSWWo.",
+        ".owwssosssosSWWo.",
+        ".owwsbssSssbSWWo.",
+        ".owwswwwwwwwSWWo.",
+        ".owwwwwmmmwwWWWo.",
+        ".owwwWwwwwWwWWWo.",
+        "..owwwwWwwwWWWo..",
+        "...owwWwwwWWWo...",
+        "....owwwwWWWo....",
+        ".....owwWWWo.....",
+        "......owWWo......",
+        ".......ooo.......",
+    )
+
+    private val QueenHead = PixelPattern.of(
+        "........o........",
+        ".......ojo.......",
+        "....o..oyo..o....",
+        "...oyo.oyo.oGo...",
+        "..oyjygyjyggjGo..",
+        "..ohGGGGGGGGGHo..",
+        ".ohhhhhhhhhhHHHo.",
+        ".ohhhssssssshHHo.",
+        "ohhhssssssssSHHHo",
+        "ohhsosssssosSHHHo",
+        "ohhsosssssosSHHHo",
+        "ohhssssSssssSHHHo",
+        "ohhsbsssssbsSHHHo",
+        "ohhhsssmmmssSHHHo",
+        "ohhhhsssssssHHHHo",
+        "ohhhhhSsssSHHHHHo",
+        "ohhhhhossSoHHHHHo",
+        "ohhhhhossSoHHHHHo",
+        "ohhhho.....oHHHHo",
+        ".ohho.......oHHo.",
+        "..oo.........oo..",
+    )
+
+    private val JackHead = PixelPattern.of(
+        "...........aa....",
+        "..........aAa....",
+        ".........aAa.....",
+        "....ooooaAaoo....",
+        "...orrrrqarRRo...",
+        "..orqrrrrrrrRRo..",
+        ".orqrrrrrrrrrRRo.",
+        "oRRRRRRRRRRRRRRRo",
+        "..ohhssssssshHo..",
+        "..ohssssssssSHo..",
+        "..ohshhssshhsSo..",
+        "..ohsosssssssSo..",
+        "..ohsossssoosSo..",
+        "..ohssssSsssSHo..",
+        "..ohsbssssbsSHo..",
+        "..ohssssssoSSHo..",
+        "...ohssoooSSSo...",
+        "....osssssSSo....",
+        ".....ossssSo.....",
+        "......ooooo......",
+    )
+
+    // The frame's inside, in card pixels.
+    private const val FX = 12
+    private const val FY = 10
+    private const val FW = 21
+    private const val FH = 43
 
     private fun drawCourt(c: PixelCanvas, card: Card, p: PixelPalette) {
         val cc = courtColors(card.suit, p)
         val frameColor = suitColor(card.suit, p)
-        // Frame: suit-colored border, gold inner line, tinted backdrop.
-        c.fill(10, 8, 25, 47, frameColor)
-        c.fill(11, 9, 23, 45, p.gold)
-        c.fill(12, 10, 21, 43, cc.bg)
-        // Backdrop diagonal stripes for texture.
-        for (y in 10 until 53) for (x in 12 until 33) {
-            if ((x + y) % 6 == 0) c.set(x, y, lerp(cc.bg, p.white, 0.55f))
+        // Frame: suit-colored border, a bevelled gold line, the backdrop.
+        c.fill(FX - 2, FY - 2, FW + 4, FH + 4, frameColor)
+        c.fill(FX - 1, FY - 1, FW + 2, FH + 2, p.goldDark)
+        c.hline(FX - 1, FY - 1, FW + 1, p.yellow)
+        c.vline(FX - 1, FY - 1, FH + 1, p.gold)
+        c.fill(FX, FY, FW, FH, cc.bg)
+        // A lamp-lit halo behind the head, dithered out at its edge, and a
+        // darker floor so the figure stands in light.
+        val halo = lerp(cc.bg, p.white, 0.6f)
+        val floor = lerp(cc.bg, p.ink, 0.08f)
+        for (y in FY until FY + FH) for (x in FX until FX + FW) {
+            val d = hypot(x - CX.toDouble(), (y - (FY + 11)).toDouble())
+            when {
+                d < 8.5 -> c.set(x, y, halo)
+                d < 10.5 && (x + y) % 2 == 0 -> c.set(x, y, halo)
+                y > FY + FH - 12 && (x + y) % 2 == 0 -> c.set(x, y, floor)
+                y > FY + FH - 8 -> c.set(x, y, floor)
+            }
+        }
+        // Gold corner studs.
+        for ((x, y) in listOf(FX - 2 to FY - 2, FX + FW + 1 to FY - 2, FX - 2 to FY + FH + 1, FX + FW + 1 to FY + FH + 1)) {
+            c.set(x, y, p.gold)
         }
 
         val fig = PixelCanvas(W, H)
@@ -258,171 +395,242 @@ object CardArt {
         fig.outline(p.ink)
         // Keep the figure inside the frame.
         for (y in 0 until H) for (x in 0 until W) {
-            if (x !in 12..32 || y !in 10..52) fig.set(x, y, 0)
+            if (x !in FX until FX + FW || y !in FY until FY + FH) fig.set(x, y, 0)
         }
         c.blit(fig, 0, 0)
     }
 
+    private fun headColors(cc: CourtColors, p: PixelPalette) = mapOf(
+        'o' to p.ink, 's' to cc.skin, 'S' to cc.skinShade, 'b' to blush,
+        'w' to beard, 'W' to beardShade, 'g' to p.gold, 'G' to p.goldDark, 'y' to p.yellow,
+        'j' to cc.jewel, 'm' to p.suitRed,
+        'h' to cc.hair, 'H' to cc.hairDark,
+        'r' to cc.robe, 'R' to cc.robeDark, 'q' to cc.robeLight,
+        'a' to cc.accent, 'A' to cc.accentDark,
+    )
+
+    /**
+     * The robe: shoulders sloping out to the frame from [top], lit on the
+     * left and in shadow on the right, a brocade of accent dots, a gold
+     * placket down the middle and a medallion bearing the suit.
+     */
     private fun robe(fig: PixelCanvas, cc: CourtColors, p: PixelPalette, suit: Suit, top: Int) {
-        // Shoulders widening down to the frame.
-        for (y in top until 53) {
-            val h = minOf(10, 6 + (y - top) * 2)
-            fig.hline(CX - h, y, h * 2 + 1, cc.robe)
-            fig.set(CX - h, y, cc.robeLight)
-            fig.set(CX + h, y, cc.robeDark)
+        val bottom = FY + FH
+        for (y in top until bottom) {
+            val h = minOf(11, 5 + (y - top) * 2)
+            for (x in CX - h..CX + h) {
+                val rel = x - CX
+                val col = when {
+                    rel == -h || rel == -h + 1 && y > top + 1 -> cc.robeLight
+                    rel >= h - 2 -> cc.robeDark
+                    (x + 2 * y) % 8 == 0 && y % 4 == 1 -> cc.accent
+                    Math.floorMod(x - 2 * y, 8) == 0 && y % 4 == 3 -> cc.accentDark
+                    else -> cc.robe
+                }
+                fig.set(x, y, col)
+            }
+            // A fold shadow down each flank.
+            if (y > top + 5) { fig.set(CX - 6, y, cc.robeDark); fig.set(CX + 6, y, cc.robeDark) }
         }
-        // Gold trim down the middle and an emblem with the suit.
-        for (y in top + 1 until 53) { fig.set(CX - 3, y, p.gold); fig.set(CX + 3, y, p.goldDark) }
-        val emblemY = top + 9
-        sym(fig, CX, emblemY - 4, intArrayOf(2, 3, 4, 4, 4, 4, 4, 3, 2), p.gold)
-        sym(fig, CX, emblemY - 3, intArrayOf(2, 3, 3, 3, 3, 3, 2), p.cardCream)
+        // Gold placket.
+        for (y in top + 2 until bottom) {
+            fig.set(CX - 1, y, p.gold)
+            fig.set(CX, y, if (y % 3 == 0) p.yellow else p.gold)
+            fig.set(CX + 1, y, p.goldDark)
+        }
+        // Medallion bearing the suit.
+        val my = top + 12
+        sym(fig, CX, my - 4, intArrayOf(2, 3, 4, 4, 4, 4, 4, 3, 2), p.ink)
+        sym(fig, CX, my - 3, intArrayOf(2, 3, 3, 3, 3, 3, 2), p.gold)
+        sym(fig, CX, my - 2, intArrayOf(2, 2, 2, 2, 2), p.cardCream)
+        fig.set(CX - 2, my - 2, p.yellow); fig.set(CX - 3, my - 1, p.yellow)
+        fig.set(CX + 2, my + 2, p.goldDark); fig.set(CX + 3, my + 1, p.goldDark)
         val pip = SuitArt.small(suit)
-        fig.stamp(pip, CX - pip.width / 2, emblemY - pip.height / 2, if (suit.isRed) p.suitRed else p.suitBlack)
+        fig.stamp(pip, CX - pip.width / 2, my - pip.height / 2, if (suit.isRed) p.suitRed else p.suitBlack)
     }
 
-    private fun eyes(fig: PixelCanvas, y: Int, spread: Int, p: PixelPalette) {
-        fig.vline(CX - spread, y, 2, p.ink)
-        fig.vline(CX + spread, y, 2, p.ink)
+    /** Fills symmetric rows around [cx]: row i spans cx-half[i]..cx+half[i] (negative = skip). */
+    private fun sym(c: PixelCanvas, cx: Int, y0: Int, half: IntArray, color: Color) {
+        half.forEachIndexed { i, h -> if (h >= 0) c.hline(cx - h, y0 + i, h * 2 + 1, color) }
+    }
+
+    /** A hand: a 2x2 fist with a lit knuckle. */
+    private fun hand(fig: PixelCanvas, x: Int, y: Int, cc: CourtColors) {
+        fig.fill(x, y, 2, 2, cc.skin)
+        fig.set(x + 1, y + 1, cc.skinShade)
+        fig.rect(x - 1, y - 1, 4, 4, Color(0xFF130F21))
     }
 
     private fun king(fig: PixelCanvas, cc: CourtColors, p: PixelPalette, suit: Suit) {
-        robe(fig, cc, p, suit, 27)
-        // Ermine collar.
-        sym(fig, CX, 26, intArrayOf(8, 9), beard)
-        for (x in CX - 8..CX + 8 step 3) fig.set(x, 27, p.ink)
-        // Crown.
-        val top = 11
-        for (dx in listOf(-6, 0, 6)) { fig.set(CX + dx, top, p.gold) }
-        for (dx in listOf(-6, -5, -1, 0, 1, 5, 6)) fig.set(CX + dx, top + 1, p.gold)
-        sym(fig, CX, top + 2, intArrayOf(6, 6), p.gold)
-        sym(fig, CX, top + 4, intArrayOf(6), p.goldDark)
-        fig.set(CX, top + 2, p.cardHighlight)
-        for (dx in listOf(-4, 0, 4)) fig.set(CX + dx, top + 4, if (suit.isRed) p.teal else p.hotPink)
-        // Hair, face, beard.
-        sym(fig, CX, top + 5, intArrayOf(6), beard)
-        sym(fig, CX, top + 6, intArrayOf(6, 6, 6, 6, 6, 6), skin)
-        fig.set(CX - 6, top + 6, beard); fig.set(CX + 6, top + 6, beard)
-        fig.set(CX - 6, top + 7, beard); fig.set(CX + 6, top + 7, beard)
-        eyes(fig, top + 8, 3, p)
-        fig.set(CX, top + 9, skinShade); fig.set(CX, top + 10, skinShade)
-        fig.set(CX - 4, top + 10, blush); fig.set(CX + 4, top + 10, blush)
-        // Big curly mustache and beard.
-        sym(fig, CX, top + 11, intArrayOf(4), beard)
-        fig.set(CX - 5, top + 10, beard); fig.set(CX + 5, top + 10, beard)
-        sym(fig, CX, top + 12, intArrayOf(6, 6, 5, 4, 3, 1), beard)
-        fig.hline(CX - 1, top + 12, 3, p.suitRed)
-        for (i in 0..3) fig.set(CX - 4 + i * 3 - (i % 2), top + 14 + (i % 2), beardShade)
+        val top = FY + 17
+        robe(fig, cc, p, suit, top)
+        // Ermine cape over the shoulders: white fur with black tails.
+        for (y in top - 1..top + 3) {
+            val h = minOf(11, 6 + (y - top + 1) * 2)
+            fig.hline(CX - h, y, h * 2 + 1, beard)
+            fig.set(CX + h, y, beardShade); fig.set(CX + h - 1, y, beardShade)
+        }
+        fig.hline(CX - 11, top + 4, 23, beardShade)
+        for ((dx, dy) in listOf(-9 to 1, -5 to 3, 5 to 3, 9 to 1, -10 to 4, 10 to 4)) fig.set(CX + dx, top + dy, p.ink)
+        // Sceptre in the right hand (viewer's left): gold rod, jewelled orb.
+        val sx = CX - 8
+        for (y in FY + 9 until FY + FH) { fig.set(sx, y, p.gold); fig.set(sx + 1, y, p.goldDark) }
+        fig.rect(sx - 1, FY + 9, 4, FH - 9, p.ink)
+        sym(fig, sx, FY + 5, intArrayOf(1, 2, 2, 1), p.ink)
+        fig.set(sx, FY + 6, cc.jewel); fig.set(sx - 1, FY + 6, lerp(cc.jewel, p.white, 0.6f)); fig.set(sx + 1, FY + 6, cc.jewel)
+        fig.set(sx, FY + 7, cc.jewel); fig.set(sx - 1, FY + 7, cc.jewel); fig.set(sx + 1, FY + 7, lerp(cc.jewel, p.ink, 0.4f))
+        fig.set(sx, FY + 4, p.gold); fig.set(sx, FY + 3, p.yellow)
+        fig.hline(sx - 1, FY + 8, 3, p.gold)
+        hand(fig, sx - 1, top + 9, cc)
+        fig.stamp(KingHead, CX - 8, FY + 1, headColors(cc, p))
     }
 
     private fun queen(fig: PixelCanvas, cc: CourtColors, p: PixelPalette, suit: Suit) {
-        val top = 11
-        // Long hair behind everything.
-        sym(fig, CX, top + 3, intArrayOf(5, 6, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 6), cc.hair)
-        robe(fig, cc, p, suit, 26)
-        // Hair falls over the shoulders.
-        for (y in top + 14 until top + 20) { fig.hline(CX - 7, y, 2, cc.hair); fig.hline(CX + 6, y, 2, cc.hair) }
-        for (y in top + 14 until top + 20) { fig.set(CX - 7, y, cc.hairDark); fig.set(CX + 7, y, cc.hairDark) }
-        // Necklace.
-        sym(fig, CX, 26, intArrayOf(5), p.gold)
-        fig.set(CX, 27, p.teal)
-        // Tiara.
-        fig.set(CX, top, p.hotPink)
-        sym(fig, CX, top + 1, intArrayOf(1, 3), p.gold)
-        fig.set(CX - 3, top + 1, p.gold); fig.set(CX + 3, top + 1, p.gold)
-        // Face.
-        sym(fig, CX, top + 4, intArrayOf(4, 5, 5, 5, 5, 4, 3, 2), skin)
-        // Bangs.
-        fig.hline(CX - 5, top + 4, 5, cc.hair); fig.hline(CX + 2, top + 4, 3, cc.hair)
-        fig.hline(CX - 5, top + 5, 3, cc.hair)
-        fig.set(CX - 2, top + 3, cc.hairDark); fig.set(CX + 3, top + 3, cc.hairDark)
-        // Eyes with lashes.
-        eyes(fig, top + 7, 2, p)
-        fig.set(CX - 3, top + 6, p.ink); fig.set(CX + 3, top + 6, p.ink)
-        fig.set(CX - 4, top + 9, blush); fig.set(CX + 4, top + 9, blush)
-        // Lips.
-        fig.hline(CX - 1, top + 10, 3, p.suitRed)
-        fig.set(CX, top + 11, p.suitRedDark)
-        // A flower held up.
-        sym(fig, CX + 6, 34, intArrayOf(1, 2, 1), p.hotPink)
-        fig.set(CX + 6, 35, p.yellow)
-        fig.vline(CX + 6, 37, 5, p.green)
+        val top = FY + 18
+        robe(fig, cc, p, suit, top)
+        // A square neckline with a gold necklace and a pendant.
+        fig.fill(CX - 3, top - 1, 7, 4, cc.skin)
+        fig.vline(CX + 3, top - 1, 4, cc.skinShade)
+        fig.hline(CX - 3, top + 3, 7, p.gold)
+        fig.hline(CX - 2, top + 1, 5, p.gold)
+        fig.set(CX, top + 2, cc.jewel)
+        // A rose held up in the left hand (viewer's right).
+        val rx = CX + 6
+        val ry = top + 5
+        fig.vline(rx, ry, 9, p.greenDark)
+        fig.set(rx + 1, ry + 4, p.green); fig.set(rx - 1, ry + 6, p.green)
+        sym(fig, rx, ry - 3, intArrayOf(1, 2, 2, 1), p.hotPink)
+        fig.set(rx - 1, ry - 2, lerp(p.hotPink, p.white, 0.55f))
+        fig.set(rx + 1, ry - 1, p.hotPinkDark); fig.set(rx, ry - 1, p.hotPinkDark)
+        hand(fig, rx - 1, ry + 6, cc)
+        fig.stamp(QueenHead, CX - 8, FY + 1, headColors(cc, p))
     }
 
     private fun jack(fig: PixelCanvas, cc: CourtColors, p: PixelPalette, suit: Suit) {
-        val top = 12
-        robe(fig, cc, p, suit, 26)
+        val top = FY + 19
+        robe(fig, cc, p, suit, top)
         // Ruff collar.
-        sym(fig, CX, 25, intArrayOf(7), p.cardHighlight)
-        for (x in CX - 7..CX + 7 step 2) fig.set(x, 26, p.cardHighlight)
-        // Feather (sticks up and right).
-        val feather = if (suit.isRed) p.teal else p.hotPink
-        for (i in 0..5) { fig.set(CX + 4 + i, top - 1 - i / 2 * 1 - (i % 2), feather) }
-        for (i in 0..4) { fig.set(CX + 4 + i, top - i / 2, lerp(feather, p.white, 0.4f)) }
-        // Floppy cap.
-        sym(fig, CX - 1, top, intArrayOf(5, 6, 7), cc.robe)
-        fig.hline(CX - 7, top + 2, 15, cc.robeDark)
-        fig.set(CX - 4, top, cc.robeLight); fig.set(CX - 5, top + 1, cc.robeLight)
-        // Hair peeking out and face.
-        sym(fig, CX, top + 3, intArrayOf(5, 5, 5, 5, 5, 4, 3), skin)
-        fig.hline(CX - 5, top + 3, 3, cc.hair); fig.hline(CX + 3, top + 3, 3, cc.hair)
-        fig.vline(CX - 5, top + 4, 3, cc.hair); fig.vline(CX + 5, top + 4, 3, cc.hair)
-        fig.set(CX - 5, top + 6, cc.hairDark); fig.set(CX + 5, top + 6, cc.hairDark)
-        // A wink and a smirk.
-        fig.vline(CX - 2, top + 5, 2, p.ink)
-        fig.hline(CX + 1, top + 6, 3, p.ink)
-        fig.set(CX - 3, top + 7, blush); fig.set(CX + 4, top + 7, blush)
-        fig.set(CX - 1, top + 8, p.ink); fig.hline(CX, top + 9, 2, p.ink); fig.set(CX + 2, top + 8, p.ink)
+        sym(fig, CX, top - 1, intArrayOf(7, 8), p.cardHighlight)
+        for (x in CX - 8..CX + 8) if ((x + CX) % 2 == 0) fig.set(x, top + 1, p.cardHighlight)
+        for (x in CX - 7..CX + 7 step 2) fig.set(x, top, beardShade)
+        // A sword held upright on the left (viewer's right).
+        val bx = CX + 8
+        for (y in FY + 4 until top + 6) { fig.set(bx, y, steel); fig.set(bx + 1, y, steelShade) }
+        fig.set(bx, FY + 3, steel)
+        fig.vline(bx, FY + 5, 6, p.white)
+        fig.hline(bx - 2, top + 6, 6, p.gold)
+        fig.set(bx + 3, top + 6, p.goldDark)
+        hand(fig, bx, top + 8, cc)
+        fig.stamp(JackHead, CX - 8, FY + 1, headColors(cc, p))
     }
 
     // ---- Back ------------------------------------------------------------
 
+    /**
+     * The PokerSI back: a cabinet-blue panel with a fine diamond lattice,
+     * a gold double frame with the four suits in its corners, and the SI
+     * robot on a red casino chip (the launcher icon's emblem) in the middle.
+     */
     private fun drawBack(p: PixelPalette): PixelCanvas {
         val c = PixelCanvas(W, H)
         body(c, p.cardCream, p.cardHighlight, p.cardShade, p.ink)
-        val a = p.purple
-        val b = p.cabinet
-        // Diamond lattice.
-        for (y in 4 until H - 4) for (x in 4 until W - 4) {
-            val u = Math.floorDiv(x + y, 5)
-            val v = Math.floorDiv(x - y + 200, 5)
-            var col = if ((u + v) % 2 == 0) a else b
-            if ((x + y) % 5 == 0 && (x - y + 200) % 5 == 0) col = p.hotPink
+        val field = p.cabinetDeep
+        val line = p.cabinet
+        // Panel with a lattice of diagonal lines and pink studs where they cross.
+        for (y in 5 until H - 5) for (x in 5 until W - 5) {
+            val u = Math.floorMod(x + y, 6)
+            val v = Math.floorMod(x - y, 6)
+            val col = when {
+                u == 0 && v == 0 && Math.floorMod(x + y, 12) == 0 -> p.hotPink
+                u == 0 || v == 0 -> line
+                else -> field
+            }
             c.set(x, y, col)
         }
+        // A soft glow behind the chip.
+        for (y in 5 until H - 5) for (x in 5 until W - 5) {
+            val d = hypot(x - CX.toDouble(), y - 31.0)
+            if (d < 17.5 && (d < 15.5 || (x + y) % 2 == 0) && c[x, y] == field.toArgb()) c.set(x, y, p.purpleDark)
+        }
+        // Double frame: gold, ink, then a thin gold pinline.
         c.rect(3, 3, W - 6, H - 6, p.gold)
+        c.hline(4, 3, W - 9, p.yellow); c.vline(3, 4, H - 9, p.yellow)
         c.rect(4, 4, W - 8, H - 8, p.ink)
-
-        // The SI robot emblem.
-        val e = PixelCanvas(W, H)
-        val metal = Color(0xFFD3DBF0)
-        val metalShade = Color(0xFF8D97BC)
-        val visor = Color(0xFF141834)
-        // Antenna.
-        e.vline(CX, 17, 3, metalShade)
-        sym(e, CX, 14, intArrayOf(1, 1, 1), p.hotPink)
-        e.set(CX - 1, 14, lerp(p.hotPink, p.white, 0.6f))
-        // Head.
-        sym(e, CX, 20, intArrayOf(7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 7), metal)
-        e.hline(CX - 7, 33, 15, metalShade)
-        e.vline(CX + 8, 21, 12, metalShade)
-        // Ear bolts.
-        e.fill(CX - 10, 24, 2, 5, metalShade); e.fill(CX + 9, 24, 2, 5, metalShade)
-        // Visor with LED eyes.
-        e.fill(CX - 6, 22, 13, 7, visor)
-        e.fill(CX - 4, 24, 3, 2, p.yellow); e.fill(CX + 2, 24, 3, 2, p.yellow)
-        e.set(CX - 4, 24, p.white); e.set(CX + 2, 24, p.white)
-        // Grin.
-        e.set(CX - 4, 30, p.ink); e.set(CX + 4, 30, p.ink)
-        e.hline(CX - 3, 31, 7, p.ink)
-        e.set(CX - 6, 30, blush); e.set(CX + 6, 30, blush)
-        // "SI" plaque.
-        e.fill(CX - 6, 36, 13, 9, p.ink)
-        e.rect(CX - 5, 37, 11, 7, p.gold)
-        e.text("SI", CX - 3, 38, p.yellow, PixelFont.Tiny)
-        e.outline(p.ink)
-        e.outline(p.cardCream)
-        c.blit(e, 0, 0)
+        c.rect(6, 6, W - 12, H - 12, p.goldDark)
+        // The four suits in the corners.
+        val pips = listOf(Suit.SPADES to (8 to 8), Suit.HEARTS to (W - 13 to 8), Suit.CLUBS to (W - 13 to H - 14), Suit.DIAMONDS to (8 to H - 14))
+        for ((suit, at) in pips) {
+            val pat = SuitArt.small(suit)
+            c.fill(at.first - 1, at.second - 1, pat.width + 2, pat.height + 2, field)
+            c.stamp(pat, at.first, at.second, if (suit.isRed) p.hotPink else p.gold)
+        }
+        RobotChip.draw(c, CX + 0.5, 31.5, p)
         return c
+    }
+}
+
+/**
+ * The PokerSI emblem: a red casino chip with the SI robot's head on its
+ * inlay (a heart on its antenna, one eye winking). The launcher icon is
+ * the same design (tools/icon/gen_icon.py); this is its card-back size.
+ */
+internal object RobotChip {
+    private const val R = 12.6
+
+    private val Head = PixelPattern.of(
+        ".....oo.oo.....",
+        "....oppopPo....",
+        "....oMpppPo....",
+        ".....oppPo.....",
+        "......oPo......",
+        "......omo......",
+        "..ooooomoooooo.",
+        ".oMMMMMMMMMMMno",
+        ".oMvvvvvvvvvmno",
+        "noMvyyvvvvyvvno",
+        "noMvyYvvvyvyvno",
+        ".oMmvvvvvvvvmno",
+        ".oMpmommmmompno",
+        ".oMmmmoooommmno",
+        ".onnnnnnnnnnnno",
+        "..ooooooooooooo",
+    )
+
+    fun draw(c: PixelCanvas, cx: Double, cy: Double, p: PixelPalette) {
+        val red = p.suitRed
+        val redDark = p.suitRedDark
+        val redLight = Color(0xFFFF6A6A)
+        val groove = R * 0.74
+        val ring = groove - 1.0
+        val inlay = ring - 1.2
+        val x0 = (cx - R - 2).toInt()
+        val y0 = (cy - R - 2).toInt()
+        val chip = PixelCanvas(c.width, c.height)
+        for (y in y0..(cy + R + 2).toInt()) for (x in x0..(cx + R + 2).toInt()) {
+            val dx = x + 0.5 - cx
+            val dy = y + 0.5 - cy
+            val d = hypot(dx, dy)
+            if (d > R) continue
+            val lit = -(dx + dy) / (1.4142 * (d + 0.001))
+            val ang = Math.floorMod((Math.toDegrees(atan2(dy, dx)) + 360 + 8 - 22.5).toInt(), 45)
+            val outer = d > R - 1.6
+            val col = when {
+                d > groove && ang < 16 -> if (lit > 0.5 && outer) p.cardHighlight else if (lit < -0.5 && outer) p.cardShade else p.cardCream
+                d > groove -> if (lit > 0.55 && outer) redLight else if (lit < -0.4 && outer) redDark else red
+                d > ring -> redDark
+                d > inlay -> if (lit > -0.2) p.gold else p.goldDark
+                (dx + dy) > 1.5 && d > inlay - 1.2 -> p.cardShade
+                else -> p.cardCream
+            }
+            chip.set(x, y, col)
+        }
+        val colors = mapOf(
+            'o' to p.ink, 'M' to Color(0xFFFFFFFF), 'm' to Color(0xFFD3DBF0), 'n' to Color(0xFF8D97BC),
+            'v' to Color(0xFF141834), 'y' to p.yellow, 'Y' to p.ledAmber, 'p' to p.hotPink, 'P' to p.hotPinkDark,
+        )
+        chip.stamp(Head, (cx - Head.width / 2.0).toInt(), (cy - Head.height / 2.0 - 1).toInt(), colors)
+        chip.outline(p.ink)
+        c.blit(chip, 0, 0)
     }
 }
 

@@ -125,8 +125,9 @@ tools/screenshots/shoot.py --no-render   # captions only, from build/screenshots
   --tests '*StoreScreenshotTest*' --rerun`. `StoreScreenshotTest` renders
   every `ScreenshotScenes.all` scene at phone 1080x1920 (420dpi), 7-inch
   1224x2176 and 10-inch 1620x2880 (320dpi), all exactly 9:16, plus the
-  feature graphic's marquee logo and card fan and the launcher icon, into
-  `build/screenshots/<class>/<scene>.png`. Without `-Pstore` (or
+  whole feature graphic (`FeatureGraphic.kt`, drawn with the pixel design
+  system at 320dpi so every piece of art sits on one 3px grid) and the
+  launcher icon, into `build/screenshots/<class>/<scene>.png`. Without `-Pstore` (or
   `POKERSI_STORE_SHOTS`) it is skipped, so plain `test` stays fast.
 - `caption.py` (ImageMagick 7 `magick` or 6 `convert`; pngquant and
   optipng when installed) picks scenes by name. `CAPTIONS` sets the store
