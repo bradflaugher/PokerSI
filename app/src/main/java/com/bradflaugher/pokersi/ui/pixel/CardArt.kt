@@ -33,6 +33,9 @@ object CardArt {
     fun face(card: Card, palette: PixelPalette = PixelPalette.Default): ImageBitmap =
         cache.getOrPut(FaceKey(card, palette)) { drawFace(card, palette).toImageBitmap() }
 
+    /** The face as an editable canvas (for art built from cards, like [CardFanArt]). */
+    internal fun faceCanvas(card: Card, palette: PixelPalette): PixelCanvas = drawFace(card, palette)
+
     /** Renders every face and the back into the cache; call off the main thread. */
     fun prewarm(palette: PixelPalette = PixelPalette.Default) {
         back(palette)

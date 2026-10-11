@@ -7,29 +7,25 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bradflaugher.pokersi.engine.Card
-import com.bradflaugher.pokersi.ui.pixel.AnimatedPixelCard
 import com.bradflaugher.pokersi.ui.pixel.LocalPixelUnit
 import com.bradflaugher.pokersi.ui.pixel.MarqueeFrame
 import com.bradflaugher.pokersi.ui.pixel.PixelButton
 import com.bradflaugher.pokersi.ui.pixel.PixelButtonVariant
+import com.bradflaugher.pokersi.ui.pixel.PixelCardFan
 import com.bradflaugher.pokersi.ui.pixel.PixelText
 import com.bradflaugher.pokersi.ui.pixel.PixelTheme
 import com.bradflaugher.pokersi.ui.pixel.PixelType
@@ -86,7 +82,7 @@ fun TitleScreen(
                             verticalArrangement = Arrangement.SpaceEvenly,
                         ) {
                             TitleMarquee(Modifier.readable(520.dp))
-                            CardFan(if (tall > 640.dp) 66.dp else 54.dp)
+                            CardFan(if (tall > 640.dp) 72.dp else 56.dp)
                             InsertCoin()
                             Column(Modifier.readable(460.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 TitleMenu(hasSavedRun, callbacks, dailyLabel)
@@ -114,20 +110,9 @@ private fun TitleMarquee(modifier: Modifier = Modifier) {
 
 @Composable
 private fun CardFan(size: androidx.compose.ui.unit.Dp = 54.dp) {
-    val cards = Card.parseList("Ts Js Qs Ks As")
-    Box(
-        Modifier.fillMaxWidth().height(size * 1.75f).padding(top = 6.dp).clearAndSetSemantics { contentDescription = "A royal flush in spades" },
-        contentAlignment = Alignment.Center,
-    ) {
-        cards.forEachIndexed { i, c ->
-            val k = i - 2
-            AnimatedPixelCard(
-                c, faceUp = true, size = size,
-                highlighted = true,
-                sway = LocalCardSway.current, swayPhase = i * 0.8f,
-                modifier = Modifier.offset(x = size * 0.74f * k, y = (k * k * 3).dp).rotate(k * 7f),
-            )
-        }
+    val cards = remember { Card.parseList("Ts Js Qs Ks As") }
+    Box(Modifier.fillMaxWidth().padding(top = 6.dp), contentAlignment = Alignment.Center) {
+        PixelCardFan(cards, cardWidth = size, contentDescription = "A royal flush in spades")
     }
 }
 
