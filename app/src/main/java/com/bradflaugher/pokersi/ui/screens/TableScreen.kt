@@ -437,7 +437,9 @@ private fun SeatCards(cards: List<CardUi>, cardSize: Dp, handNumber: Int, modifi
  * Speech bubbles hang under their speaker's seat, tail pointing at the speaker.
  * They are laid out together so two opponents talking at once never overlap:
  * placed top to bottom, a bubble that would land on an earlier one drops just
- * below it ([stackBubbles]).
+ * below it ([stackBubbles]). If that would run them onto your cards, they get
+ * narrower so they sit side by side ([fitBubbleWidth]), and as a last resort
+ * are kept above your cards ([clampBubbles]).
  */
 @Composable
 private fun BubbleLayer(state: TableUiState, spots: Map<Int, Rect>, compact: Boolean, wide: Boolean) {
@@ -469,23 +471,41 @@ private fun BubbleLayer(state: TableUiState, spots: Map<Int, Rect>, compact: Boo
         // Wide layouts keep bubbles over the opponents' column, clear of your cards.
         val right = if (wide) (spots[SPOT_BOARD]?.right?.toInt() ?: constraints.maxWidth) + margin else constraints.maxWidth
         val maxW = minOf(right - 2 * margin, (if (compact) 230 else 300).dp.roundToPx())
+        val minW = minOf(maxW, (if (compact) 120 else 150).dp.roundToPx())
         val nudge = 6.dp.roundToPx()
-        val placeables = measurables.map { it.measure(Constraints(maxWidth = maxW)) }
-        val wanted = speakers.mapIndexed { i, (_, rect, _) ->
-            val bubble = placeables[i]
+        val gap = 4.dp.roundToPx()
+        // Bubbles stay above your cards (in wide layouts they have the whole column).
+        val floor = (if (wide) constraints.maxHeight else spots[SPOT_HUMAN]?.top?.toInt() ?: constraints.maxHeight) - margin
+        fun rectsFor(sizes: List<IntSize>) = speakers.mapIndexed { i, (_, rect, _) ->
+            val size = sizes[i]
             val onRight = rect.center.x > seatsRight / 2f + 1f
-            val x = if (onRight) rect.right.toInt() - bubble.width - nudge else rect.left.toInt() + nudge
-            IntRect(
-                IntOffset(x.coerceIn(margin, (right - bubble.width - margin).coerceAtLeast(margin)), rect.bottom.toInt() - 12.dp.roundToPx()),
-                IntSize(bubble.width, bubble.height),
-            )
+            val x = if (onRight) rect.right.toInt() - size.width - nudge else rect.left.toInt() + nudge
+            IntRect(IntOffset(x.coerceIn(margin, (right - size.width - margin).coerceAtLeast(margin)), rect.bottom.toInt() - 12.dp.roundToPx()), size)
         }
-        val placed = stackBubbles(wanted, gap = 4.dp.roundToPx())
+        // Narrower bubbles sit side by side instead of stacking: take the widest that fits.
+        val width = fitBubbleWidth(listOf(1f, 0.8f, 0.65f, 0.5f).map { (maxW * it).toInt().coerceAtLeast(minW) }.distinct(), floor) { w ->
+            stackBubbles(rectsFor(measurables.map { m -> m.maxIntrinsicWidth(Constraints.Infinity).coerceAtMost(w).let { bw -> IntSize(bw, m.maxIntrinsicHeight(bw)) } }), gap)
+        }
+        val placeables = measurables.map { it.measure(Constraints(maxWidth = width)) }
+        val placed = clampBubbles(stackBubbles(rectsFor(placeables.map { IntSize(it.width, it.height) }), gap), floor)
         layout(constraints.maxWidth, constraints.maxHeight) {
             placeables.forEachIndexed { i, bubble -> bubble.place(placed[i].topLeft) }
         }
     }
 }
+
+/**
+ * The widest of [candidates] (widest first) whose stacked bubbles ([stack])
+ * all end above [floor], or failing that the one whose stack ends highest.
+ */
+internal fun fitBubbleWidth(candidates: List<Int>, floor: Int, stack: (Int) -> List<IntRect>): Int {
+    val tried = candidates.map { it to (stack(it).maxOfOrNull { r -> r.bottom } ?: 0) }
+    return (tried.firstOrNull { it.second <= floor } ?: tried.minBy { it.second }).first
+}
+
+/** Last resort when even the narrowest bubbles don't fit: lift any that run past [floor] back above it. */
+internal fun clampBubbles(rects: List<IntRect>, floor: Int): List<IntRect> =
+    rects.map { r -> if (r.bottom > floor) r.translate(0, (floor - r.bottom).coerceAtLeast(-r.top)) else r }
 
 /**
  * Where each bubble goes so none overlap: each keeps its x and its wanted y

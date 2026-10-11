@@ -77,13 +77,16 @@ fun HowToPlayScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                     title = "HAND RANKINGS",
                     highlight = picked,
                     onRowClick = { picked = it },
+                    detail = {
+                        // The picked hand, right under its row: the cards that make it lit, kickers dimmed.
+                        val example = HandExamples[picked]
+                        Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally)) {
+                            Card.parseList(example.cards).forEachIndexed { i, card ->
+                                PixelCard(card, size = 44.dp, highlighted = i < example.making, dimmed = i >= example.making)
+                            }
+                        }
+                    },
                 )
-                val example = HandExamples[picked]
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Card.parseList(example.cards).forEachIndexed { i, card ->
-                        PixelCard(card, size = 44.dp, highlighted = i < example.making, dimmed = i >= example.making)
-                    }
-                }
                 PixelText(
                     "TAP A HAND TO SEE IT",
                     style = PixelType.Label.copy(fontSize = 10.sp),

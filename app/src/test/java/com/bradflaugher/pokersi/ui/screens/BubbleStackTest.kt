@@ -50,4 +50,24 @@ class BubbleStackTest {
         assertNoOverlap(placed)
         placed.zip(wanted).forEach { (p, w) -> assertEquals(w.left, p.left); assert(p.top >= w.top) }
     }
+
+    @Test
+    fun narrowerBubblesAreUsedWhenStackingWouldRunOntoYourCards() {
+        // Two seats, 160 apart. At 300 wide the bubbles overlap and stack to 100+2*80+4;
+        // at 150 wide they sit side by side (taller, but within the floor).
+        fun stack(w: Int) = stackBubbles(listOf(box(0, 100, w, if (w >= 300) 80 else 110), box(160, 100, w, if (w >= 300) 80 else 110)), gap = 4)
+        assertEquals(300, fitBubbleWidth(listOf(300, 150), floor = 400, ::stack))
+        assertEquals(150, fitBubbleWidth(listOf(300, 150), floor = 250, ::stack))
+        // Nothing fits: take the one that ends highest.
+        assertEquals(150, fitBubbleWidth(listOf(300, 150), floor = 100, ::stack))
+    }
+
+    @Test
+    fun clampingKeepsEveryBubbleAboveTheFloorAndOnScreen() {
+        val clamped = clampBubbles(listOf(box(0, 100, 200, 80), box(0, 300, 200, 150)), floor = 400)
+        assertEquals(box(0, 100, 200, 80), clamped[0])
+        assertEquals(400, clamped[1].bottom)
+        val tall = clampBubbles(listOf(box(0, 50, 200, 600)), floor = 400)
+        assertEquals(0, tall[0].top) // never pushed off the top
+    }
 }
