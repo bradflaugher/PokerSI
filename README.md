@@ -54,7 +54,8 @@ download a model.
   someone, the pot, the board, something in character) plus what was just
   said at the table, so they banter with each other. The table remembers
   every line: a character that starts repeating itself (or anyone else) is
-  cut off before the line shows. Characters talk on some turns, not every
+  cut off before the line shows, and so is one that blurts out its hand
+  ("pair of kings!") mid-bet. Characters talk on some turns, not every
   one, which also keeps the game quick: a quiet turn is a shorter prompt and
   a shorter reply.
 - **No waiting on hands you're out of.** With FAST FOLD (on by default),

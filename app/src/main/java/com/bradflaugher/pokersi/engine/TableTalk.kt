@@ -54,15 +54,16 @@ class TableTalk(private val capacity: Int = 40) {
      * Whether a line still being written that starts with [prefix] may turn out
      * to be a repeat by [isRepeat]'s rules, so a streaming speech bubble should
      * hold it back: it is the start of a remembered line (or [also]), a
-     * remembered line is the start of it, or it is on its way to sharing
+     * remembered line is the start of it, or it can still end up sharing
      * [SIMILAR] of its words with one of [speaker]'s recent lines, the table's
-     * latest ones or [also] ("Well, I reckon..." after "I reckon..."). Until it
-     * has [JUDGE_WORDS] whole words it is held while it could still get there;
-     * after that, while [SIMILAR] of its words are that line's. The last word
-     * of [prefix] may be cut off mid-word, so it only counts once it can't be
-     * the start of a word of the line it is compared with.
+     * latest ones or [also] ("Well, I reckon..." after "I reckon..."). That
+     * last test is the best case for the finished line: it adds as many of
+     * that line's missing words as fit in the [maxLength] characters it may
+     * have, so a line shown while streaming is never swapped for a repeat at
+     * the end. The last word of [prefix] may be cut off mid-word, so it counts
+     * as one of that line's words if it could be the start of one.
      */
-    fun mightRepeat(prefix: String, also: Collection<String> = emptyList(), speaker: String? = null): Boolean {
+    fun mightRepeat(prefix: String, also: Collection<String> = emptyList(), speaker: String? = null, maxLength: Int = Int.MAX_VALUE): Boolean {
         val start = normalize(prefix)
         if (start.isEmpty()) return false
         val (all, close) = synchronized(lines) {
@@ -76,14 +77,26 @@ class TableTalk(private val capacity: Int = 40) {
         val words = start.split(' ')
         val whole = words.dropLast(1).toSet()
         val last = words.last()
+        val room = maxLength - prefix.trim().length
         return (close + also).any { line ->
             val other = normalize(line).split(' ').filter { it.isNotEmpty() }.toSet()
             if (other.isEmpty()) return@any false
-            // The best the finished line can do is add only [other]'s words, so the
-            // overlap can still reach |other| / |other + words outside it|.
-            val outside = (whole - other) + (if (last in whole || other.any { it.startsWith(last) }) emptySet() else setOf(last))
-            val reachable = other.size.toDouble() / (other.size + outside.size) >= SIMILAR
-            reachable && (whole.size < JUDGE_WORDS || (whole intersect other).size.toDouble() / whole.size >= SIMILAR)
+            val missing = (other - whole).toMutableList()
+            // The cut-off last word may still become one of [other]'s words.
+            val lastBecomes = if (last in whole) null else missing.filter { it.startsWith(last) }.minByOrNull { it.length }
+            val outside = (whole - other).size + if (last in whole || lastBecomes != null) 0 else 1
+            if (lastBecomes != null) missing -= lastBecomes
+            // Add [other]'s missing words, shortest first, while they fit.
+            var left = room - (lastBecomes?.let { it.length - last.length } ?: 0)
+            var added = 0
+            for (word in missing.sortedBy { it.length }) {
+                left -= word.length + 1
+                if (left < 0) break
+                added++
+            }
+            val shared = (whole intersect other).size + (if (lastBecomes != null) 1 else 0) + added
+            // Every word of [other] or the line is in the union, added or not.
+            shared.toDouble() / (other.size + outside) >= SIMILAR
         }
     }
 
@@ -96,9 +109,6 @@ class TableTalk(private val capacity: Int = 40) {
     companion object {
         private const val OWN_LINES = 8
         private const val TABLE_LINES = 12
-
-        /** Whole words a streaming line needs before [mightRepeat] judges it by its own words. */
-        const val JUDGE_WORDS = 4
 
         /** Word overlap (0..1) at or above which two lines count as the same line. */
         const val SIMILAR = 0.6

@@ -22,8 +22,9 @@ import kotlin.random.Random
  *
  * [talk] is the table's shared memory of what was said: the prompt shows the
  * latest lines and a hint of what to talk about (see [TalkPlan]), and a line
- * that repeats something already said is held back while it streams and then
- * swapped for a fresh House Bot line, or silence.
+ * that repeats something already said, or names the seat's hand
+ * ([HandTalk]), is held back while it streams and then swapped for a fresh
+ * House Bot line, or silence.
  */
 class LlmAgent(
     private val engine: LlmBackend,
@@ -58,6 +59,8 @@ class LlmAgent(
         val replyId = AiLog.add(AiLogKind.REPLY, who, { "streaming…" })
 
         var shown: String? = null
+        // The latest say cleared to stream (cut-off word and all): kept if the House Bot has to decide.
+        var vetted: String? = null
         var firstTokenAt = 0L
         var tokens = 0
         val raw = try {
@@ -74,30 +77,35 @@ class LlmAgent(
                 AiLog.update(replyId, body = soFar)
                 val full = LlmReply.sayPrefix(soFar, Int.MAX_VALUE)
                 val say = full?.let { LlmReply.sayPrefix(soFar) }
-                // Held back while it could still turn out to be a line already said.
-                if (!say.isNullOrEmpty() && say != shown && !talk.mightRepeat(say, avoid, who)) {
-                    shown = say
-                    onChatter(say)
+                // Whole words only: a cut-off word can't be judged yet ("ace" of "aces").
+                val words = say?.substringBeforeLast(' ', "")?.trimEnd(' ', ',', ';', ':', '-')
+                // Held back while it could still turn out to be a line already said, or gives the hand away.
+                if (!say.isNullOrEmpty() && say != vetted && !talk.mightRepeat(say, avoid, who, PokerGrammar.SAY_MAX) && !HandTalk.revealsHand(say)) {
+                    vetted = say
+                    if (!words.isNullOrEmpty() && words != shown) {
+                        shown = words
+                        onChatter(words)
+                    }
                 }
                 // The decision comes first; stop once the say has run long (it gets trimmed anyway).
                 full == null || full.length <= PokerGrammar.SAY_MAX + 10
             }
         } catch (e: TimeoutCancellationException) {
             AiLog.update(replyId, title = "timed out")
-            return fallBack(context, onChatter, shown, "timed out after ${timeoutMs / 1000} s", start, avoid, quiet = !plan.speak)
+            return fallBack(context, onChatter, vetted, "timed out after ${timeoutMs / 1000} s", start, avoid, quiet = !plan.speak)
         } catch (e: CancellationException) {
             AiLog.update(replyId, title = "cancelled")
             throw e
         } catch (e: Exception) {
             AiLog.update(replyId, title = "failed")
-            return fallBack(context, onChatter, shown, "error: ${e.message}", start, avoid, quiet = !plan.speak)
+            return fallBack(context, onChatter, vetted, "error: ${e.message}", start, avoid, quiet = !plan.speak)
         }
         val end = now()
         AiLog.update(replyId, title = "${raw.length} chars", body = raw)
 
         val reply = LlmReply.parse(raw, context.legal, context.holeCards.size)
-        val decision = reply.decision ?: return fallBack(context, onChatter, reply.say ?: shown, "unusable reply: $raw", start, avoid, quiet = !plan.speak)
-        val say = fresh(reply.say ?: shown, decision, context, avoid)
+        val decision = reply.decision ?: return fallBack(context, onChatter, reply.say ?: vetted, "unusable reply: $raw", start, avoid, quiet = !plan.speak)
+        val say = fresh(reply.say ?: vetted, decision, context, avoid)
         say?.let(onChatter)
         AiLog.add(AiLogKind.DECISION, who, {
             val coerced = if (reply.parsed != null && reply.parsed != decision) " (model said ${describe(reply.parsed)})" else ""
@@ -107,14 +115,19 @@ class LlmAgent(
     }
 
     /**
-     * [say], unless it repeats something said at the table: then a House Bot
-     * line for [decision] nobody said lately, or nothing at all.
+     * [say], unless it repeats something said at the table or gives the hand
+     * away ([HandTalk]): then a House Bot line for [decision] nobody said
+     * lately, or nothing at all.
      */
     private fun fresh(say: String?, decision: Decision, context: DecisionContext, avoid: List<String>): String? {
         if (say == null) return null
-        if (!talk.isRepeat(say, who, avoid)) return say
+        val why = when {
+            talk.isRepeat(say, who, avoid) -> "a repeat"
+            HandTalk.revealsHand(say) -> "a hand giveaway"
+            else -> return say
+        }
         val instead = BotLines.pickFresh(BotLines.momentFor(decision, context.legal.canCheck), random, talk)
-        AiLog.add(AiLogKind.ERROR, who, { "dropped a repeat: \"$say\"" }) { instead?.let { "said instead: \"$it\"" } ?: "said nothing instead" }
+        AiLog.add(AiLogKind.ERROR, who, { "dropped $why: \"$say\"" }) { instead?.let { "said instead: \"$it\"" } ?: "said nothing instead" }
         return instead
     }
 

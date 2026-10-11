@@ -198,6 +198,19 @@ class TableTalkPromptTest {
     }
 
     @Test
+    fun aLineThatGivesTheHandAwayNeverReachesTheBubble() = runBlocking {
+        val backend = ScriptedBackend("""{"action": "check", "amount": 0, "say": "Yeehaw, I got me a pair of kings!"}""")
+        val agent = LlmAgent(backend, cowboy, houseBot, TableTalk(), random = Random(2), alwaysTalks = true)
+        val bubble = mutableListOf<String>()
+        val reply = agent.decide(context) { bubble += it }
+        assertEquals(Decision.Check, reply.decision)
+        assertTrue("streamed: $bubble", bubble.none { "kings" in it.lowercase() })
+        assertTrue(reply.say == null || reply.say in BotLines.lines.getValue(com.bradflaugher.pokersi.engine.TalkMoment.CHECK))
+        assertEquals(reply.say, bubble.lastOrNull())
+        assertTrue(backend.prompts.single()[1].content.contains("Never mention your cards or say what hand you have."))
+    }
+
+    @Test
     fun aFreshLineStreamsAndIsKept() = runBlocking {
         val talk = talkWith("Miss Quill" to "Shhh! I'm raising.")
         val backend = ScriptedBackend("""{"action": "check", "amount": 0, "say": "Howdy, Miss Quill, my horse says hush."}""")
