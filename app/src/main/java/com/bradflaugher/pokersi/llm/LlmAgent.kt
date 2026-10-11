@@ -99,7 +99,8 @@ class LlmAgent(
         val end = now()
         AiLog.update(replyId, title = "${raw.length} chars", body = raw)
 
-        val reply = LlmReply.parse(raw, context.legal, context.holeCards.size)
+        // A say cut off by the token limit keeps only its whole words, as the bubble showed it.
+        val reply = LlmReply.parse(raw, context.legal, context.holeCards.size).let { if (sayClosed.containsMatchIn(raw)) it else it.copy(say = shown) }
         val decision = reply.decision ?: return fallBack(context, onChatter, reply.say ?: shown, "unusable reply: $raw", start, avoid, quiet = !plan.speak)
         val say = fresh(reply.say ?: shown, decision, context, avoid)
         say?.let(onChatter)

@@ -211,6 +211,15 @@ class TableTalkPromptTest {
     }
 
     @Test
+    fun aSayCutOffByTheTokenLimitKeepsItsWholeWords() = runBlocking {
+        val backend = ScriptedBackend("""{"action": "check", "amount": 0, "say": "Howdy, Miss Quill, my fri""")
+        val bubble = mutableListOf<String>()
+        val reply = LlmAgent(backend, cowboy, houseBot, TableTalk(), alwaysTalks = true).decide(context) { bubble += it }
+        assertEquals("Howdy, Miss Quill, my", reply.say)
+        assertTrue("streamed: $bubble", bubble.none { it.endsWith("fri") })
+    }
+
+    @Test
     fun aFreshLineStreamsAndIsKept() = runBlocking {
         val talk = talkWith("Miss Quill" to "Shhh! I'm raising.")
         val backend = ScriptedBackend("""{"action": "check", "amount": 0, "say": "Howdy, Miss Quill, my horse says hush."}""")
