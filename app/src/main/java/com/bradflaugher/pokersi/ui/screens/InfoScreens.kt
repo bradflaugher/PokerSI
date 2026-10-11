@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -37,7 +38,27 @@ import com.bradflaugher.pokersi.ui.pixel.SpeechBubble
 
 // ---------------------------------------------------------------- how to play
 
-/** Hand rankings, each game's rules, Run mode, and what the AI is. */
+/**
+ * One hand ranking for How to Play: its name, the rule in a few words, an
+ * example hand, and how many of the example's cards (the first [making])
+ * make the hand; the rest are kickers and show dimmed.
+ */
+internal class HandExample(val name: String, val rule: String, val cards: String, val making: Int)
+
+internal val HandExamples = listOf(
+    HandExample("ROYAL FLUSH", "A K Q J 10", "As Ks Qs Js Ts", 5),
+    HandExample("STRAIGHT FLUSH", "5 IN A ROW, 1 SUIT", "9h 8h 7h 6h 5h", 5),
+    HandExample("FOUR OF A KIND", "4 SAME RANK", "Qc Qd Qh Qs 7d", 4),
+    HandExample("FULL HOUSE", "3 + 2", "Jh Jc Jd 4s 4h", 5),
+    HandExample("FLUSH", "5 OF 1 SUIT", "Ad Jd 8d 6d 2d", 5),
+    HandExample("STRAIGHT", "5 IN A ROW", "Ts 9d 8c 7h 6s", 5),
+    HandExample("THREE OF A KIND", "3 SAME RANK", "7c 7d 7s Kh 2c", 3),
+    HandExample("TWO PAIR", "2 + 2", "Ac Ad 9s 9h 4d", 4),
+    HandExample("PAIR", "2 SAME RANK", "Kc Kd 8s 5h 2c", 2),
+    HandExample("HIGH CARD", "NOTHING. OOF.", "Ah Jd 8c 5s 3h", 1),
+)
+
+/** Hand rankings (tap one to see an example), each game's rules, Run mode, and what the AI is. */
 @Composable
 fun HowToPlayScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
     val p = PixelTheme.palette
@@ -49,26 +70,30 @@ fun HowToPlayScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
+                var picked by remember { mutableIntStateOf(0) }
                 PayTable(
-                    listOf(
-                        PayRow("ROYAL FLUSH", "A K Q J 10"),
-                        PayRow("STRAIGHT FLUSH", "5 IN A ROW, 1 SUIT"),
-                        PayRow("FOUR OF A KIND", "4 SAME RANK"),
-                        PayRow("FULL HOUSE", "3 + 2"),
-                        PayRow("FLUSH", "5 OF 1 SUIT"),
-                        PayRow("STRAIGHT", "5 IN A ROW"),
-                        PayRow("THREE OF A KIND", "3 SAME RANK"),
-                        PayRow("TWO PAIR", "2 + 2"),
-                        PayRow("PAIR", "2 SAME RANK"),
-                        PayRow("HIGH CARD", "NOTHING. OOF."),
-                    ),
+                    HandExamples.map { PayRow(it.name, it.rule) },
                     Modifier.readable(),
                     title = "HAND RANKINGS",
-                    highlight = 0,
+                    highlight = picked,
+                    onRowClick = { picked = it },
+                    detail = {
+                        // The picked hand, right under its row: the cards that make it lit, kickers dimmed.
+                        val example = HandExamples[picked]
+                        Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally)) {
+                            Card.parseList(example.cards).forEachIndexed { i, card ->
+                                PixelCard(card, size = 44.dp, highlighted = i < example.making, dimmed = i >= example.making)
+                            }
+                        }
+                    },
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Card.parseList("As Ks Qs Js Ts").forEach { PixelCard(it, size = 44.dp, highlighted = true) }
-                }
+                PixelText(
+                    "TAP A HAND TO SEE IT",
+                    style = PixelType.Label.copy(fontSize = 10.sp),
+                    color = p.gray,
+                    textAlign = TextAlign.Center,
+                    shadowUnits = 0,
+                )
                 InfoPanel("THE BASICS") {
                     BodyText("Everyone gets cards and bets in turns. On your turn: FOLD (give up), CHECK (pass, when nobody has bet), CALL (match the bet), or RAISE (bet more). Bet so big nobody calls and the pot is yours. Otherwise the best five-card hand at the showdown wins.", small = true)
                 }

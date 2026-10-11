@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Generates the PokerSI adaptive launcher icon as vector drawables.
 
-A big red casino chip with the PokerSI robot's face on its inlay (a heart
-on the antenna, one eye winking: it has a hand) on lamp-lit green felt.
-A round chip fills the round safe zone better than any other poker
-shape, and its white edge spots read on every wallpaper.
+A big red casino chip with the whole PokerSI robot on its cream inlay (a
+heart on its antenna, two LED eyes, a smile) on lamp-lit green felt. A
+round chip fills the round safe zone better than any other poker shape,
+and its white edge spots read on every wallpaper. Everything is centred
+on the icon's true centre and mirror-symmetric, one edge spot at twelve
+o'clock; only the light (from the top left) breaks the symmetry.
 
 Writes three layers, all on the 108x108dp adaptive-icon canvas:
 
@@ -34,7 +36,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 RES = os.path.join(ROOT, "app", "src", "main", "res")
 GRID = 72  # 72 x 1.5dp = 108dp
 PX = 1.5
-C = 35.5   # centre of the grid, in pixel coordinates (pixel centres are i + 0.5)
+CENTER = 36.0  # the icon centre: a pixel corner (pixel centres are i + 0.5)
 
 # A limited palette: ink, two felt-shadow tones, chip reds, cream inlay, robot metal.
 COLORS = {
@@ -110,93 +112,106 @@ def chip_art():
     """The foreground (chip, robot inlay, hard shadow) and its themed-icon cut-out."""
     g = Grid()
     mono = Grid()  # '#' = ink of the themed icon
-    cx, cy = C, C + 2  # sit low: the antenna's heart needs the room above
-    R = 19.1           # outer radius of the chip body (outline outside it)
-    GROOVE, RING, INLAY = 14.3, 13.3, 12.1
-    spots = 8
+    # The launcher shows pixels 12..59, so the icon's true centre is the pixel
+    # corner at (36, 36): everything below is symmetric about it, with even widths.
+    cx = cy = CENTER
+    R = 20.4                                   # chip body (the ink outline sits just outside)
+    GROOVE, RING, INLAY = 15.4, 14.4, 13.2      # spots ring, groove, gold ring, cream inlay
+    spots, spot_w = 8, 21                      # degrees each; one spot at twelve o'clock
     for y in range(GRID):
         for x in range(GRID):
             px, py = x + 0.5 - cx, y + 0.5 - cy
             d = math.hypot(px, py)
             if d > R:
                 continue
-            ang = (math.degrees(math.atan2(py, px)) + 360 + 8 - 22.5) % 360
-            # Lighting: a dot product with a top-left light, strongest at the rim.
-            lit = (-px - py) / (math.sqrt(2) * max(d, 0.001))
+            ang = math.degrees(math.atan2(px, -py)) % 360  # 0 at the top, clockwise
+            off = (ang + spot_w / 2) % (360 / spots)
+            lit = (-px - py) / (math.sqrt(2) * max(d, 0.001))  # light from the top left
             outer = d > R - 2.2
-            in_spot = d > GROOVE and (ang % (360 / spots)) < 16
+            in_spot = d > GROOVE and off < spot_w
             if d > GROOVE:
                 if in_spot:
                     c = "w" if lit > 0.5 and outer else ("s" if lit < -0.5 and outer else "W")
                 else:
                     c = "h" if lit > 0.55 and outer else ("r" if lit < -0.4 and outer else "R")
-                mono.put(x, y, "." if in_spot else "#")
+                # Themed icon: an unbroken outer ring keeps the chip round.
+                mono.put(x, y, "." if in_spot and d < R - 1.3 else "#")
             elif d > RING:
-                c = "r"  # groove between the rim and the inlay ring
+                c = "r"
                 mono.put(x, y, ".")
             elif d > INLAY:
                 c = "g" if lit > -0.2 else "G"
                 mono.put(x, y, "#")
             else:
-                c = "s" if (px + py) > 2 and d > INLAY - 1.6 else "W"
+                c = "s" if (px + py) > 3 and d > INLAY - 1.5 else "W"
                 mono.put(x, y, ".")
             g.put(x, y, c)
 
-    # The robot: a big head filling the inlay.
-    hw, hh = 17, 13
-    hx = int(cx - hw / 2 + 0.5)
-    hy = int(cy - hh / 2 + 1.5)
-    # Ear bolts.
-    g.rect(hx - 1, hy + 4, 1, 4, "n"); mono.rect(hx - 1, hy + 4, 1, 4, "#")
-    g.rect(hx + hw, hy + 4, 1, 4, "n"); mono.rect(hx + hw, hy + 4, 1, 4, "#")
-    g.rect(hx, hy, hw, hh, "m")
-    mono.rect(hx, hy, hw, hh, "#")
-    for (x, y) in ((hx, hy), (hx + hw - 1, hy), (hx, hy + hh - 1), (hx + hw - 1, hy + hh - 1)):
-        g.put(x, y, "W"); mono.put(x, y, ".")
-    g.rect(hx + 1, hy + hh - 1, hw - 2, 1, "n")
-    g.rect(hx + hw - 1, hy + 1, 1, hh - 2, "n")
-    g.rect(hx + 1, hy, hw - 2, 1, "M")
-    g.rect(hx, hy + 1, 1, hh - 2, "M")
-    # Visor.
-    g.rect(hx + 2, hy + 2, hw - 4, 6, "v"); mono.rect(hx + 2, hy + 2, hw - 4, 6, ".")
-    for (x, y) in ((hx + 2, hy + 2), (hx + hw - 3, hy + 2), (hx + 2, hy + 7), (hx + hw - 3, hy + 7)):
-        g.put(x, y, "m"); mono.put(x, y, "#")
-    # Left eye open (a 3x4 LED with a lit corner), right eye winking (a ^ arc).
-    g.rect(hx + 4, hy + 3, 3, 4, "y"); mono.rect(hx + 4, hy + 3, 3, 4, "#")
-    g.rect(hx + 4, hy + 6, 3, 1, "Y")
-    g.put(hx + 4, hy + 3, "M")
-    for (x, y) in ((hx + 9, hy + 6), (hx + 10, hy + 5), (hx + 11, hy + 4), (hx + 12, hy + 5), (hx + 13, hy + 6)):
-        g.put(x, y, "y"); mono.put(x, y, "#")
-    # Cheeks and a lopsided grin.
-    g.put(hx + 2, hy + 9, "p"); g.put(hx + hw - 3, hy + 9, "p")
-    for (x, y, w) in ((hx + 4, hy + 9, 1), (hx + 5, hy + 10, 7), (hx + 12, hy + 9, 1), (hx + 13, hy + 8, 1)):
-        g.rect(x, y, w, 1, "o"); mono.rect(x, y, w, 1, ".")
-    # Antenna: a stalk up out of the head, over the rim, to an outlined heart.
-    mid = hx + hw // 2
-    top = hy - 9
-    heart = [
-        ".pp.pp.",
-        "pMpppPP",
-        "pppppPP",
-        ".pppPP.",
-        "..pPP..",
-        "...P...",
+    # The robot, whole inside the inlay: a heart on a short antenna, a rounded
+    # head with ear bolts, a visor with two LED eyes, cheeks and a smile. Drawn
+    # as the left half and mirrored, so it is exactly symmetric; the light
+    # (glint top left, shade bottom right) is added afterwards.
+    #   p heart  a antenna  H head  e ear bolt  V visor  E eye  k cheek  S smile
+    half = [
+        ".......pp.",
+        "......pppp",
+        "......pppp",
+        ".......ppp",
+        "........pp",
+        ".........p",
+        ".........a",
+        ".........a",
+        "..HHHHHHHH",
+        ".HHHHHHHHH",
+        ".HHVVVVVVV",
+        ".HHVVEEEVV",
+        "eHHVVEEEVV",
+        "eHHVVEEEVV",
+        "eHHVVVVVVV",
+        ".HHHHHHHHH",
+        ".HHkHHHSHH",
+        ".HHHHHHHSS",
+        ".HHHHHHHHH",
+        "..HHHHHHHH",
     ]
-    hgx, hgy = mid - 3, top - 3
-    heart_cells = {(hgx + i, hgy + j) for j, row in enumerate(heart) for i, ch in enumerate(row) if ch != "."}
-    stalk = {(x, y) for y in range(hgy + len(heart), hy) for x in (mid - 1, mid)}
-    head = {(x, y) for y in range(hy, hy + hh) for x in range(hx, hx + hw)}
-    ears = {(x, y) for y in range(hy + 4, hy + 8) for x in (hx - 1, hx + hw)}
-    ink_around(g, mono, heart_cells | stalk | head | ears)
-    for (x, y) in stalk:
-        g.put(x, y, "n" if x == mid else "m"); mono.put(x, y, "#")
-    g.stamp(heart, hgx, hgy)
-    mono.stamp(["".join("#" if ch != "." else "." for ch in r) for r in heart], hgx, hgy)
+    shape = [row + row[::-1] for row in half]
+    sw, sh = len(shape[0]), len(shape)
+    ox, oy = int(cx - sw / 2), int(cy - sh / 2)
+    cells = {(ox + i, oy + j): ch for j, row in enumerate(shape) for i, ch in enumerate(row) if ch != "."}
+    body = {k for k, ch in cells.items() if ch in "paHeVEkS"}
 
-    # A glint on the lit rim: a four-point sparkle.
-    sx, sy = int(cx - 12), int(cy - 13)
-    for (dx, dy, c) in ((0, 0, "M"), (1, 0, "w"), (-1, 0, "w"), (0, 1, "w"), (0, -1, "w"), (2, 0, "W"), (-2, 0, "W"), (0, 2, "W"), (0, -2, "W")):
-        g.put(sx + dx, sy + dy, c)
+    def at(i, j):
+        return shape[j][i] if 0 <= j < sh and 0 <= i < sw else "."
+
+    ink_around(g, mono, body)
+    for (x, y), ch in cells.items():
+        i, j = x - ox, y - oy
+        if ch == "H":
+            left, right = at(i - 1, j) not in "HVEkS", at(i + 1, j) not in "HVEkS"
+            top, bottom = at(i, j - 1) not in "HVEkS", at(i, j + 1) not in "HVEkS"
+            c = "n" if (right or bottom) else ("M" if (left or top) else "m")
+            m = "#"
+        elif ch == "V":
+            c, m = "v", "."
+        elif ch == "E":
+            c = "Y" if at(i, j + 1) != "E" else ("M" if at(i - 1, j) != "E" and at(i, j - 1) != "E" else "y")
+            m = "#"
+        elif ch == "k":
+            c, m = "p", "#"
+        elif ch == "S":
+            c, m = "o", "."
+        elif ch == "e":
+            c, m = "n", "#"
+        elif ch == "a":
+            c, m = ("m" if i < sw / 2 else "n"), "#"
+        else:  # heart
+            right = at(i + 1, j) != "p" or at(i, j + 1) != "p"
+            c = "P" if right and i >= sw / 2 - 1 else "p"
+            m = "#"
+        g.put(x, y, c); mono.put(x, y, m)
+    # A glint on the heart's left lobe.
+    g.put(ox + 7, oy + 1, "M")
+
     g.outline("o")
     # Hard drop shadow down-right (felt shows through, so it is translucent).
     for y in range(GRID - 1, -1, -1):
