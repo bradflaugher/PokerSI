@@ -94,7 +94,7 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
   line nobody said lately, or silence.
 - **Bubbles come and go.** At most the two latest speakers' lines show,
   laid out together so they never overlap (`stackBubbles`), and a finished
-  line goes away by itself after a short hold (`Pacing.chatterHold`: a
+  line goes away by itself after a short hold (`Pacing.chatterHoldAt`: a
   base plus a little per character, capped; scaled by game speed, frozen
   while paused).
 - **No model? Still playable.** With no model loaded, opponents are played

@@ -62,9 +62,24 @@ data class Pacing(
     fun chatterHold(text: String): Long =
         if (chatterHoldMs <= 0) 0 else minOf(chatterMaxMs, chatterHoldMs + chatterPerCharMs * text.length)
 
+    /**
+     * The real time [text] stays up at [speedFactor]: the hold, scaled, but
+     * never less than the bubble takes to type it out plus a moment to read
+     * its end (the typewriter runs at a fixed pace, whatever the game speed).
+     */
+    fun chatterHoldAt(text: String, speedFactor: Double): Long {
+        val hold = chatterHold(text)
+        if (hold <= 0) return 0
+        return maxOf((hold * speedFactor).toLong(), TYPE_MS_PER_CHAR * text.length + READ_END_MS)
+    }
+
     companion object {
         /** No pauses at all, and table talk stays until the street ends: tests. */
         val Instant = Pacing(0, 0, 0, 0, 0, chatterHoldMs = 0)
+
+        /** The speech bubble's typewriter pace (SpeechBubble's 40 characters a second). */
+        const val TYPE_MS_PER_CHAR = 25L
+        private const val READ_END_MS = 800L
     }
 }
 
@@ -734,19 +749,19 @@ class GameController(
     }
 
     /**
-     * Takes [seat]'s [text] down after its hold ([Pacing.chatterHold], scaled by
-     * the game speed). The countdown stops while the table is paused, and a
+     * Takes [seat]'s [text] down after its hold ([Pacing.chatterHoldAt]: scaled
+     * by the game speed, but never before it has finished typing). The countdown stops while the table is paused, and a
      * newer line from the same seat replaces this one (and its countdown).
      */
     private fun expireChatter(seat: Int, text: String) {
-        val hold = pacing.chatterHold(text)
+        val hold = pacing.chatterHoldAt(text, speed.value.factor)
         if (hold <= 0) return
         chatterExpiry[seat] = scope.launch(chatterJobs) {
             var left = hold
             while (left > 0) {
                 awaitUnpaused()
                 val step = minOf(left, 100L)
-                delay((step * speed.value.factor).toLong().coerceAtLeast(1))
+                delay(step)
                 // Only time spent unpaused counts: a pause that began mid-step keeps the step.
                 if (autopilot != null || pauses.value.isEmpty()) left -= step
             }
