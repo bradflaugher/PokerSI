@@ -7,6 +7,7 @@ import com.bradflaugher.pokersi.engine.DecisionContext
 import com.bradflaugher.pokersi.engine.GameVariant
 import com.bradflaugher.pokersi.engine.HouseBot
 import com.bradflaugher.pokersi.engine.PlayerAgent
+import com.bradflaugher.pokersi.engine.TableTalk
 import com.bradflaugher.pokersi.engine.isDraw
 import com.bradflaugher.pokersi.run.RunPhase
 import com.bradflaugher.pokersi.run.RunState
@@ -56,7 +57,7 @@ class GameControllerTest {
     /** Every opponent seat played by [agent]. */
     private fun brainsOf(agent: (seat: Int, fallback: PlayerAgent) -> PlayerAgent) = object : OpponentBrains {
         override val label = MutableStateFlow("TEST")
-        override fun agentFor(seat: Int, opponent: OpponentProfile, fallback: PlayerAgent) = agent(seat, fallback)
+        override fun agentFor(seat: Int, opponent: OpponentProfile, fallback: PlayerAgent, talk: TableTalk) = agent(seat, fallback)
     }
 
     /** Plays the human seat by checking or calling (holding the suggested cards, tossing the first) until [done]. */
@@ -295,6 +296,49 @@ class GameControllerTest {
         c.startQuick(config(opponents = 3, seed = 6L))
         drive(c) { c.table.value.handNumber >= 3 }
         assertTrue(c.table.value.handNumber >= 3)
+        c.stop()
+    }
+
+    @Test
+    fun tableTalkIsSharedBySeatsRecordedAndNewForEachTable() = runTest {
+        val memories = mutableListOf<TableTalk>()
+        var n = 0
+        val brains = object : OpponentBrains {
+            override val label = MutableStateFlow("TEST")
+            override fun agentFor(seat: Int, opponent: OpponentProfile, fallback: PlayerAgent, talk: TableTalk): PlayerAgent {
+                memories += talk
+                return agentOf { ctx, _ -> AgentReply(if (ctx.legal.canCheck) Decision.Check else Decision.Call, "line ${n++}") }
+            }
+        }
+        val c = controller(brains = brains)
+        c.startQuick(config(opponents = 3, seed = 4L))
+        drive(c) { c.table.value.handNumber >= 2 }
+        assertEquals(3, memories.size)
+        assertTrue("one memory per table", memories.all { it === memories[0] })
+        assertTrue("the controller holds it", c.talk === memories[0])
+        val said = memories[0].recent(100)
+        assertTrue(said.isNotEmpty())
+        assertTrue("with the speakers' names", said.all { line -> c.table.value.opponents.any { it.name == line.speaker } })
+        assertEquals("line 0", said.first().text)
+
+        c.playAgain()
+        runCurrent()
+        assertEquals(6, memories.size)
+        assertTrue("a new table, a new memory", memories[3] !== memories[0] && memories.drop(3).all { it === memories[3] })
+        c.stop()
+    }
+
+    @Test
+    fun aLineDroppedAfterStreamingLeavesNoBubble() = runTest {
+        val streamer = agentOf { ctx, onChatter ->
+            onChatter("Saddle up")
+            AgentReply(if (ctx.legal.canCheck) Decision.Check else Decision.Call, null)
+        }
+        val c = controller(brains = brainsOf { _, _ -> streamer })
+        c.startQuick(config(opponents = 2, seed = 3L))
+        drive(c) { c.table.value.handNumber >= 3 }
+        // Whenever the human is asked to act, no opponent's dropped line lingers.
+        assertTrue(c.table.value.seats.none { it.chatter == "Saddle up" })
         c.stop()
     }
 

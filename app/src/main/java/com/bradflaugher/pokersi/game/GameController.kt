@@ -12,6 +12,9 @@ import com.bradflaugher.pokersi.engine.Hand
 import com.bradflaugher.pokersi.engine.HouseBot
 import com.bradflaugher.pokersi.engine.Match
 import com.bradflaugher.pokersi.engine.PlayerAgent
+import com.bradflaugher.pokersi.engine.TableTalk
+import com.bradflaugher.pokersi.debug.AiLog
+import com.bradflaugher.pokersi.debug.AiLogKind
 import com.bradflaugher.pokersi.engine.isDraw
 import com.bradflaugher.pokersi.run.BossTwists
 import com.bradflaugher.pokersi.run.HandOutcome
@@ -159,6 +162,10 @@ class GameController(
     private var agents: List<PlayerAgent> = emptyList()
     private var fallbacks: List<HouseBot> = emptyList()
 
+    /** What has been said at this table (by every seat); a new table starts a new one. */
+    var talk = TableTalk()
+        private set
+
     /** Quick game: seat -> the match's hand count when that opponent went broke. */
     private val bustedAt = HashMap<Int, Int>()
     private var replacements = 0
@@ -280,9 +287,9 @@ class GameController(
             replacements++
             m.replaceSeat(seat, profile.name, config.startingStack)
             profiles = profiles.toMutableList().also { it[seat] = profile }
-            val fallback = HouseBot(profile.style, Match.mix(config.seed, 1000 + seat + 7 * replacements), houseBotIterations)
+            val fallback = HouseBot(profile.style, Match.mix(config.seed, 1000 + seat + 7 * replacements), houseBotIterations, tableTalk = talk)
             fallbacks = fallbacks.toMutableList().also { it[seat] = fallback }
-            agents = agents.toMutableList().also { it[seat] = brains.agentFor(seat, profile, fallback) }
+            agents = agents.toMutableList().also { it[seat] = brains.agentFor(seat, profile, fallback, talk) }
             news = news + "${profile.name} sits down"
         }
         return due.toSet()
@@ -529,10 +536,12 @@ class GameController(
 
     private fun setUpAgents(ps: List<OpponentProfile?>, seed: Long) {
         profiles = ps
+        talk = TableTalk()
         fallbacks = ps.mapIndexed { seat, p ->
-            HouseBot(p?.style ?: BotStyle.BALANCED, Match.mix(seed, 1000 + seat), houseBotIterations)
+            HouseBot(p?.style ?: BotStyle.BALANCED, Match.mix(seed, 1000 + seat), houseBotIterations, tableTalk = talk)
         }
-        agents = ps.mapIndexed { seat, p -> if (p == null) fallbacks[seat] else brains.agentFor(seat, p, fallbacks[seat]) }
+        agents = ps.mapIndexed { seat, p -> if (p == null) fallbacks[seat] else brains.agentFor(seat, p, fallbacks[seat], talk) }
+        AiLog.add(AiLogKind.TABLE, TABLE, { "new table: " + ps.filterNotNull().joinToString { it.name } })
     }
 
     private suspend fun playHand(h: Hand, arrivals: Set<Int> = emptySet()) {
@@ -545,7 +554,15 @@ class GameController(
         boardLimit = null
         phase = TablePhase.Playing
         // Newcomers say hello.
-        arrivals.forEach { seat -> profiles.getOrNull(seat)?.catchphrase?.takeIf { it.isNotBlank() }?.let { setChatter(seat, it) } }
+        arrivals.forEach { seat ->
+            val p = profiles.getOrNull(seat) ?: return@forEach
+            p.catchphrase.takeIf { it.isNotBlank() }?.let {
+                setChatter(seat, it)
+                talk.record(p.name, it)
+            }
+        }
+        AiLog.add(AiLogKind.TABLE, TABLE, { "hand ${h.handNumber}: ${h.variant.displayName}, blinds ${h.stakes.smallBlind}/${h.stakes.bigBlind}" })
+        var logged = h.history.size
         publish()
         pause(pacing.dealMs)
 
@@ -561,6 +578,10 @@ class GameController(
                 pause(pacing.streetMs)
             }
             if (seat == 0) humanAct(h) else botAct(h, seat)
+            if (AiLog.enabled) {
+                h.history.drop(logged).forEach { AiLog.note(AiLogKind.TABLE, TABLE, it) }
+            }
+            logged = h.history.size
             publish()
             pause(pacing.actionMs)
         }
@@ -639,7 +660,13 @@ class GameController(
         thinkingSeat = null
         streamingSeat = null
         val say = if (silent) null else reply.say?.let(::tidySay)
-        if (say != null) setChatter(seat, say)
+        if (say != null) {
+            setChatter(seat, say)
+            talk.record(ctx.seats.firstOrNull { it.seat == seat }?.name ?: "Seat $seat", say)
+        } else {
+            // A line that streamed and was then dropped (a repeat) must not linger.
+            chatter.remove(seat)
+        }
         h.apply(seat, decision, say)
     }
 
@@ -726,6 +753,7 @@ class GameController(
 
     companion object {
         const val PLAYER_NAME = "You"
+        private const val TABLE = "TABLE"
 
         /** Longest speech bubble, whatever an agent says. */
         const val SAY_MAX = 120

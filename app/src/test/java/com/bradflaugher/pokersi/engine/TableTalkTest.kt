@@ -1,0 +1,84 @@
+package com.bradflaugher.pokersi.engine
+
+import com.bradflaugher.pokersi.llm.Fixtures
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import kotlin.random.Random
+
+class TableTalkTest {
+    @Test
+    fun normalizesToLowercaseWords() {
+        assertEquals("saddle up partner", TableTalk.normalize("  Saddle up,   PARTNER! "))
+        assertEquals("ill see that", TableTalk.normalize("I’ll see that."))
+    }
+
+    @Test
+    fun exactRepeatsAnywhereAtTheTable() {
+        val talk = TableTalk()
+        talk.record("Dusty", "Saddle up, partner.")
+        assertTrue(talk.isRepeat("saddle up partner!!", "Dusty"))
+        // Someone else saying it is a repeat too: no parroting.
+        assertTrue(talk.isRepeat("Saddle up, partner.", "Granny"))
+        assertFalse(talk.isRepeat("Yeehaw, the river's rising!", "Dusty"))
+        assertFalse(talk.isRepeat("", "Dusty"))
+    }
+
+    @Test
+    fun nearRepeatsByWordOverlap() {
+        val talk = TableTalk()
+        talk.record("Dusty", "I reckon the cards ain't lookin' my way.")
+        assertTrue(talk.isRepeat("Well, I reckon the cards ain't lookin' my way", "Dusty"))
+        assertFalse(talk.isRepeat("My horse Biscuit could play better.", "Dusty"))
+        // A catchphrase passed as "already said" counts even when nobody said it here.
+        assertTrue(talk.isRepeat("Saddle up partner, yeehaw", "Dusty", also = listOf("Saddle up, partner.")))
+    }
+
+    @Test
+    fun streamingPrefixesThatMayRepeatAreHeldBack() {
+        val talk = TableTalk()
+        talk.record("Dusty", "Saddle up, partner.")
+        assertTrue(talk.mightRepeat("Saddle"))
+        assertTrue(talk.mightRepeat("Saddle up, partner"))
+        assertTrue(talk.mightRepeat("Saddle up, partner. Yee"))
+        assertFalse(talk.mightRepeat("Howdy"))
+        assertFalse(talk.mightRepeat("Saddlebags"))
+        assertTrue(talk.mightRepeat("Arr", also = listOf("Arr, matey!")))
+    }
+
+    @Test
+    fun remembersOnlyTheLatestLines() {
+        val talk = TableTalk(capacity = 3)
+        listOf("one", "two", "three", "four").forEach { talk.record("A", it) }
+        talk.record("B", "  ")
+        assertEquals(listOf("two", "three", "four"), talk.recent(10).map { it.text })
+        assertEquals(listOf("three", "four"), talk.saidBy("A", 2))
+        assertFalse(talk.saidRecently("one"))
+        talk.clear()
+        assertTrue(talk.isEmpty)
+    }
+
+    @Test
+    fun houseBotLinesSkipWhatWasJustSaid() {
+        val talk = TableTalk()
+        val all = BotLines.lines.getValue(TalkMoment.FOLD)
+        all.dropLast(1).forEach { talk.record("Someone", it) }
+        repeat(20) { assertEquals(all.last(), BotLines.pickFresh(TalkMoment.FOLD, Random(it), talk)) }
+        talk.record("Someone", all.last())
+        assertNull(BotLines.pickFresh(TalkMoment.FOLD, Random(1), talk))
+    }
+
+    @Test
+    fun aChattyHouseBotNeverRepeatsARecentLine() = runBlocking {
+        val talk = TableTalk()
+        val bot = HouseBot(BotStyle.MANIAC.copy(chattiness = 1.0), seed = 4, iterations = 20, tableTalk = talk)
+        repeat(40) {
+            val say = bot.decide(Fixtures.flopTopPairCheckedTo).say ?: return@repeat
+            assertFalse("repeated \"$say\"", talk.saidRecently(say))
+            talk.record("Bot", say)
+        }
+    }
+}

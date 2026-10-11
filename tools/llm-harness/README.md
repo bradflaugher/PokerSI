@@ -13,6 +13,21 @@ a desktop, so prompt and grammar changes can be judged without a phone.
   `HarnessCasesTest.checkReplies` parses the replies with the app's
   `LlmReply`. Both tests are no-ops unless `POKERSI_HARNESS_CASES` is set.
 
+- `HarnessSessionTest` plays a real table (the app's `GameController`, so
+  the shared table-talk memory fills in exactly as in the game) with one
+  seat, a cowboy whose catchphrase small models used to parrot every turn,
+  played by a model through the harness binary, and prints its run of
+  decisions: the talk hint, the line, the decision and any repeat it
+  dropped. It is a no-op unless `POKERSI_HARNESS_BIN` and
+  `POKERSI_HARNESS_MODEL` are set (`POKERSI_HARNESS_DECISIONS`, default 10;
+  `POKERSI_HARNESS_SEED`; `POKERSI_HARNESS_TRANSCRIPT` writes it to a file):
+
+  ```sh
+  POKERSI_HARNESS_BIN=/tmp/pokersi-harness/build/pokersi-harness \
+  POKERSI_HARNESS_MODEL=~/models/Llama-3.2-1B-Instruct-Q4_K_M.gguf \
+      ./gradlew -PskipNative testDebugUnitTest --tests '*HarnessSessionTest*' --rerun -i
+  ```
+
 ## Run
 
 Needs CMake, Ninja, a C++17 compiler, the llama.cpp submodule checked out
@@ -32,7 +47,9 @@ Or by hand, after building the `pokersi-harness` target:
 pokersi-harness -m model.gguf -d cases/ [-o out/] [-t 4] [--temp 0.8] [--max 96] [--runs 3] [--no-grammar]
 ```
 
-Nothing here is committed but sources: no binaries, no models.
+Nothing here is committed but sources: no binaries, no models. A binary
+built with llama.cpp's default `GGML_NATIVE=ON` only runs on the CPU that
+built it; pass `-DGGML_NATIVE=OFF` to cmake to share one between machines.
 
 ## What we learned
 
@@ -61,5 +78,10 @@ Every reply from every model was valid JSON and parsed to a legal decision.
   get `A bluffer like you might "raise" instead.`). Advice phrased as an
   action word, placed last, is followed far more than prose tips placed
   mid-prompt.
+- **Don't put the catchphrase in every prompt.** Every model said it on
+  most turns ("Saddle up, partner." over and over). A varied talk hint per
+  turn, the latest table talk and the character's own last lines, plus a
+  repeat filter, keep 1B models varied and in character (Qwen 3 0.6B still
+  copies lines it sees; the filter catches those).
 - **Exact numbers in the grammar.** Fixed amounts for call/all-in and an
   integer range rule for raises mean the amount is always legal.

@@ -24,17 +24,22 @@ object PokerPrompt {
     /** Most recent history lines kept; older ones rarely matter to the decision. */
     private const val HISTORY_LINES = 10
 
-    fun build(context: DecisionContext, persona: Persona): List<ChatMessage> {
+    /**
+     * The prompt for [persona]'s decision in [context]. [talk] steers the table
+     * talk (what to talk about, what was said); without it the model just talks.
+     */
+    fun build(context: DecisionContext, persona: Persona, talk: TalkPlan? = null): List<ChatMessage> {
         val discard = context.legal.discard != null
         return listOf(
             ChatMessage.system(system(persona, discard)),
-            ChatMessage.user(if (discard) discardSituation(context) else bettingSituation(context, persona)),
+            ChatMessage.user(if (discard) discardSituation(context, persona, talk) else bettingSituation(context, persona, talk)),
         )
     }
 
     private fun system(persona: Persona, discard: Boolean): String = buildString {
         appendLine("You are ${persona.name}, a character playing poker at a friendly game night. ${persona.bio}")
-        appendLine("You talk like ${persona.voice}. Your catchphrase: \"${persona.catchphrase}\"")
+        // No catchphrase here: small models parrot it every turn (TalkPlan offers it now and then).
+        appendLine("You talk like ${persona.voice}.")
         appendLine("Your playing style: ${persona.styleWords}.")
         appendLine()
         appendLine("Each turn you see the table and answer with one JSON object only:")
@@ -44,10 +49,10 @@ object PokerPrompt {
         } else {
             appendLine("""{"action": "<one legal action>", "amount": <chips>, "say": "<table talk>"}""")
         }
-        append("\"say\" is one short, funny sentence in your voice, under 12 words. Family friendly. Never mention your cards.")
+        append("\"say\" is one short, funny sentence in your voice, under 12 words, different every time. Family friendly. Never mention your cards.")
     }
 
-    private fun bettingSituation(c: DecisionContext, persona: Persona): String = buildString {
+    private fun bettingSituation(c: DecisionContext, persona: Persona, talk: TalkPlan?): String = buildString {
         val strength = header(c)
         appendLine("Pot: ${c.pot}. ${stackLine(c)}")
         if (c.legal.toCall > 0) {
@@ -67,12 +72,13 @@ object PokerPrompt {
             }
             appendLine("- \"${option.word}\" ($detail)")
         }
+        talk(talk, persona)
         // Last, where a small model pays the most attention.
         appendLine("Your hand is ${strength.label}. ${advice(c, strength, persona)}")
         append("Your move, ${nameOf(c)}?")
     }
 
-    private fun discardSituation(c: DecisionContext): String = buildString {
+    private fun discardSituation(c: DecisionContext, persona: Persona, talk: TalkPlan?): String = buildString {
         header(c, numbered = true)
         val rule = c.legal.discard!!
         val count = if (rule.min == rule.max) "exactly ${rule.min}" else "${rule.min} to ${rule.max}"
@@ -82,6 +88,7 @@ object PokerPrompt {
         val replaced = c.variant == GameVariant.FIVE_CARD_DRAW
         appendLine("Now throw away $count of your cards" + if (replaced) " and get new ones." else ".")
         appendLine("List the positions (1 to ${c.holeCards.size}) of the cards to throw away.")
+        talk(talk, persona)
         appendLine("Advice: \"discard\": ${usualDiscard(c)}.")
         append("Your move, ${nameOf(c)}?")
     }
@@ -122,10 +129,35 @@ object PokerPrompt {
     }
 
     private fun StringBuilder.history(c: DecisionContext) {
-        if (c.history.isEmpty()) return
+        // Table talk has its own section (talk), across hands.
+        val lines = c.history.filterNot { chatLine.matches(it) }
+        if (lines.isEmpty()) return
         appendLine("This hand so far:")
-        for (line in c.history.takeLast(HISTORY_LINES)) appendLine("- $line")
+        for (line in lines.takeLast(HISTORY_LINES)) appendLine("- $line")
     }
+
+    /** "Mo says "hi"", as Hand writes table talk into the history. */
+    private val chatLine = Regex(""".+ says ".*"""")
+
+    /**
+     * The table talk: what the others said lately, this character's own last
+     * lines (not to be repeated) and what to talk about this turn. Before the
+     * hand and the advice, which stay last for the decision's sake.
+     */
+    private fun StringBuilder.talk(plan: TalkPlan?, persona: Persona) {
+        plan ?: return
+        if (plan.others.isNotEmpty()) {
+            appendLine("Table talk:")
+            for (line in plan.others) appendLine("- ${line.speaker}: \"${line.text}\"")
+        }
+        if (plan.mine.isNotEmpty()) {
+            appendLine("You already said ${plan.mine.joinToString(", ") { "\"$it\"" }}. Don't repeat yourself.")
+        }
+        appendLine("For \"say\", as ${voiceShort(persona)}: ${plan.hint} Never mention your cards.")
+    }
+
+    /** "an old-west cowboy" from "an old-west cowboy: says howdy...". */
+    private fun voiceShort(persona: Persona): String = persona.voice.substringBefore(':').substringBefore(" who ").trim()
 
     private fun nameOf(c: DecisionContext): String =
         c.seats.firstOrNull { it.seat == c.seat }?.name ?: "player"

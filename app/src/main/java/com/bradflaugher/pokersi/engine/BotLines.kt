@@ -22,4 +22,24 @@ object BotLines {
     )
 
     fun pick(moment: TalkMoment, random: Random): String = lines.getValue(moment).random(random)
+
+    /**
+     * A line for [moment] that [talk] hasn't heard lately, or null when every
+     * one has been said recently (silence beats a broken record).
+     */
+    fun pickFresh(moment: TalkMoment, random: Random, talk: TableTalk?): String? {
+        val all = lines.getValue(moment)
+        val fresh = if (talk == null) all else all.filterNot { talk.saidRecently(it) }
+        return fresh.randomOrNull(random)
+    }
+
+    /** The moment a [decision] stands for, to pick a line for it. */
+    fun momentFor(decision: Decision, canCheck: Boolean): TalkMoment = when (decision) {
+        Decision.Fold -> TalkMoment.FOLD
+        Decision.Check -> TalkMoment.CHECK
+        Decision.Call -> TalkMoment.CALL
+        Decision.AllIn -> TalkMoment.ALL_IN
+        is Decision.RaiseTo -> if (canCheck) TalkMoment.BET else TalkMoment.RAISE
+        is Decision.Discard -> if (decision.indices.isEmpty()) TalkMoment.STAND_PAT else TalkMoment.DRAW
+    }
 }
