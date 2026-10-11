@@ -98,6 +98,16 @@ class InvariantsTest {
     }
 
     @Test
+    fun noBossTables() {
+        // The Poker Tour is plain poker at rising stakes: no boss opponents, no rule twists.
+        val word = Regex("boss", RegexOption.IGNORE_CASE)
+        for (file in sources) {
+            val hits = file.readLines().filter { word.containsMatchIn(it) }
+            assertTrue("${file.name}: $hits", hits.isEmpty())
+        }
+    }
+
+    @Test
     fun noVersionChecks() {
         val checks = main.walk().filter { it.extension == "kt" && it.readText().contains("SDK_INT") }.map { it.name }.toList()
         assertTrue("no Build.VERSION.SDK_INT checks: $checks", checks.isEmpty())

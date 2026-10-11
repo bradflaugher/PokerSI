@@ -91,9 +91,9 @@ data class HandScoring(val state: RunState, val status: TableStatus)
 /**
  * The Poker Tour: a ladder of tables of rising stakes. The player's chips carry
  * from table to table. After clearing one, the player picks the next from
- * [offers]: a low-stakes table, a high-stakes one or a boss with a rule twist,
- * bigger risk for a bigger chip reward. Clearing stop [TableSpec.FINAL_LEVEL]
- * wins the tour; it goes on, endless. Immutable: every action returns a new
+ * [offers]: a low-stakes table or a high-stakes one, bigger risk for a bigger
+ * chip reward. Clearing stop [TableSpec.FINAL_LEVEL] wins the tour; it goes
+ * on, endless. Immutable: every action returns a new
  * state. Serializable for save/resume ([toJson], [fromJson]); fully determined
  * by [seed] and the player's choices.
  */
@@ -105,8 +105,6 @@ data class RunState(
     val phase: RunPhase = RunPhase.TABLE,
     val table: TableSpec,
     val progress: TableProgress,
-    /** Chips kept off the table (Short Stack); they come back when the table is decided. */
-    val reserve: Int = 0,
     /** The player's chips between tables (set when a table is decided). */
     val bankroll: Int = STARTING_CHIPS,
     /** The tables to choose from ([RunPhase.CHOOSE]). */
@@ -122,14 +120,14 @@ data class RunState(
 ) {
     val handsLeft: Int get() = (table.handLimit - progress.handsPlayed).coerceAtLeast(0)
 
-    /** The player's chips right now: at the table plus any reserve, or the bankroll between tables. */
-    val playerChips: Int get() = if (phase == RunPhase.TABLE) progress.chips[0] + reserve else bankroll
+    /** The player's chips right now: at the table, or the bankroll between tables. */
+    val playerChips: Int get() = if (phase == RunPhase.TABLE) progress.chips[0] else bankroll
 
     /** The [Match] to play this table on, resumed from [progress]. Deal with [startNextHand]. */
     fun newMatch(): Match = table.newMatch(progress)
 
-    /** Deals the next hand of [match] with the right game for it. */
-    fun startNextHand(match: Match): Hand = match.startNextHand(table.variantForHand(match.handsPlayed + 1))
+    /** Deals the next hand of [match] at this table's game. */
+    fun startNextHand(match: Match): Hand = match.startNextHand(table.variant)
 
     fun tableStatus(chips: List<Int> = progress.chips, handsPlayed: Int = progress.handsPlayed): TableStatus = when {
         chips[0] <= 0 -> TableStatus.FAILED
@@ -159,7 +157,7 @@ data class RunState(
         val status = next.tableStatus()
         next = when (status) {
             TableStatus.CLEARED -> next.clearTable()
-            TableStatus.FAILED -> next.copy(phase = RunPhase.GAME_OVER, bankroll = stacksAfter[0] + reserve, reserve = 0)
+            TableStatus.FAILED -> next.copy(phase = RunPhase.GAME_OVER, bankroll = stacksAfter[0])
             TableStatus.IN_PROGRESS -> next
         }
         return HandScoring(next, status)
@@ -168,11 +166,10 @@ data class RunState(
     /** Pays out the table and offers the next ones. */
     private fun clearTable(): RunState {
         val reward = TableReward(bonus = table.reward, handsLeftBonus = handsLeft * table.bigBlind)
-        val chips = progress.chips[0] + reserve + reward.total
+        val chips = progress.chips[0] + reward.total
         return copy(
             phase = RunPhase.CHOOSE,
             bankroll = chips,
-            reserve = 0,
             lastReward = reward,
             offers = offersFor(level + 1, chips),
             victory = victory || level == TableSpec.FINAL_LEVEL,
@@ -189,7 +186,6 @@ data class RunState(
             phase = RunPhase.TABLE,
             table = spec,
             progress = TableProgress(spec.startingChips),
-            reserve = bankroll - spec.playerChips,
             offers = emptyList(),
         )
     }
@@ -203,7 +199,7 @@ data class RunState(
         const val STARTING_CHIPS = 1000
 
         /** Bump when the format changes incompatibly; older saves are dropped, not crashed on. */
-        const val SAVE_VERSION = 2
+        const val SAVE_VERSION = 3
 
         private val JSON = Json { ignoreUnknownKeys = true }
 
@@ -214,7 +210,6 @@ data class RunState(
                 seed = seed,
                 table = spec,
                 progress = TableProgress(spec.startingChips),
-                reserve = STARTING_CHIPS - spec.playerChips,
                 version = SAVE_VERSION,
             )
         }

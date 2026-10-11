@@ -28,11 +28,7 @@ object AttractLines {
         val fresh = tour == null && f.stats.handsPlayed == 0 && !f.daily.played
         if (fresh) add("WELCOME, PLAYER ONE")
         if (tour != null) {
-            val next = when {
-                tour.phase == RunPhase.CHOOSE -> " · PICK A TABLE"
-                tour.table.isBoss -> " · BOSS AHEAD"
-                else -> ""
-            }
+            val next = if (tour.phase == RunPhase.CHOOSE) " · PICK A TABLE" else ""
             add("CREDITS ${formatChips(tour.playerChips)} · TOUR STOP ${tour.level}$next")
         }
         add(

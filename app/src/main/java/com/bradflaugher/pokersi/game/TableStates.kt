@@ -5,7 +5,7 @@ import com.bradflaugher.pokersi.engine.Card
 import com.bradflaugher.pokersi.engine.Hand
 import com.bradflaugher.pokersi.engine.HandEvaluator
 
-/** Everything the table shows besides the hand itself: profiles, table talk, perks, boss flags. */
+/** Everything the table shows besides the hand itself: profiles, table talk, who is thinking. */
 data class TableExtras(
     /** Opponent profiles by seat (index 0, the human, is null). */
     val profiles: List<OpponentProfile?> = emptyList(),
@@ -13,9 +13,6 @@ data class TableExtras(
     val chatter: Map<Int, String> = emptyMap(),
     val streamingSeat: Int? = null,
     val thinkingSeat: Int? = null,
-    val bossSeat: Int? = null,
-    val hideChips: Boolean = false,
-    val silent: Boolean = false,
     val brainLabel: String = "",
 )
 
@@ -61,13 +58,11 @@ object TableStates {
                 isToAct = s.isToAct,
                 cards = cards,
                 lastAction = s.lastAction,
-                chatter = if (extras.silent && s.seat != 0) null else extras.chatter[s.seat],
+                chatter = extras.chatter[s.seat],
                 chatterStreaming = extras.streamingSeat == s.seat,
                 thinking = extras.thinkingSeat == s.seat,
                 isWinner = s.isWinner && revealHighlights,
                 shownHand = s.shownHand.takeIf { revealHighlights },
-                isBoss = extras.bossSeat == s.seat,
-                chipsHidden = extras.hideChips && s.seat != 0,
                 net = result?.net?.getOrNull(s.seat),
             )
         }
@@ -95,7 +90,6 @@ object TableStates {
             log = hand.history.takeLast(4).map(::secondPerson),
             celebrate = celebrate,
             brainLabel = extras.brainLabel,
-            silentOpponents = extras.silent,
         )
     }
 

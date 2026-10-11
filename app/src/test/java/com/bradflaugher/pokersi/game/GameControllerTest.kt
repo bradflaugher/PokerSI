@@ -9,6 +9,7 @@ import com.bradflaugher.pokersi.engine.HouseBot
 import com.bradflaugher.pokersi.engine.PlayerAgent
 import com.bradflaugher.pokersi.engine.TableTalk
 import com.bradflaugher.pokersi.engine.isDraw
+import com.bradflaugher.pokersi.run.Risk
 import com.bradflaugher.pokersi.run.RunPhase
 import com.bradflaugher.pokersi.run.RunState
 import kotlinx.coroutines.Dispatchers
@@ -235,15 +236,18 @@ class GameControllerTest {
                 c.toChoose()
                 val choosing = c.run.value!!
                 assertEquals(RunScreen.Choose, choosing.screen)
-                assertEquals(3, choosing.state.offers.size)
-                assertEquals(3, choosing.offerOpponents.size)
-                assertEquals(choosing.state.offers[2].opponents.size, choosing.offerOpponents[2].size)
-                assertTrue(c.chooseTable(2))
+                assertEquals(2, choosing.state.offers.size)
+                assertEquals(2, choosing.offerOpponents.size)
+                assertEquals(choosing.state.offers[1].opponents.size, choosing.offerOpponents[1].size)
+                assertTrue(!c.chooseTable(2))
+                assertTrue(c.chooseTable(1))
                 val next = c.run.value!!
                 assertEquals(RunScreen.Intro, next.screen)
                 assertEquals(RunPhase.TABLE, next.state.phase)
                 assertEquals(2, next.state.level)
-                assertTrue(next.state.table.isBoss)
+                assertEquals(Risk.HIGH, next.state.table.risk)
+                // Every opponent at the table is one of the table's own, by name.
+                assertEquals(next.state.table.opponents.map { it.name }, next.opponents.drop(1).map { it!!.name })
                 assertEquals(next.state, saver.saved)
             } else {
                 assertEquals(RunScreen.GameOver, ui.screen)

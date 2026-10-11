@@ -58,11 +58,12 @@ class Settings(private val prefs: SharedPreferences) {
 /**
  * Keeps the run in SharedPreferences as [RunState.toJson]; [saved] tells the title
  * screen there's one to CONTINUE. A save from an older format (the Joker-shop
- * runs) is dropped on first read instead of crashing.
+ * runs, the tours with rule-twist tables) is dropped instead of crashing.
  */
 class PrefsRunSaver(private val prefs: SharedPreferences) : RunSaver {
     init {
-        if (prefs.contains(OLD_KEY)) prefs.edit { remove(OLD_KEY) }
+        val old = OLD_KEYS.filter(prefs::contains)
+        if (old.isNotEmpty()) prefs.edit { old.forEach(::remove) }
     }
 
     private val _saved = MutableStateFlow(load() != null)
@@ -90,9 +91,9 @@ class PrefsRunSaver(private val prefs: SharedPreferences) : RunSaver {
     private fun key(daily: Boolean) = if (daily) KEY_DAILY else KEY
 
     private companion object {
-        const val KEY = "run_v2"
-        const val KEY_DAILY = "run_v2_daily"
-        const val OLD_KEY = "run_v1"
+        const val KEY = "run_v3"
+        const val KEY_DAILY = "run_v3_daily"
+        val OLD_KEYS = listOf("run_v1", "run_v2", "run_v2_daily")
     }
 }
 

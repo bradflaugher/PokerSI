@@ -16,7 +16,6 @@ import com.bradflaugher.pokersi.engine.TableTalk
 import com.bradflaugher.pokersi.debug.AiLog
 import com.bradflaugher.pokersi.debug.AiLogKind
 import com.bradflaugher.pokersi.engine.isDraw
-import com.bradflaugher.pokersi.run.BossTwists
 import com.bradflaugher.pokersi.run.HandOutcome
 import com.bradflaugher.pokersi.run.RunPhase
 import com.bradflaugher.pokersi.run.RunState
@@ -332,12 +331,12 @@ class GameController(
         val state = runState ?: return
         if (state.phase != RunPhase.TABLE || isRunning) return
         val ps = runProfiles(state)
-        // The table as the run would deal it, with the players' display names (the boss is seat 1).
+        // The table as the run would deal it, with the players' display names.
         val p = state.progress
         val m = Match(
             names = listOf(PLAYER_NAME) + ps.drop(1).map { it!!.name },
             startingChips = p.chips,
-            variant = state.table.variantForHand(p.handsPlayed + 1),
+            variant = state.table.variant,
             schedule = state.table.schedule,
             seed = state.table.seed,
             button = p.button,
@@ -635,8 +634,6 @@ class GameController(
 
     private suspend fun botAct(h: Hand, seat: Int) {
         awaitUnpaused()
-        val state = runState
-        val silent = state?.table?.boss?.rules?.silentOpponents == true
         val id = ++decisionId
         thinkingSeat = seat
         chatter.remove(seat)
@@ -647,19 +644,16 @@ class GameController(
         // hop back to the table's thread, as a child of this game so leaving cancels it.
         val game = currentCoroutineContext()[Job]
         val onChatter: (String) -> Unit = { text ->
-            if (!silent) scope.launch(game ?: Job()) { streamChatter(id, seat, text) }
+            scope.launch(game ?: Job()) { streamChatter(id, seat, text) }
         }
         val reply = decideSafely(agents[seat], fallbacks[seat], ctx, onChatter)
         val elapsed = (System.nanoTime() - started) / 1_000_000
         pause((pacing.thinkMinMs - elapsed).coerceAtLeast(0))
         awaitUnpaused()
-        var decision = reply.decision
-        if (state != null) {
-            decision = BossTwists.adjustOpponentDecision(state.table.boss, ctx, decision, BossTwists.lastActionOf(h.events, 0))
-        }
+        val decision = reply.decision
         thinkingSeat = null
         streamingSeat = null
-        val say = if (silent) null else reply.say?.let(::tidySay)
+        val say = reply.say?.let(::tidySay)
         if (say != null) {
             setChatter(seat, say)
             talk.record(ctx.seats.firstOrNull { it.seat == seat }?.name ?: "Seat $seat", say)
@@ -703,8 +697,6 @@ class GameController(
 
     private fun publish(showBanner: Boolean = true) {
         val h = hand
-        val state = runState
-        val rules = state?.table?.boss?.rules
         if (h == null) {
             _table.update { it.copy(phase = phase, brainLabel = brains.label.value) }
             return
@@ -714,9 +706,6 @@ class GameController(
             chatter = chatter.toMap(),
             streamingSeat = streamingSeat,
             thinkingSeat = thinkingSeat,
-            bossSeat = if (state?.table?.isBoss == true) 1 else null,
-            hideChips = rules?.hideChipCounts == true,
-            silent = rules?.silentOpponents == true,
             brainLabel = brains.label.value,
         )
         _table.value = TableStates.fromHand(

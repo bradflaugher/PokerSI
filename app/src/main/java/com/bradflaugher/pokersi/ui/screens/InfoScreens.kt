@@ -80,7 +80,7 @@ fun HowToPlayScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                     }
                 }
                 InfoPanel("POKER TOUR") {
-                    BodyText("Climb a ladder of poker tables with rising stakes. Your chips go with you from table to table. Win the chip target before you run out of hands (or bust everyone) to clear a table and collect its bonus chips, then pick your next table: low stakes, high stakes, or a boss who bends the rules (The Wall never folds, Blind Fury doubles the blinds, The Mime won't talk). Bigger risk, bigger reward. Go broke and the tour is over. Clear the tenth table to win, then keep going in endless mode. Leaving in the middle of a hand folds it. The daily tour is the same deal for everyone, every day.", small = true)
+                    BodyText("Climb a ladder of poker tables with rising stakes. Your chips go with you from table to table. Win the chip target before you run out of hands (or bust everyone) to clear a table and collect its bonus chips, then pick your next table: low stakes, or high stakes with an extra opponent, bigger blinds and a bigger bonus. Bigger risk, bigger reward. Go broke and the tour is over. Clear the tenth table to win, then keep going in endless mode. Leaving in the middle of a hand folds it. The daily tour is the same deal for everyone, every day.", small = true)
                 }
                 InfoPanel("WHO AM I PLAYING?") {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

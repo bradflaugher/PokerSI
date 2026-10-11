@@ -47,8 +47,9 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
     loaded and whenever the LLM fails), Monte Carlo equity, and `TableTalk`
     (what has been said at a table, for keeping lines fresh).
   - `run/` — the roguelite "Run" mode: tables (blinds) of rising stakes,
-    boss opponents with rule twists, choosing your next table, seeded runs
-    and the daily run. Pure Kotlin too.
+    chips that carry over, choosing your next table (low or high stakes),
+    seeded runs and the daily run. Plain poker, no rule twists.
+    Pure Kotlin too.
   - `llm/` — `LlamaNative` (JNI surface), `LlamaEngine` (loads one model,
     serializes every call on one thread), the model catalog, downloads
     (WorkManager), model storage (app storage + user-picked SAF folders),
@@ -94,7 +95,7 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
 - **No model? Still playable.** With no model loaded, opponents are played
   by `HouseBot` and the table says so. The game never blocks on a download.
 - **Infinitely replayable.** Random personas, six variants, the Run mode's
-  escalating tables, bosses, seeded runs and a daily seed.
+  escalating tables, seeded runs and a daily seed.
 - **Fair dealing.** Decks are shuffled with a seeded `kotlin.random.Random`;
   agents only ever see a `DecisionContext` of what their seat may know.
 - Network is used only to download models the user chooses, from Hugging
