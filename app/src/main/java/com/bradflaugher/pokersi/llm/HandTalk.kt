@@ -35,8 +35,17 @@ object HandTalk {
         ).joinToString("|", "\\b(?:", ")\\b"),
     )
 
+    /**
+     * Cards as the prompt writes them ("Kd", "7h", "Ts"), read case-sensitively off
+     * the raw line. An ace alone ("As", "Ah", "Ad") is an ordinary word, so it only
+     * counts next to another card ("As Kd").
+     */
+    private val card = "(?:[2-9TJQKA]|10)[shdc]"
+    private val cardCodes = Regex("\\b(?:$card[\\s,]+$card|(?:[2-9TJQK]|10)[shdc])\\b")
+
     /** Whether [text] says what hand (or cards) its speaker holds. */
     fun revealsHand(text: String): Boolean {
+        if (cardCodes.containsMatchIn(text)) return true
         // "High five" is a celebration, not a hand of fives.
         val words = TableTalk.normalize(text).replace(highFive, "")
         return reveal.containsMatchIn(words)
