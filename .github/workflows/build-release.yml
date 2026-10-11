@@ -168,12 +168,28 @@ jobs:
             exit 1
           fi
 
+      # Unsigned builds (pull requests, or main before the signing secrets
+      # exist) also get a preview APK signed with a throwaway key made on the
+      # spot, so the build artifact can be installed to try a change. It is
+      # never published, and a preview has to be uninstalled before a real
+      # signed build will install over it.
+      - name: Sign a preview APK
+        if: steps.keystore.outputs.signed != 'true'
+        run: |
+          keystore="$RUNNER_TEMP/preview.jks"
+          keytool -genkeypair -keystore "$keystore" -storepass preview -keypass preview \
+            -alias preview -keyalg RSA -keysize 2048 -validity 30 -dname "CN=PokerSI preview" -noprompt
+          apksigner="$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)"
+          "$apksigner" sign --ks "$keystore" --ks-pass pass:preview --key-pass pass:preview \
+            --out dist/pokersi-preview.apk dist/pokersi.apk
+
       - name: Upload APK and bundle
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: pokersi-${{ steps.version.outputs.version }}
           path: |
             dist/pokersi.apk
+            dist/pokersi-preview.apk
             dist/pokersi.aab
             dist/mapping.txt
           if-no-files-found: error

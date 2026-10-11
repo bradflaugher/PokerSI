@@ -80,7 +80,10 @@ as the release notes. The bundle carries the native symbol table, so Play
 symbolicates native crashes without a separate upload.
 
 Until the four signing secrets exist, `main` builds unsigned, warns, and
-publishes nothing. To set them up once:
+publishes nothing. Every unsigned build (pull requests too) uploads a
+`pokersi-preview.apk` in its run artifact, signed with a throwaway key, so a
+change can be installed and tried; uninstall it before installing a real
+signed build. To set the secrets up once:
 
 ```sh
 keytool -genkeypair -v -keystore pokersi-release.jks -alias pokersi \
