@@ -3,6 +3,7 @@ package com.bradflaugher.pokersi.game
 import com.bradflaugher.pokersi.engine.AgentReply
 import com.bradflaugher.pokersi.engine.DecisionContext
 import com.bradflaugher.pokersi.engine.PlayerAgent
+import com.bradflaugher.pokersi.engine.TableTalk
 import com.bradflaugher.pokersi.llm.EngineState
 import com.bradflaugher.pokersi.llm.LlamaEngine
 import com.bradflaugher.pokersi.llm.LlmAgent
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import java.util.Locale
+import kotlin.random.Random
 
 /**
  * Opponents played by the loaded model. Whether a model is loaded is checked
@@ -25,8 +27,9 @@ class LlmBrains(private val engine: LlamaEngine, scope: CoroutineScope) : Oppone
         .map(::labelFor)
         .stateIn(scope, SharingStarted.Eagerly, labelFor(engine.state.value))
 
-    override fun agentFor(seat: Int, opponent: OpponentProfile, fallback: PlayerAgent): PlayerAgent {
-        val llm = LlmAgent(engine, opponent.toPersona(), fallback)
+    override fun agentFor(seat: Int, opponent: OpponentProfile, fallback: PlayerAgent, talk: TableTalk): PlayerAgent {
+        // Seeded afresh at every table, so a familiar face doesn't replay the same talk.
+        val llm = LlmAgent(engine, opponent.toPersona(), fallback, talk, random = Random(opponent.avatarSeed xor System.nanoTime()))
         return object : PlayerAgent {
             override suspend fun decide(context: DecisionContext, onChatter: (String) -> Unit): AgentReply =
                 if (engine.isReady) llm.decide(context, onChatter) else fallback.decide(context, onChatter)
@@ -48,7 +51,7 @@ class LlmBrains(private val engine: LlamaEngine, scope: CoroutineScope) : Oppone
 fun OpponentProfile.toPersona(): Persona = Persona(
     name = name,
     bio = bio,
-    voice = voice.ifEmpty { "a quirky poker player with a catchphrase: \"$catchphrase\"" },
+    voice = voice.ifEmpty { "a quirky, cheerful poker player" },
     catchphrase = catchphrase,
     tightness = style.tightness.toFloat(),
     aggression = style.aggression.toFloat(),

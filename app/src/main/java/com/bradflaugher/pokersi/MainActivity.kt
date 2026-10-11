@@ -1,6 +1,7 @@
 package com.bradflaugher.pokersi
 
 import android.os.Bundle
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -22,6 +23,15 @@ class MainActivity : ComponentActivity() {
         // Draw the 52 faces and the back off the main thread, so the first deal doesn't stutter.
         lifecycleScope.launch(Dispatchers.Default) { CardArt.prewarm() }
         setContent { PokerSiApp(vm) }
+    }
+
+    /** A hardware keyboard's backtick opens the debug console, as in Quake (when it is enabled). */
+    override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_GRAVE && vm.settings.debugConsole.value) {
+            vm.toggleConsole()
+            return true
+        }
+        return super.onKeyUp(keyCode, event)
     }
 
     companion object {

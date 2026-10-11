@@ -15,6 +15,7 @@ class Settings(private val prefs: SharedPreferences) {
     private val _haptics = MutableStateFlow(prefs.getBoolean(KEY_HAPTICS, true))
     private val _crt = MutableStateFlow(prefs.getBoolean(KEY_CRT, true))
     private val _cardSway = MutableStateFlow(prefs.getBoolean(KEY_SWAY, true))
+    private val _debugConsole = MutableStateFlow(prefs.getBoolean(KEY_DEBUG_CONSOLE, false))
     private val _speed = MutableStateFlow(
         prefs.getString(KEY_SPEED, null)?.let { s -> GameSpeed.entries.firstOrNull { it.name == s } } ?: GameSpeed.NORMAL,
     )
@@ -23,12 +24,16 @@ class Settings(private val prefs: SharedPreferences) {
     val haptics: StateFlow<Boolean> = _haptics.asStateFlow()
     val crt: StateFlow<Boolean> = _crt.asStateFlow()
     val cardSway: StateFlow<Boolean> = _cardSway.asStateFlow()
+
+    /** SETTINGS > DEBUG CONSOLE: the "~" console of AI prompts and replies. Off by default. */
+    val debugConsole: StateFlow<Boolean> = _debugConsole.asStateFlow()
     val speed: StateFlow<GameSpeed> = _speed.asStateFlow()
 
     fun setSound(on: Boolean) = put(KEY_SOUND, on, _sound)
     fun setHaptics(on: Boolean) = put(KEY_HAPTICS, on, _haptics)
     fun setCrt(on: Boolean) = put(KEY_CRT, on, _crt)
     fun setCardSway(on: Boolean) = put(KEY_SWAY, on, _cardSway)
+    fun setDebugConsole(on: Boolean) = put(KEY_DEBUG_CONSOLE, on, _debugConsole)
 
     fun setSpeed(speed: GameSpeed) {
         _speed.value = speed
@@ -45,6 +50,7 @@ class Settings(private val prefs: SharedPreferences) {
         const val KEY_HAPTICS = "haptics"
         const val KEY_CRT = "crt"
         const val KEY_SWAY = "card_sway"
+        const val KEY_DEBUG_CONSOLE = "debug_console"
         const val KEY_SPEED = "speed"
     }
 }
@@ -52,11 +58,12 @@ class Settings(private val prefs: SharedPreferences) {
 /**
  * Keeps the run in SharedPreferences as [RunState.toJson]; [saved] tells the title
  * screen there's one to CONTINUE. A save from an older format (the Joker-shop
- * runs) is dropped on first read instead of crashing.
+ * runs, the tours with rule-twist tables) is dropped instead of crashing.
  */
 class PrefsRunSaver(private val prefs: SharedPreferences) : RunSaver {
     init {
-        if (prefs.contains(OLD_KEY)) prefs.edit { remove(OLD_KEY) }
+        val old = OLD_KEYS.filter(prefs::contains)
+        if (old.isNotEmpty()) prefs.edit { old.forEach(::remove) }
     }
 
     private val _saved = MutableStateFlow(load() != null)
@@ -84,9 +91,9 @@ class PrefsRunSaver(private val prefs: SharedPreferences) : RunSaver {
     private fun key(daily: Boolean) = if (daily) KEY_DAILY else KEY
 
     private companion object {
-        const val KEY = "run_v2"
-        const val KEY_DAILY = "run_v2_daily"
-        const val OLD_KEY = "run_v1"
+        const val KEY = "run_v3"
+        const val KEY_DAILY = "run_v3_daily"
+        val OLD_KEYS = listOf("run_v1", "run_v2", "run_v2_daily")
     }
 }
 

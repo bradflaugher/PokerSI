@@ -25,13 +25,13 @@ download a model.
   </tr>
   <tr>
     <td align="center" width="33%"><img src="docs/screenshots/showdown.png" alt="A full house wins the showdown"><p><em><b>Showdown</b> — full house!</em></p></td>
-    <td align="center" width="33%"><img src="docs/screenshots/boss.png" alt="Poker Tour boss table"><p><em><b>Poker Tour</b> — a boss table: The Wall never folds</em></p></td>
+    <td align="center" width="33%"><img src="docs/screenshots/tour-table.png" alt="A Poker Tour table at stop 5, high stakes"><p><em><b>Poker Tour</b> — stop 5, high stakes: hit the chip target in time</em></p></td>
     <td align="center" width="33%"><img src="docs/screenshots/models.png" alt="Models screen"><p><em><b>Models</b> — download one, or bring your own GGUF</em></p></td>
   </tr>
   <tr>
     <td align="center" colspan="3">
       <img src="docs/screenshots/tour.png" alt="Poker Tour: choose your next table" width="33%">
-      <p><em><b>Poker Tour</b> — pick your next table: low stakes, high stakes, or the boss</em></p>
+      <p><em><b>Poker Tour</b> — pick your next table: low stakes or high stakes</em></p>
     </td>
   </tr>
 </table>
@@ -50,6 +50,12 @@ download a model.
   plain words. The reply is held to a tiny JSON shape by a grammar
   (`{"action": "raise", "amount": 120, "say": "..."}`, the decision first), the line it says
   shows up in a speech bubble, and the action is clamped to something legal.
+- **Table talk that doesn't repeat.** Each turn a character gets a
+  different nudge (react to the last bet, answer whoever spoke, tease
+  someone, the pot, the board, something in character) plus what was just
+  said at the table, so they banter with each other. The table remembers
+  every line: a character that starts repeating itself (or anyone else) is
+  cut off before the line shows.
 - **House Bot when there's no model.** With nothing loaded, a built-in
   heuristic opponent plays every seat and the table says so. It also steps
   in for any decision the model fumbles or takes too long on, so a hand
@@ -69,6 +75,13 @@ download a model.
 - **Accessible.** TalkBack reads cards ("Ace of hearts, held"), opponents
   (name, chips, last action, what they say), the pot and your chips, and
   announces each action at the table.
+- **Debug console.** For the curious: turn on SETTINGS > DEBUG CONSOLE and
+  a "~" at the table (and in MODELS, or a keyboard's backtick) drops down a
+  Quake-style terminal with every prompt sent to the model, its raw reply as
+  it streams, timings and tokens per second, the decision before and after
+  it was made legal, every House Bot fallback and why, and model loads and
+  failures. Filter, clear, or copy it as plain text. Off by default, and it
+  records nothing while off.
 - **No nagging.** Share, rate on Google Play, send feedback (a GitHub
   issue), the privacy policy and the source code are plain links under
   SETTINGS > ABOUT, never a prompt.
@@ -95,10 +108,10 @@ A ladder of poker tables of rising stakes:
   limit (or bust everyone) to clear it. Your chips carry over from table
   to table; go broke and the tour is over. Clear the tenth table to win,
   then keep going in endless mode.
-- **Choose your next table.** After each table, pick from three: low
-  stakes, high stakes, or a boss table. Bigger risk, bigger chip bonus.
-- **Bosses.** Boss tables are run by an opponent with a rule twist that
-  changes how that table plays.
+- **Choose your next table.** After each table, pick from two: low
+  stakes, or high stakes with an extra opponent, bigger blinds and a
+  bigger target. Bigger risk, bigger chip bonus. Either way it's plain
+  poker: no rule twists.
 - **No dodging.** Leaving in the middle of a hand folds it.
 - **Seeded and daily tours.** Every tour has a seed, and the daily tour is
   the same seed for everyone that day. The title screen shows your best
@@ -172,7 +185,7 @@ House Bot. Use it for unit tests, lint and screenshot work.
 The poker engine (`engine/`) and Run mode (`run/`) are pure Kotlin with no
 Android imports, so their tests are plain JVM unit tests: the hand
 evaluator, every variant's dealing, betting and side pots, Run mode's
-tables and bosses, and the prompt builder, grammar and reply parser
+tables and table choices, and the prompt builder, grammar and reply parser
 that sit between the model and the table.
 
 GitHub Actions runs the unit tests and lint on every pull request and push

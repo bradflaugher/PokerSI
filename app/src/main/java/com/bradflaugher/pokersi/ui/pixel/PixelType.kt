@@ -89,10 +89,11 @@ fun PixelText(
     textAlign: TextAlign? = null,
     fontSize: TextUnit = TextUnit.Unspecified,
     maxLines: Int = Int.MAX_VALUE,
+    overflow: TextOverflow = TextOverflow.Clip,
 ) {
     var s = style.copy(color = color)
     if (fontSize != TextUnit.Unspecified) s = s.copy(fontSize = fontSize)
     if (textAlign != null) s = s.copy(textAlign = textAlign)
     if (shadowUnits > 0) s = s.hardShadow(shadowColor, shadowUnits)
-    BasicText(text, modifier, style = s, maxLines = maxLines, overflow = TextOverflow.Clip)
+    BasicText(text, modifier, style = s, maxLines = maxLines, overflow = overflow)
 }

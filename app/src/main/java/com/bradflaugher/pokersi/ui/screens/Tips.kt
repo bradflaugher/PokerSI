@@ -45,7 +45,7 @@ private class Tip(val key: String, val color: (PixelPalette) -> Color, val text:
 private val TIPS = listOf(
     Tip("AI", { it.teal }, "Your opponents are AI characters running right on this phone. Offline."),
     Tip("MODELS", { it.cabinetLight }, "Download a brain in MODELS. Until then, the House Bot plays every seat."),
-    Tip("QUICK", { it.suitRed }, "QUICK GAME is one table, any of six games. POKER TOUR climbs ten tables and bosses."),
+    Tip("QUICK", { it.suitRed }, "QUICK GAME is one table, any of six games. POKER TOUR climbs ten tables of rising stakes."),
     Tip("HOLD", { it.gold }, "Draw games: tap cards to HOLD the keepers, then DRAW the rest."),
     Tip("II", { it.gray }, "II (or Back) pauses a hand: change the speed or quit."),
 )

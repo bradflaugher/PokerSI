@@ -43,9 +43,6 @@ data class SeatUi(
     val isWinner: Boolean = false,
     /** The hand shown at showdown ("Full House, Kings full of Sevens"). */
     val shownHand: String? = null,
-    val isBoss: Boolean = false,
-    /** The Mime hides opponents' chip counts. */
-    val chipsHidden: Boolean = false,
     /** Chips won (positive) or lost this hand, set when the hand is over. */
     val net: Int? = null,
 )
@@ -109,15 +106,13 @@ data class TableUiState(
     /** Bumps when the human wins a pot (confetti, shake). */
     val celebrate: Int = 0,
     val brainLabel: String = "",
-    /** Opponents' speech bubbles are dropped (The Mime). */
-    val silentOpponents: Boolean = false,
 ) {
     val human: SeatUi? get() = seats.firstOrNull { it.seat == 0 }
     val opponents: List<SeatUi> get() = seats.filter { it.seat != 0 }
 }
 
 enum class RunScreen {
-    /** The table intro card ("ANTE 2 · THE WALL"). */
+    /** The table intro card ("TOUR STOP 2 · LOW STAKES"). */
     Intro,
 
     /** Playing the table. */
@@ -140,6 +135,6 @@ data class RunUiState(
     val reward: TableReward? = null,
     /** Opponent profiles of the current table, by seat (index 0 unused). */
     val opponents: List<OpponentProfile?> = emptyList(),
-    /** Opponent profiles of each table on offer ([RunScreen.Choose]), boss first. */
+    /** Opponent profiles of each table on offer ([RunScreen.Choose]). */
     val offerOpponents: List<List<OpponentProfile>> = emptyList(),
 )

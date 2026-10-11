@@ -105,6 +105,8 @@ class TableCallbacks(
     val onPlayAgain: () -> Unit = {},
     val onMenu: () -> Unit = {},
     val onPause: () -> Unit = {},
+    /** Opens the debug console; null hides the "~" button (the setting is off). */
+    val onConsole: (() -> Unit)? = null,
 )
 
 /** Sizes for one table layout, from the window size. */
@@ -221,6 +223,7 @@ private fun TableHeader(state: TableUiState, callbacks: TableCallbacks) {
     val p = PixelTheme.palette
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         PixelButton("II", callbacks.onPause, Modifier.size(48.dp, 48.dp).semantics { contentDescription = "Pause" }, variant = PixelButtonVariant.Gray, textStyle = PixelType.Small)
+        callbacks.onConsole?.let { ConsoleButton(it) }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             PixelText(state.variant.displayName.uppercase(), style = PixelType.Small, color = p.yellow, maxLines = 1)
             val blinds = state.blinds
@@ -277,7 +280,6 @@ private fun OpponentSeat(seat: SeatUi, m: TableMetrics, state: TableUiState, mod
     val border = when {
         seat.isWinner -> p.gold
         seat.isToAct || seat.thinking -> lerp(p.goldDark, p.yellow, glow)
-        seat.isBoss -> p.hotPink
         else -> p.inkSoft
     }
     val dim = seat.folded || seat.busted
@@ -290,7 +292,7 @@ private fun OpponentSeat(seat: SeatUi, m: TableMetrics, state: TableUiState, mod
                 val w = size.width.toInt(); val h = size.height.toInt()
                 if (seat.isWinner) pxBox(-unit * 2, -unit * 2, w + unit * 4, h + unit * 4, unit, p.yellow.copy(alpha = 0.35f), p.yellow.copy(alpha = 0.35f))
                 pxBox(0, 0, w, h, unit, p.ink, border)
-                pxBox(unit, unit, w - 2 * unit, h - 2 * unit, unit, p.ink, if (seat.isBoss) Color(0xE02A0A2A) else Color(0xD00A1030))
+                pxBox(unit, unit, w - 2 * unit, h - 2 * unit, unit, p.ink, Color(0xD00A1030))
             }
             .padding(horizontal = 6.dp, vertical = 5.dp),
         verticalArrangement = Arrangement.spacedBy(3.dp),
@@ -298,7 +300,7 @@ private fun OpponentSeat(seat: SeatUi, m: TableMetrics, state: TableUiState, mod
         PixelText(
             seat.name.uppercase(),
             style = PixelType.LabelBold.copy(fontSize = (if (m.big) 13f else 10f).let { if (seat.name.length > 12) it * 0.84f else it }.sp),
-            color = if (seat.isBoss) p.hotPink else p.yellow,
+            color = p.yellow,
             maxLines = 1,
         )
         Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -309,10 +311,9 @@ private fun OpponentSeat(seat: SeatUi, m: TableMetrics, state: TableUiState, mod
             SeatCards(seat.cards, m.seatCard, state.handNumber, Modifier.weight(1f), dim = seat.folded)
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            val chips = if (seat.chipsHidden) "???" else formatChips(seat.chips)
-            PixelText(chips, style = PixelType.Small.copy(fontSize = if (m.big) 11.sp else 8.sp), color = p.white, maxLines = 1)
+            PixelText(formatChips(seat.chips), style = PixelType.Small.copy(fontSize = if (m.big) 11.sp else 8.sp), color = p.white, maxLines = 1)
             val net = seat.net
-            if (net != null && net != 0 && !seat.chipsHidden) {
+            if (net != null && net != 0) {
                 PixelText(if (net > 0) "+${formatChips(net)}" else "-${formatChips(-net)}", style = PixelType.Small.copy(fontSize = 8.sp), color = if (net > 0) p.green else p.red, maxLines = 1)
             }
         }
@@ -320,7 +321,6 @@ private fun OpponentSeat(seat: SeatUi, m: TableMetrics, state: TableUiState, mod
             seat.busted -> PixelTag("BUSTED", p.redDark)
             seat.shownHand != null -> PixelText(seat.shownHand.uppercase(), style = PixelType.Label.copy(fontSize = 9.sp), color = if (seat.isWinner) p.yellow else p.cardShade, maxLines = 2)
             seat.lastAction != null -> ActionTag(seat)
-            seat.isBoss -> PixelTag("BOSS", p.hotPink, textColor = p.yellow)
             else -> Box(Modifier.height(16.dp))
         }
     }
@@ -329,15 +329,10 @@ private fun OpponentSeat(seat: SeatUi, m: TableMetrics, state: TableUiState, mod
 /** What TalkBack says for an opponent's seat: who, chips, what they did, what they show and say. */
 internal fun seatDescription(seat: SeatUi): String = buildList {
     add(seat.profile?.spoken ?: seat.name)
-    if (seat.isBoss) add("boss")
     if (seat.isDealer) add("dealer")
-    when {
-        seat.busted -> add("busted")
-        seat.chipsHidden -> add("chips hidden")
-        else -> add("${formatChips(seat.chips)} chips")
-    }
+    add(if (seat.busted) "busted" else "${formatChips(seat.chips)} chips")
     if (seat.bet > 0) add("bet ${formatChips(seat.bet)}")
-    seat.net?.takeIf { it != 0 && !seat.chipsHidden }?.let { add(if (it > 0) "won ${formatChips(it)}" else "lost ${formatChips(-it)}") }
+    seat.net?.takeIf { it != 0 }?.let { add(if (it > 0) "won ${formatChips(it)}" else "lost ${formatChips(-it)}") }
     when {
         seat.folded -> add("folded")
         seat.allIn -> add("all in")
@@ -441,7 +436,7 @@ private fun BubbleLayer(state: TableUiState, spots: Map<Int, Rect>, compact: Boo
     state.opponents.forEach { seat ->
         val rect = spots[seat.seat] ?: return@forEach
         val text = seat.chatter
-        val thinking = seat.thinking && text.isNullOrEmpty() && !state.silentOpponents
+        val thinking = seat.thinking && text.isNullOrEmpty()
         if (text.isNullOrEmpty() && !thinking) return@forEach
         val onRight = rect.center.x > (spots.filterKeys { it > 0 }.values.maxOfOrNull { it.right } ?: 0f) / 2f + 1f
         Layout(

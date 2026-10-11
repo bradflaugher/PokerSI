@@ -24,6 +24,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import com.bradflaugher.pokersi.debug.AiLog
+import com.bradflaugher.pokersi.debug.AiLogKind
 import java.io.File
 import java.util.Locale
 import java.util.concurrent.Executors
@@ -76,7 +78,7 @@ object MemoryCheck {
  * first). Use [get] for the shared instance. The last loaded model is
  * remembered and loaded again on the next start, off the main thread.
  */
-class LlamaEngine private constructor(context: Context) {
+class LlamaEngine private constructor(context: Context) : LlmBackend {
     private val app = context.applicationContext
     private val prefs by lazy { app.getSharedPreferences("llama_engine", Context.MODE_PRIVATE) }
 
@@ -91,6 +93,20 @@ class LlamaEngine private constructor(context: Context) {
     private val _state = MutableStateFlow<EngineState>(EngineState.NoModel)
     val state: StateFlow<EngineState> = _state.asStateFlow()
 
+    /** Sets [state] and notes the change in the debug console. */
+    private fun setState(next: EngineState) {
+        _state.value = next
+        AiLog.add(if (next is EngineState.Failed) AiLogKind.ERROR else AiLogKind.ENGINE, ENGINE, {
+            when (next) {
+                EngineState.Unavailable -> "native library not built: House Bot only"
+                EngineState.NoModel -> "no model loaded"
+                is EngineState.Loading -> "loading ${next.name}"
+                is EngineState.Ready -> "ready: ${next.name}"
+                is EngineState.Failed -> "load failed: ${next.message}"
+            }
+        }, { (next as? EngineState.Ready)?.description.orEmpty() })
+    }
+
     /**
      * Native handle. Written only on [dispatcher], and only under [handleLock]
      * so that [cancelGeneration] (any thread) never signals a freed engine.
@@ -102,7 +118,7 @@ class LlamaEngine private constructor(context: Context) {
     /** True once the native library is known to be loaded. Read on [dispatcher]. */
     private var available = false
 
-    val isReady: Boolean get() = state.value is EngineState.Ready
+    override val isReady: Boolean get() = state.value is EngineState.Ready
 
     /** Threads for inference: the big cores, roughly. */
     private val threads: Int = (Runtime.getRuntime().availableProcessors() - 2).coerceIn(2, 4)
@@ -111,7 +127,7 @@ class LlamaEngine private constructor(context: Context) {
         scope.launch(dispatcher) {
             available = LlamaNative.available
             if (!available) {
-                _state.value = EngineState.Unavailable
+                setState(EngineState.Unavailable)
                 return@launch
             }
             LlamaNative.init(app.applicationInfo.nativeLibraryDir)
@@ -120,9 +136,9 @@ class LlamaEngine private constructor(context: Context) {
                 // The last load never finished: the process died in it (out of memory,
                 // or a file llama.cpp chokes on). Don't crash again on every start.
                 forget()
-                _state.value = EngineState.Failed(
+                setState(EngineState.Failed(
                     "$crashed didn't finish loading last time (the phone may have run out of memory), so it wasn't loaded again.",
-                )
+                ))
                 return@launch
             }
             val remembered = rememberedModel() ?: return@launch
@@ -146,7 +162,7 @@ class LlamaEngine private constructor(context: Context) {
         if (!available) return false
         val location = model.location ?: return false
         freeCurrent()
-        _state.value = EngineState.Loading(model.id, model.name)
+        setState(EngineState.Loading(model.id, model.name))
         val (path, size) = try {
             when (location) {
                 is ModelLocation.FilePath -> {
@@ -163,14 +179,14 @@ class LlamaEngine private constructor(context: Context) {
             // Includes SecurityException when a picked folder's permission was revoked.
             Log.w(TAG, "open failed", e)
             closeDescriptor()
-            _state.value = EngineState.Failed("Can't open ${model.name}: ${e.message}")
+            setState(EngineState.Failed("Can't open ${model.name}: ${e.message}"))
             return false
         }
         val memory = ActivityManager.MemoryInfo()
         app.getSystemService(ActivityManager::class.java)?.getMemoryInfo(memory)
         MemoryCheck.problem(model.name, size, memory.totalMem, memory.availMem)?.let { why ->
             closeDescriptor()
-            _state.value = EngineState.Failed(why)
+            setState(EngineState.Failed(why))
             return false
         }
         // Marks the load in progress until it returns (see init).
@@ -182,12 +198,12 @@ class LlamaEngine private constructor(context: Context) {
         }
         return if (h == 0L) {
             closeDescriptor()
-            _state.value = EngineState.Failed("${model.name} didn't load. The file may be damaged or too big for this phone.")
+            setState(EngineState.Failed("${model.name} didn't load. The file may be damaged or too big for this phone."))
             false
         } else {
             synchronized(handleLock) { handle = h }
             remember(model)
-            _state.value = EngineState.Ready(model.id, model.name, LlamaNative.describe(h))
+            setState(EngineState.Ready(model.id, model.name, LlamaNative.describe(h)))
             true
         }
     }
@@ -198,7 +214,7 @@ class LlamaEngine private constructor(context: Context) {
         withContext(dispatcher) {
             freeCurrent()
             forget()
-            if (available) _state.value = EngineState.NoModel
+            if (available) setState(EngineState.NoModel)
         }
     }
 
@@ -210,14 +226,14 @@ class LlamaEngine private constructor(context: Context) {
      * generation promptly; after [timeoutMs] it throws
      * [kotlinx.coroutines.TimeoutCancellationException].
      */
-    suspend fun generate(
+    override suspend fun generate(
         messages: List<ChatMessage>,
         grammar: String?,
         maxTokens: Int,
         temperature: Float,
         seed: Int,
-        timeoutMs: Long = 25_000,
-        onText: (String) -> Boolean = { true },
+        timeoutMs: Long,
+        onText: (String) -> Boolean,
     ): String = withTimeout(timeoutMs) {
         coroutineScope {
             val started = AtomicBoolean(false)
@@ -273,7 +289,10 @@ class LlamaEngine private constructor(context: Context) {
 
     private fun cancelGeneration() {
         synchronized(handleLock) {
-            handle.takeIf { it != 0L }?.let(LlamaNative::cancel)
+            handle.takeIf { it != 0L }?.let {
+                AiLog.note(AiLogKind.ENGINE, ENGINE, "cancel signalled")
+                LlamaNative.cancel(it)
+            }
         }
     }
 
@@ -324,6 +343,7 @@ class LlamaEngine private constructor(context: Context) {
 
     companion object {
         private const val TAG = "LlamaEngine"
+        private const val ENGINE = "ENGINE"
         const val CONTEXT_SIZE = 4096
         private const val KEY_ID = "id"
         private const val KEY_NAME = "name"

@@ -38,6 +38,8 @@ class HouseBot(
     seed: Long = 0L,
     private val iterations: Int = 250,
     private val talk: Boolean = true,
+    /** The table's talk so far: the bot skips lines said lately. */
+    private val tableTalk: TableTalk? = null,
 ) : PlayerAgent {
     private val random = Random(seed)
 
@@ -227,5 +229,5 @@ class HouseBot(
     }
 
     private fun chatter(moment: TalkMoment): String? =
-        if (talk && random.nextDouble() < style.chattiness * 0.6) BotLines.pick(moment, random) else null
+        if (talk && random.nextDouble() < style.chattiness * 0.6) BotLines.pickFresh(moment, random, tableTalk) else null
 }

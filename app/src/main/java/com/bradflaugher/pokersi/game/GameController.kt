@@ -12,8 +12,10 @@ import com.bradflaugher.pokersi.engine.Hand
 import com.bradflaugher.pokersi.engine.HouseBot
 import com.bradflaugher.pokersi.engine.Match
 import com.bradflaugher.pokersi.engine.PlayerAgent
+import com.bradflaugher.pokersi.engine.TableTalk
+import com.bradflaugher.pokersi.debug.AiLog
+import com.bradflaugher.pokersi.debug.AiLogKind
 import com.bradflaugher.pokersi.engine.isDraw
-import com.bradflaugher.pokersi.run.BossTwists
 import com.bradflaugher.pokersi.run.HandOutcome
 import com.bradflaugher.pokersi.run.RunPhase
 import com.bradflaugher.pokersi.run.RunState
@@ -159,6 +161,10 @@ class GameController(
     private var agents: List<PlayerAgent> = emptyList()
     private var fallbacks: List<HouseBot> = emptyList()
 
+    /** What has been said at this table (by every seat); a new table starts a new one. */
+    var talk = TableTalk()
+        private set
+
     /** Quick game: seat -> the match's hand count when that opponent went broke. */
     private val bustedAt = HashMap<Int, Int>()
     private var replacements = 0
@@ -240,7 +246,8 @@ class GameController(
                     return
                 }
             }
-            val arrivals = seatNewcomers(m)
+            // Everyone at a fresh table sits down with a hello; later, only newcomers.
+            val arrivals = seatNewcomers(m) + if (m.handsPlayed == 0) seatedOpponents(m) else emptySet()
             val h = m.startNextHand()
             playHand(h, arrivals)
             m.settle()
@@ -264,6 +271,9 @@ class GameController(
      * for [replaceBustedAfterHands] hands, so a table never runs dry. Returns
      * the seats that changed hands.
      */
+    /** The opponent seats with chips: who sits down at a fresh table. */
+    private fun seatedOpponents(m: Match): Set<Int> = m.chips.indices.filter { it != 0 && m.chips[it] > 0 }.toSet()
+
     private fun seatNewcomers(m: Match): Set<Int> {
         val config = quick ?: return emptySet()
         val after = replaceBustedAfterHands ?: return emptySet()
@@ -280,9 +290,9 @@ class GameController(
             replacements++
             m.replaceSeat(seat, profile.name, config.startingStack)
             profiles = profiles.toMutableList().also { it[seat] = profile }
-            val fallback = HouseBot(profile.style, Match.mix(config.seed, 1000 + seat + 7 * replacements), houseBotIterations)
+            val fallback = HouseBot(profile.style, Match.mix(config.seed, 1000 + seat + 7 * replacements), houseBotIterations, tableTalk = talk)
             fallbacks = fallbacks.toMutableList().also { it[seat] = fallback }
-            agents = agents.toMutableList().also { it[seat] = brains.agentFor(seat, profile, fallback) }
+            agents = agents.toMutableList().also { it[seat] = brains.agentFor(seat, profile, fallback, talk) }
             news = news + "${profile.name} sits down"
         }
         return due.toSet()
@@ -325,12 +335,12 @@ class GameController(
         val state = runState ?: return
         if (state.phase != RunPhase.TABLE || isRunning) return
         val ps = runProfiles(state)
-        // The table as the run would deal it, with the players' display names (the boss is seat 1).
+        // The table as the run would deal it, with the players' display names.
         val p = state.progress
         val m = Match(
             names = listOf(PLAYER_NAME) + ps.drop(1).map { it!!.name },
             startingChips = p.chips,
-            variant = state.table.variantForHand(p.handsPlayed + 1),
+            variant = state.table.variant,
             schedule = state.table.schedule,
             seed = state.table.seed,
             button = p.button,
@@ -348,11 +358,12 @@ class GameController(
         val m = match!!
         while (true) {
             val state = runState!!
+            val arrivals = if (m.handsPlayed == 0) seatedOpponents(m) else emptySet()
             val h = state.startNextHand(m)
             handScored = false
             hand = h
             saveForfeit(h)
-            playHand(h)
+            playHand(h, arrivals)
             val status = scoreRunHand(h)
 
             when (status) {
@@ -529,10 +540,12 @@ class GameController(
 
     private fun setUpAgents(ps: List<OpponentProfile?>, seed: Long) {
         profiles = ps
+        talk = TableTalk()
         fallbacks = ps.mapIndexed { seat, p ->
-            HouseBot(p?.style ?: BotStyle.BALANCED, Match.mix(seed, 1000 + seat), houseBotIterations)
+            HouseBot(p?.style ?: BotStyle.BALANCED, Match.mix(seed, 1000 + seat), houseBotIterations, tableTalk = talk)
         }
-        agents = ps.mapIndexed { seat, p -> if (p == null) fallbacks[seat] else brains.agentFor(seat, p, fallbacks[seat]) }
+        agents = ps.mapIndexed { seat, p -> if (p == null) fallbacks[seat] else brains.agentFor(seat, p, fallbacks[seat], talk) }
+        AiLog.add(AiLogKind.TABLE, TABLE, { "new table: " + ps.filterNotNull().joinToString { it.name } })
     }
 
     private suspend fun playHand(h: Hand, arrivals: Set<Int> = emptySet()) {
@@ -545,7 +558,15 @@ class GameController(
         boardLimit = null
         phase = TablePhase.Playing
         // Newcomers say hello.
-        arrivals.forEach { seat -> profiles.getOrNull(seat)?.catchphrase?.takeIf { it.isNotBlank() }?.let { setChatter(seat, it) } }
+        arrivals.forEach { seat ->
+            val p = profiles.getOrNull(seat) ?: return@forEach
+            p.catchphrase.takeIf { it.isNotBlank() }?.let {
+                setChatter(seat, it)
+                talk.record(p.name, it)
+            }
+        }
+        AiLog.add(AiLogKind.TABLE, TABLE, { "hand ${h.handNumber}: ${h.variant.displayName}, blinds ${h.stakes.smallBlind}/${h.stakes.bigBlind}" })
+        var logged = h.history.size
         publish()
         pause(pacing.dealMs)
 
@@ -561,6 +582,10 @@ class GameController(
                 pause(pacing.streetMs)
             }
             if (seat == 0) humanAct(h) else botAct(h, seat)
+            if (AiLog.enabled) {
+                h.history.drop(logged).forEach { AiLog.note(AiLogKind.TABLE, TABLE, it) }
+            }
+            logged = h.history.size
             publish()
             pause(pacing.actionMs)
         }
@@ -614,8 +639,6 @@ class GameController(
 
     private suspend fun botAct(h: Hand, seat: Int) {
         awaitUnpaused()
-        val state = runState
-        val silent = state?.table?.boss?.rules?.silentOpponents == true
         val id = ++decisionId
         thinkingSeat = seat
         chatter.remove(seat)
@@ -626,20 +649,23 @@ class GameController(
         // hop back to the table's thread, as a child of this game so leaving cancels it.
         val game = currentCoroutineContext()[Job]
         val onChatter: (String) -> Unit = { text ->
-            if (!silent) scope.launch(game ?: Job()) { streamChatter(id, seat, text) }
+            scope.launch(game ?: Job()) { streamChatter(id, seat, text) }
         }
         val reply = decideSafely(agents[seat], fallbacks[seat], ctx, onChatter)
         val elapsed = (System.nanoTime() - started) / 1_000_000
         pause((pacing.thinkMinMs - elapsed).coerceAtLeast(0))
         awaitUnpaused()
-        var decision = reply.decision
-        if (state != null) {
-            decision = BossTwists.adjustOpponentDecision(state.table.boss, ctx, decision, BossTwists.lastActionOf(h.events, 0))
-        }
+        val decision = reply.decision
         thinkingSeat = null
         streamingSeat = null
-        val say = if (silent) null else reply.say?.let(::tidySay)
-        if (say != null) setChatter(seat, say)
+        val say = reply.say?.let(::tidySay)
+        if (say != null) {
+            setChatter(seat, say)
+            talk.record(ctx.seats.firstOrNull { it.seat == seat }?.name ?: "Seat $seat", say)
+        } else {
+            // A line that streamed and was then dropped (a repeat) must not linger.
+            chatter.remove(seat)
+        }
         h.apply(seat, decision, say)
     }
 
@@ -676,8 +702,6 @@ class GameController(
 
     private fun publish(showBanner: Boolean = true) {
         val h = hand
-        val state = runState
-        val rules = state?.table?.boss?.rules
         if (h == null) {
             _table.update { it.copy(phase = phase, brainLabel = brains.label.value) }
             return
@@ -687,9 +711,6 @@ class GameController(
             chatter = chatter.toMap(),
             streamingSeat = streamingSeat,
             thinkingSeat = thinkingSeat,
-            bossSeat = if (state?.table?.isBoss == true) 1 else null,
-            hideChips = rules?.hideChipCounts == true,
-            silent = rules?.silentOpponents == true,
             brainLabel = brains.label.value,
         )
         _table.value = TableStates.fromHand(
@@ -726,6 +747,7 @@ class GameController(
 
     companion object {
         const val PLAYER_NAME = "You"
+        private const val TABLE = "TABLE"
 
         /** Longest speech bubble, whatever an agent says. */
         const val SAY_MAX = 120

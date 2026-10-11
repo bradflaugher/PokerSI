@@ -7,7 +7,9 @@ import com.bradflaugher.pokersi.engine.DecisionContext
 import com.bradflaugher.pokersi.engine.GameVariant
 import com.bradflaugher.pokersi.engine.HouseBot
 import com.bradflaugher.pokersi.engine.PlayerAgent
+import com.bradflaugher.pokersi.engine.TableTalk
 import com.bradflaugher.pokersi.engine.isDraw
+import com.bradflaugher.pokersi.run.Risk
 import com.bradflaugher.pokersi.run.RunPhase
 import com.bradflaugher.pokersi.run.RunState
 import kotlinx.coroutines.Dispatchers
@@ -56,7 +58,7 @@ class GameControllerTest {
     /** Every opponent seat played by [agent]. */
     private fun brainsOf(agent: (seat: Int, fallback: PlayerAgent) -> PlayerAgent) = object : OpponentBrains {
         override val label = MutableStateFlow("TEST")
-        override fun agentFor(seat: Int, opponent: OpponentProfile, fallback: PlayerAgent) = agent(seat, fallback)
+        override fun agentFor(seat: Int, opponent: OpponentProfile, fallback: PlayerAgent, talk: TableTalk) = agent(seat, fallback)
     }
 
     /** Plays the human seat by checking or calling (holding the suggested cards, tossing the first) until [done]. */
@@ -234,15 +236,18 @@ class GameControllerTest {
                 c.toChoose()
                 val choosing = c.run.value!!
                 assertEquals(RunScreen.Choose, choosing.screen)
-                assertEquals(3, choosing.state.offers.size)
-                assertEquals(3, choosing.offerOpponents.size)
-                assertEquals(choosing.state.offers[2].opponents.size, choosing.offerOpponents[2].size)
-                assertTrue(c.chooseTable(2))
+                assertEquals(2, choosing.state.offers.size)
+                assertEquals(2, choosing.offerOpponents.size)
+                assertEquals(choosing.state.offers[1].opponents.size, choosing.offerOpponents[1].size)
+                assertTrue(!c.chooseTable(2))
+                assertTrue(c.chooseTable(1))
                 val next = c.run.value!!
                 assertEquals(RunScreen.Intro, next.screen)
                 assertEquals(RunPhase.TABLE, next.state.phase)
                 assertEquals(2, next.state.level)
-                assertTrue(next.state.table.isBoss)
+                assertEquals(Risk.HIGH, next.state.table.risk)
+                // Every opponent at the table is one of the table's own, by name.
+                assertEquals(next.state.table.opponents.map { it.name }, next.opponents.drop(1).map { it!!.name })
                 assertEquals(next.state, saver.saved)
             } else {
                 assertEquals(RunScreen.GameOver, ui.screen)
@@ -295,6 +300,76 @@ class GameControllerTest {
         c.startQuick(config(opponents = 3, seed = 6L))
         drive(c) { c.table.value.handNumber >= 3 }
         assertTrue(c.table.value.handNumber >= 3)
+        c.stop()
+    }
+
+    @Test
+    fun tableTalkIsSharedBySeatsRecordedAndNewForEachTable() = runTest {
+        val memories = mutableListOf<TableTalk>()
+        var n = 0
+        val brains = object : OpponentBrains {
+            override val label = MutableStateFlow("TEST")
+            override fun agentFor(seat: Int, opponent: OpponentProfile, fallback: PlayerAgent, talk: TableTalk): PlayerAgent {
+                memories += talk
+                return agentOf { ctx, _ -> AgentReply(if (ctx.legal.canCheck) Decision.Check else Decision.Call, "line ${n++}") }
+            }
+        }
+        val c = controller(brains = brains)
+        c.startQuick(config(opponents = 3, seed = 4L))
+        drive(c) { c.table.value.handNumber >= 2 }
+        assertEquals(3, memories.size)
+        assertTrue("one memory per table", memories.all { it === memories[0] })
+        assertTrue("the controller holds it", c.talk === memories[0])
+        val said = memories[0].recent(100)
+        assertTrue(said.isNotEmpty())
+        assertTrue("with the speakers' names", said.all { line -> c.table.value.opponents.any { it.name == line.speaker } })
+        // Everyone sits down with their catchphrase, then the agents talk.
+        val hellos = c.table.value.opponents.mapNotNull { it.profile?.catchphrase?.takeIf(String::isNotBlank) }
+        assertEquals(hellos.toSet(), said.take(hellos.size).map { it.text }.toSet())
+        assertEquals("line 0", said[hellos.size].text)
+
+        c.playAgain()
+        runCurrent()
+        assertEquals(6, memories.size)
+        assertTrue("a new table, a new memory", memories[3] !== memories[0] && memories.drop(3).all { it === memories[3] })
+        c.stop()
+    }
+
+    @Test
+    fun opponentsAtANewTableSayTheirCatchphrase() = runTest {
+        val c = controller()
+        c.startQuick(config(opponents = 3, seed = 9L))
+        runCurrent()
+        val opponents = c.table.value.opponents
+        assertEquals(1, c.table.value.handNumber)
+        val phrases = opponents.mapNotNull { s -> s.profile?.catchphrase?.takeIf(String::isNotBlank)?.let { s.name to it } }
+        assertTrue(phrases.isNotEmpty())
+        val said = c.talk.recent(100).map { it.speaker to it.text }
+        assertTrue("every opponent says hello: $said", phrases.all { it in said })
+        c.stop()
+
+        // A tour table too, on its first hand only.
+        val t = controller()
+        t.startRun(RunState.new(5))
+        t.beginTable()
+        runCurrent()
+        val tourSaid = t.talk.recent(100).map { it.speaker to it.text }
+        val tourPhrases = t.table.value.opponents.mapNotNull { s -> s.profile?.catchphrase?.takeIf(String::isNotBlank)?.let { s.name to it } }
+        assertTrue("tour opponents say hello: $tourSaid", tourPhrases.all { it in tourSaid })
+        t.stop()
+    }
+
+    @Test
+    fun aLineDroppedAfterStreamingLeavesNoBubble() = runTest {
+        val streamer = agentOf { ctx, onChatter ->
+            onChatter("Saddle up")
+            AgentReply(if (ctx.legal.canCheck) Decision.Check else Decision.Call, null)
+        }
+        val c = controller(brains = brainsOf { _, _ -> streamer })
+        c.startQuick(config(opponents = 2, seed = 3L))
+        drive(c) { c.table.value.handNumber >= 3 }
+        // Whenever the human is asked to act, no opponent's dropped line lingers.
+        assertTrue(c.table.value.seats.none { it.chatter == "Saddle up" })
         c.stop()
     }
 

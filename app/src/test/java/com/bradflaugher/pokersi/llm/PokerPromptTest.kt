@@ -17,7 +17,7 @@ class PokerPromptTest {
         assertEquals(listOf("system", "user"), messages.map { it.role })
         val system = messages[0].content
         assertTrue(system.contains(persona.name))
-        assertTrue(system.contains(persona.catchphrase))
+        assertFalse("small models parrot it", system.contains(persona.catchphrase))
         assertTrue(system.contains(persona.styleWords))
         assertTrue(system.contains(""""action""""))
     }

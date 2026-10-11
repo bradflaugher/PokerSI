@@ -23,7 +23,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.bradflaugher.pokersi.game.OpponentGenerator
 import com.bradflaugher.pokersi.game.OpponentProfile
 import com.bradflaugher.pokersi.game.RunUiState
 import com.bradflaugher.pokersi.game.formatChips
@@ -36,7 +35,6 @@ import com.bradflaugher.pokersi.ui.pixel.LedColor
 import com.bradflaugher.pokersi.ui.pixel.LedCounter
 import com.bradflaugher.pokersi.ui.pixel.MarqueeFrame
 import com.bradflaugher.pokersi.ui.pixel.Mood
-import com.bradflaugher.pokersi.ui.pixel.PanelStyle
 import com.bradflaugher.pokersi.ui.pixel.PayRow
 import com.bradflaugher.pokersi.ui.pixel.PayTable
 import com.bradflaugher.pokersi.ui.pixel.PixelAvatar
@@ -48,11 +46,8 @@ import com.bradflaugher.pokersi.ui.pixel.PixelTheme
 import com.bradflaugher.pokersi.ui.pixel.PixelType
 import com.bradflaugher.pokersi.ui.pixel.Sfx
 
-/** "LOW STAKES", "HIGH STAKES" or the boss's name. */
-fun stageName(spec: TableSpec): String = when {
-    spec.isBoss -> "BOSS: ${spec.name.uppercase()}"
-    else -> spec.risk.label
-}
+/** "LOW STAKES" or "HIGH STAKES". */
+fun stageName(spec: TableSpec): String = spec.risk.label
 
 private fun blinds(spec: TableSpec) = "${formatChips(spec.smallBlind)}/${formatChips(spec.bigBlind)}"
 
@@ -65,12 +60,12 @@ fun RunHud(run: RunUiState, modifier: Modifier = Modifier) {
     val state = run.state
     val spec = state.table
     val myChips = state.progress.chips.firstOrNull() ?: 0
-    PixelPanel(modifier.fillMaxWidth(), style = if (spec.isBoss) PanelStyle.Dark else PanelStyle.Cabinet, paddingUnits = 1) {
+    PixelPanel(modifier.fillMaxWidth(), paddingUnits = 1) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     PixelTag("STOP ${state.level}", p.suitRed, textColor = p.yellow)
-                    PixelText(stageName(spec), style = PixelType.Small.copy(fontSize = 8.sp), color = if (spec.isBoss) p.hotPink else p.white, maxLines = 1)
+                    PixelText(stageName(spec), style = PixelType.Small.copy(fontSize = 8.sp), color = p.white, maxLines = 1)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     PixelText("TARGET", style = PixelType.Label.copy(fontSize = 9.sp), color = p.cardCream, shadowUnits = 0)
@@ -86,13 +81,12 @@ fun RunHud(run: RunUiState, modifier: Modifier = Modifier) {
 
 // ---------------------------------------------------------------- intro
 
-/** The card shown before each tour table: who's here, the twist, the target. */
+/** The card shown before each tour table: who's here, the game, the target. */
 @Composable
 fun RunIntroScreen(run: RunUiState, onPlay: () -> Unit, onBack: () -> Unit, modifier: Modifier = Modifier) {
     val p = PixelTheme.palette
     val state = run.state
     val spec = state.table
-    val boss = spec.boss
     ArcadeScreen(modifier, felt = FeltColors.Table) {
         Column(Modifier.fillMaxSize()) {
             ArcadeTopBar(if (state.daily) "DAILY TOUR" else "POKER TOUR", onBack) {
@@ -103,19 +97,10 @@ fun RunIntroScreen(run: RunUiState, onPlay: () -> Unit, onBack: () -> Unit, modi
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                MarqueeFrame(Modifier.readable(), frameColor = if (boss != null) p.hotPinkDark else p.suitRed) {
+                MarqueeFrame(Modifier.readable(), frameColor = p.suitRed) {
                     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         PixelText("STOP ${state.level}", style = PixelType.Title, color = p.yellow, shadowUnits = 2)
-                        PixelText(
-                            if (boss != null) "BOSS TABLE" else stageName(spec),
-                            style = PixelType.Heading,
-                            color = if (boss != null) p.hotPink else p.white,
-                        )
-                        if (boss != null) {
-                            PixelAvatar(OpponentGenerator.bossAvatarSeed(boss), Mood.Smug, size = 72.dp)
-                            PixelText(boss.name.uppercase(), style = PixelType.Title.copy(fontSize = 18.sp), color = p.hotPink, shadowUnits = 2, textAlign = TextAlign.Center)
-                            BodyText(boss.description, color = p.cardCream, align = TextAlign.Center)
-                        }
+                        PixelText(stageName(spec), style = PixelType.Heading, color = p.white)
                         PixelText(variantName(spec), style = PixelType.Small, color = p.teal, textAlign = TextAlign.Center)
                     }
                 }
@@ -130,7 +115,7 @@ fun RunIntroScreen(run: RunUiState, onPlay: () -> Unit, onBack: () -> Unit, modi
                     Modifier.readable(),
                     title = "THE TABLE",
                 )
-                OpponentLineup(run.opponents.filterNotNull().let { if (boss != null) it.drop(1) else it })
+                OpponentLineup(run.opponents.filterNotNull())
             }
             PixelButton(
                 "SIT DOWN", onPlay,
@@ -141,18 +126,17 @@ fun RunIntroScreen(run: RunUiState, onPlay: () -> Unit, onBack: () -> Unit, modi
     }
 }
 
-private fun variantName(spec: TableSpec): String =
-    if (spec.boss?.rules?.rotateVariants == true) "A NEW GAME EVERY HAND" else spec.variant.displayName.uppercase()
+private fun variantName(spec: TableSpec): String = spec.variant.displayName.uppercase()
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun OpponentLineup(opponents: List<OpponentProfile>, modifier: Modifier = Modifier, bossFirst: Boolean = false, avatar: Dp = 56.dp) {
+fun OpponentLineup(opponents: List<OpponentProfile>, modifier: Modifier = Modifier, avatar: Dp = 56.dp) {
     val p = PixelTheme.palette
     FlowRow(modifier.readable(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        opponents.forEachIndexed { i, o ->
+        opponents.forEach { o ->
             Column(Modifier.width(avatar + 32.dp).clearAndSetSemantics { contentDescription = o.spoken }, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                PixelAvatar(o.avatarSeed, if (bossFirst && i == 0) Mood.Angry else Mood.Neutral, size = avatar)
-                PixelText(o.name.uppercase(), style = PixelType.LabelBold.copy(fontSize = nameSize(o.name, 10f)), color = if (bossFirst && i == 0) p.hotPink else p.yellow, textAlign = TextAlign.Center, maxLines = 2)
+                PixelAvatar(o.avatarSeed, Mood.Neutral, size = avatar)
+                PixelText(o.name.uppercase(), style = PixelType.LabelBold.copy(fontSize = nameSize(o.name, 10f)), color = p.yellow, textAlign = TextAlign.Center, maxLines = 2)
                 PixelText(o.style.name.uppercase(), style = PixelType.Label.copy(fontSize = 9.sp), color = p.cardCream, textAlign = TextAlign.Center, shadowUnits = 0)
             }
         }
@@ -224,31 +208,20 @@ fun ChooseTableScreen(run: RunUiState, onChoose: (Int) -> Unit, onBack: () -> Un
 @Composable
 private fun TableOffer(spec: TableSpec, opponents: List<OpponentProfile>, onChoose: () -> Unit, modifier: Modifier = Modifier) {
     val p = PixelTheme.palette
-    val boss = spec.boss
     val accent = when (spec.risk) {
         Risk.LOW -> p.green
         Risk.HIGH -> p.yellow
-        Risk.BOSS -> p.hotPink
     }
-    PixelPanel(modifier, title = spec.risk.label, style = if (boss != null) PanelStyle.Dark else PanelStyle.Cabinet, paddingUnits = 2) {
+    PixelPanel(modifier, title = spec.risk.label, paddingUnits = 2) {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             PixelText(variantName(spec), style = PixelType.Small, color = p.teal)
-            if (boss != null) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PixelAvatar(OpponentGenerator.bossAvatarSeed(boss), Mood.Smug, size = 40.dp, blink = false)
-                    Column(Modifier.weight(1f)) {
-                        PixelText(boss.name.uppercase(), style = PixelType.Small, color = p.hotPink)
-                        BodyText(boss.description, color = p.cardCream, small = true)
-                    }
-                }
-            }
             OfferLine("BLINDS", blinds(spec))
             OfferLine("TARGET", "${formatChips(spec.chipTarget)} IN ${spec.handLimit} HANDS")
             OfferLine("BONUS", "+${formatChips(spec.reward)} CHIPS", accent)
-            OpponentLineup(opponents.let { if (boss != null) it.drop(1) else it }, avatar = 32.dp)
+            OpponentLineup(opponents, avatar = 32.dp)
             PixelButton(
                 "PLAY THIS TABLE", onChoose, Modifier.fillMaxWidth(),
-                variant = if (boss != null) PixelButtonVariant.Pink else PixelButtonVariant.Deal, textStyle = PixelType.Small, sound = Sfx.Deal,
+                variant = if (spec.risk == Risk.HIGH) PixelButtonVariant.Bet else PixelButtonVariant.Deal, textStyle = PixelType.Small, sound = Sfx.Deal,
             )
         }
     }

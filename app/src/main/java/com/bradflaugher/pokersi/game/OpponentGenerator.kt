@@ -4,7 +4,6 @@ import com.bradflaugher.pokersi.engine.BotStyle
 import com.bradflaugher.pokersi.engine.Match
 import com.bradflaugher.pokersi.llm.Persona
 import com.bradflaugher.pokersi.llm.Personas
-import com.bradflaugher.pokersi.run.Boss
 import com.bradflaugher.pokersi.run.OpponentSpec
 import com.bradflaugher.pokersi.run.RunState
 import com.bradflaugher.pokersi.run.TableSpec
@@ -45,23 +44,12 @@ object OpponentGenerator {
     /** [count] opponents with distinct names, from [seed]. */
     fun table(seed: Long, count: Int): List<OpponentProfile> = Personas.table(seed, count).map(::fromPersona)
 
-    /** The boss's face (stable per boss). */
-    fun bossAvatarSeed(boss: Boss): Long = boss.id.hashCode().toLong() * 31 + 7
-
-    /**
-     * Profiles for a run table, by seat (seat 0, the player, is null). At a boss
-     * table seat 1 is the boss itself: its name, its face, its rule as a bio.
-     */
+    /** Profiles for a run table, by seat (seat 0, the player, is null). */
     fun forRunTable(state: RunState): List<OpponentProfile?> = forTable(state.table, state.seed)
 
     /** Profiles for [table] of the run seeded with [runSeed], by seat (seat 0 is null). */
-    fun forTable(table: TableSpec, runSeed: Long): List<OpponentProfile?> {
-        val boss = table.boss
-        return listOf<OpponentProfile?>(null) + table.opponents.mapIndexed { i, spec ->
-            val p = forRunOpponent(spec, runSeed)
-            if (i == 0 && boss != null) p.copy(name = boss.name, avatarSeed = bossAvatarSeed(boss), bio = boss.description) else p
-        }
-    }
+    fun forTable(table: TableSpec, runSeed: Long): List<OpponentProfile?> =
+        listOf<OpponentProfile?>(null) + table.opponents.map { forRunOpponent(it, runSeed) }
 
     /** A profile for a run table's opponent: its name and style come from the run, the rest from the name. */
     fun forRunOpponent(spec: OpponentSpec, runSeed: Long): OpponentProfile {

@@ -185,13 +185,13 @@ object ScreenshotScenes {
 
     // ---------------------------------------------------------------- run
 
-    /** A boss table at tour stop 5 run by The Wall. */
-    fun wallRun(phase: RunPhase = RunPhase.TABLE): RunState {
+    /** A high-stakes Hold'em table at tour stop 5, ten hands in. */
+    fun tourRun(phase: RunPhase = RunPhase.TABLE): RunState {
         var seed = 1L
         var spec: TableSpec
         do {
-            spec = TableSpec.generate(seed++, 5, Risk.BOSS, 1840)
-        } while (spec.bossId != "the_wall" || spec.opponents.size < 3)
+            spec = TableSpec.generate(seed++, 5, Risk.HIGH, 1840)
+        } while (spec.opponents.size < 3)
         spec = spec.copy(variant = GameVariant.TEXAS_HOLDEM, opponents = spec.opponents.take(3))
         return RunState(
             seed = seed,
@@ -207,9 +207,9 @@ object ScreenshotScenes {
 
     private fun runProfiles(state: RunState): List<OpponentProfile?> = com.bradflaugher.pokersi.game.OpponentGenerator.forRunTable(state)
 
-    /** The Wall's table on the turn, and a flush for you. */
-    fun runBossTable(): Pair<TableUiState, RunUiState> {
-        val state = wallRun()
+    /** The tour table on the turn, and a flush for you. */
+    fun runTourTable(): Pair<TableUiState, RunUiState> {
+        val state = tourRun()
         val spec = state.table
         val names = listOf("You") + runProfiles(state).drop(1).map { it!!.name }
         val hand = stackedHand(
@@ -220,9 +220,9 @@ object ScreenshotScenes {
             Decision.Call to null,               // seat 2 (left of the big blind)
             Decision.Call to null,               // seat 3
             Decision.Call to null,               // you, completing the small blind
-            Decision.Check to null,              // the boss in the big blind
+            Decision.Check to null,              // seat 1 in the big blind
         )
-        // Flop: everyone checks to the boss, who bets; all call.
+        // Flop: everyone checks to seat 1, who bets; all call.
         while (hand.street == "Flop") {
             val seat = hand.toAct ?: break
             hand.apply(seat, if (seat == 1 && hand.legalActions(seat).canCheck) Decision.RaiseTo(spec.bigBlind * 3) else Decision.Call)
@@ -230,17 +230,16 @@ object ScreenshotScenes {
         val ps = runProfiles(state)
         val extras = TableExtras(
             profiles = ps,
-            chatter = mapOf(1 to "I never fold. Never ever. Not even once."),
-            bossSeat = 1,
+            chatter = mapOf(1 to "High stakes, high hopes. Mostly hopes."),
             brainLabel = "GEMMA 3 1B",
         )
         val table = TableStates.fromHand(hand, extras, humanTurn = if (hand.toAct == 0) turnFor(hand) else null)
         return table to RunUiState(state, RunScreen.Table, opponents = ps)
     }
 
-    /** After clearing The Wall: three tables to choose from. */
+    /** After clearing stop 5: two tables to choose from. */
     fun chooseTable(): RunUiState {
-        val run = wallRun()
+        val run = tourRun()
         val state = run.copy(
             phase = RunPhase.CHOOSE,
             offers = Risk.entries.map { TableSpec.generate(run.seed, 6, it, 2410) },
@@ -254,7 +253,7 @@ object ScreenshotScenes {
     }
 
     fun runIntro(): RunUiState {
-        val state = wallRun().copy(progress = wallRun().progress.copy(handsPlayed = 0))
+        val state = tourRun().copy(progress = tourRun().progress.copy(handsPlayed = 0))
         return RunUiState(state, RunScreen.Intro, opponents = runProfiles(state))
     }
 
@@ -278,20 +277,25 @@ object ScreenshotScenes {
     // ---------------------------------------------------------------- the list
 
     val all: List<Scene> = listOf(
-        Scene("title") { PixelTheme { TitleScreen("QWEN 3 1.7B", hasSavedRun = true, callbacks = TitleCallbacks()) } },
+        Scene("title") {
+            val attract = com.bradflaugher.pokersi.game.AttractLines.lines(
+                com.bradflaugher.pokersi.game.TitleFacts(tourRun(), com.bradflaugher.pokersi.game.DailyResult(true, true, 4), lifetimeStats(), "QWEN 3 1.7B"),
+            )
+            PixelTheme { TitleScreen("QWEN 3 1.7B", hasSavedRun = true, callbacks = TitleCallbacks(), dailyLabel = "DAILY: BEST 4", attract = attract) }
+        },
         Scene("picker") {
             PixelTheme { PickerScreen(QuickGameSetup(GameVariant.TEXAS_HOLDEM, opponentCount = 4, stack = 1000, seed = 3L), PickerCallbacks()) }
         },
         Scene("table_holdem") { PixelTheme { TableScreen(holdemMidHand(), TableCallbacks()) } },
         Scene("table_draw") { PixelTheme { TableScreen(drawWithHolds(), TableCallbacks()) } },
         Scene("table_showdown") { PixelTheme { TableScreen(showdownWin(), TableCallbacks()) } },
-        Scene("run_boss_table") {
-            val (t, r) = runBossTable()
+        Scene("run_table") {
+            val (t, r) = runTourTable()
             PixelTheme { TableScreen(t, TableCallbacks(), run = r) }
         },
         Scene("run_intro") { PixelTheme { RunIntroScreen(runIntro(), {}, {}) } },
         Scene("run_choose") { PixelTheme { ChooseTableScreen(chooseTable(), {}, {}) } },
-        Scene("run_over") { PixelTheme { RunOverScreen(RunUiState(wallRun(RunPhase.GAME_OVER), RunScreen.GameOver), victory = false, onNewRun = {}, onMenu = {}) } },
+        Scene("run_over") { PixelTheme { RunOverScreen(RunUiState(tourRun(RunPhase.GAME_OVER), RunScreen.GameOver), victory = false, onNewRun = {}, onMenu = {}) } },
         Scene("how_to_play") { PixelTheme { HowToPlayScreen({}) } },
         Scene("stats") { PixelTheme { StatsScreen(lifetimeStats(), onReset = {}, onBack = {}) } },
         Scene("tips") {
@@ -304,5 +308,16 @@ object ScreenshotScenes {
         },
         Scene("settings") { PixelTheme { SettingsScreen(SettingsUi(hasSavedRun = true), SettingsCallbacks()) } },
         Scene("models") { PixelTheme { ModelsContent(ModelsScenes.scene(), ModelsScenes.noActions) } },
+        Scene("debug_console") {
+            PixelTheme {
+                androidx.compose.foundation.layout.Box {
+                    TableScreen(holdemMidHand(), TableCallbacks(onConsole = {}))
+                    DebugConsole(
+                        ConsoleScene.entries, open = true, onClose = {}, onClear = {},
+                        zone = java.util.TimeZone.getTimeZone("UTC"), initiallyExpanded = ConsoleScene.expanded,
+                    )
+                }
+            }
+        },
     )
 }

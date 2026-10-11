@@ -1,18 +1,13 @@
 package com.bradflaugher.pokersi.run
 
-import com.bradflaugher.pokersi.engine.ActionKind
 import com.bradflaugher.pokersi.engine.BotStyle
-import com.bradflaugher.pokersi.engine.Decision
 import com.bradflaugher.pokersi.engine.GameVariant
-import com.bradflaugher.pokersi.engine.Hand
 import com.bradflaugher.pokersi.engine.HandCategory
 import com.bradflaugher.pokersi.engine.HouseBot
-import com.bradflaugher.pokersi.engine.LegalActions
-import com.bradflaugher.pokersi.engine.SeatSetup
-import com.bradflaugher.pokersi.engine.Stakes
 import com.bradflaugher.pokersi.engine.playOut
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -41,7 +36,6 @@ class RunStateTest {
         assertTrue(RunState.daily(day).daily)
         val first = RunState.new(7).table
         assertEquals(GameVariant.TEXAS_HOLDEM, first.variant)
-        assertNull(first.boss)
         assertEquals(Risk.LOW, first.risk)
         assertEquals(RunState.STARTING_CHIPS, first.playerChips)
         assertEquals("You", first.seatNames[0])
@@ -68,6 +62,20 @@ class RunStateTest {
         // Even a well-formed state without the version is refused.
         val unversioned = RunState.new(5).copy(version = 0).toJson()
         assertTrue(runCatching { RunState.fromJson(unversioned) }.isFailure)
+    }
+
+    @Test
+    fun oldBossTourSavesAreRejectedNotCrashedOn() {
+        // A v2 save (the boss-table era): a boss table, a Short Stack reserve, three offers.
+        val bossTable = """{"level":2,"risk":"BOSS","name":"The Wall","variant":"TEXAS_HOLDEM","opponents":[{"name":"Lucky Lou","style":"Rock","chips":1200}],
+            "playerChips":1000,"smallBlind":15,"bigBlind":30,"tableAnte":0,"handsPerLevel":8,"blindGrowth":1.5,"chipTarget":1700,
+            "handLimit":20,"reward":600,"bossId":"the_wall","seed":9}"""
+        val v2 = """{"seed":5,"level":2,"phase":"CHOOSE","table":$bossTable,"progress":{"chips":[1000,1200]},"reserve":250,
+            "bankroll":1250,"offers":[$bossTable],"version":2}"""
+        val thrown = runCatching { RunState.fromJson(v2) }.exceptionOrNull()
+        assertTrue("boss-era saves are refused: $thrown", thrown is Exception)
+        // The same save stamped with today's version still fails: there is no BOSS risk any more.
+        assertTrue(runCatching { RunState.fromJson(v2.replace("\"version\":2", "\"version\":${RunState.SAVE_VERSION}")) }.isFailure)
     }
 
     @Test
@@ -114,39 +122,65 @@ class RunStateTest {
         assertEquals(cleared.bankroll, cleared.playerChips)
         assertEquals(1, cleared.stats.tablesCleared)
 
-        // Three offers: low, high, boss. Bigger risk, bigger reward.
-        assertEquals(Risk.entries, cleared.offers.map { it.risk })
+        // Two offers: low and high stakes. Bigger risk, bigger reward.
+        assertEquals(listOf(Risk.LOW, Risk.HIGH), cleared.offers.map { it.risk })
         assertTrue(cleared.offers.all { it.level == 2 })
-        assertTrue(cleared.offers[0].reward < cleared.offers[1].reward)
-        assertTrue(cleared.offers[1].reward < cleared.offers[2].reward)
-        assertTrue(cleared.offers[2].isBoss)
-        assertTrue(cleared.offers.take(2).none { it.isBoss })
+        val (low, high) = cleared.offers
+        assertTrue(low.reward < high.reward)
+        assertTrue(low.bigBlind <= high.bigBlind)
 
         assertNull(state.choose(0)) // only between tables
-        assertNull(cleared.choose(3))
+        assertNull(cleared.choose(2))
         val next = cleared.choose(1)!!
         assertEquals(RunPhase.TABLE, next.phase)
         assertEquals(2, next.level)
         assertEquals(cleared.offers[1], next.table)
         assertEquals(0, next.progress.handsPlayed)
-        assertEquals(cleared.bankroll, next.progress.chips[0] + next.reserve)
+        // The whole bankroll sits down: nothing is held back.
+        assertEquals(cleared.bankroll, next.progress.chips[0])
+        assertEquals(cleared.bankroll, next.playerChips)
         assertTrue(next.offers.isEmpty())
     }
 
     @Test
-    fun shortStackKeepsHalfInReserve() {
-        var spec: TableSpec
-        var seed = 1L
-        do {
-            spec = TableSpec.generate(seed++, 3, Risk.BOSS, 2000)
-        } while (spec.bossId != "short_stack")
-        assertEquals(1000, spec.playerChips)
-        val state = RunState.new(1).let { it.copy(phase = RunPhase.CHOOSE, offers = listOf(spec), bankroll = 2000) }.choose(0)!!
-        assertEquals(1000, state.reserve)
-        assertEquals(2000, state.playerChips)
-        // Clearing gives the reserve back.
-        val cleared = state.clear()
-        assertEquals(spec.chipTarget + 1000 + cleared.lastReward!!.total, cleared.bankroll)
+    fun offersArePlainTablesWithNoRuleTwists() {
+        for (seed in 1L..40L) {
+            var state = RunState.new(seed)
+            repeat(12) {
+                val cleared = state.clear()
+                assertEquals(2, cleared.offers.size)
+                for (offer in cleared.offers) {
+                    // Every table plays by the standard rules: the player's whole bankroll,
+                    // no ante, the usual blind schedule and hand limit, one game.
+                    assertEquals(cleared.bankroll, offer.playerChips)
+                    assertEquals(0, offer.schedule.start.ante)
+                    assertEquals(8, offer.handsPerLevel)
+                    assertEquals(1.5, offer.blindGrowth, 0.0)
+                    assertEquals(12 + 4 * offer.opponents.size, offer.handLimit)
+                    assertTrue(offer.name == "Low Stakes" || offer.name == "High Stakes")
+                }
+                // No trace of the old boss tables in the save either.
+                assertFalse(cleared.toJson().contains("boss", ignoreCase = true))
+                assertFalse(cleared.toJson().contains("reserve"))
+                state = cleared.choose(it % 2)!!
+            }
+        }
+    }
+
+    @Test
+    fun tourProgressesAndResumesFromASave() {
+        var state = RunState.new(77)
+        for (stop in 1..4) {
+            assertEquals(stop, state.level)
+            val midTable = state.applyHandResult(outcome(), state.progress.chips).state
+            assertEquals(midTable, RunState.fromJson(midTable.toJson()))
+            val cleared = RunState.fromJson(midTable.clear().toJson())
+            assertEquals(RunPhase.CHOOSE, cleared.phase)
+            state = RunState.fromJson(cleared.choose(stop % 2)!!.toJson())
+            assertEquals(cleared.bankroll, state.playerChips)
+        }
+        assertEquals(5, state.level)
+        assertEquals(4, state.stats.tablesCleared)
     }
 
     @Test
@@ -156,7 +190,7 @@ class RunStateTest {
         assertTrue(!state.victory)
         val won = state.clear()
         assertTrue(won.victory)
-        val endless = won.choose(2)!!
+        val endless = won.choose(1)!!
         assertEquals(TableSpec.FINAL_LEVEL + 1, endless.level)
         assertTrue(endless.victory)
     }
@@ -168,42 +202,14 @@ class RunStateTest {
             assertTrue(t.opponents.size in 1..5)
             assertTrue("target reachable", t.chipTarget <= t.startingChips.sum())
             assertTrue(t.chipTarget > t.playerChips)
-            assertTrue(t.playerChips in 1..bankroll)
+            assertEquals(bankroll, t.playerChips)
             assertTrue(t.handLimit > 0)
-            assertEquals(risk == Risk.BOSS, t.isBoss)
             assertTrue(t.bigBlind >= 2 * t.smallBlind - 1)
         }
         assertTrue(TableSpec.generate(1, 8, Risk.LOW, 1000).bigBlind > TableSpec.generate(1, 1, Risk.LOW, 1000).bigBlind)
         assertTrue(TableSpec.generate(1, 12, Risk.LOW, 1000).opponents[0].chips > TableSpec.generate(1, 10, Risk.LOW, 1000).opponents[0].chips)
     }
 
-    @Test
-    fun bossCatalogIsWellFormed() {
-        assertTrue(Bosses.ALL.size in 6..10)
-        assertEquals(Bosses.ALL.size, Bosses.ALL.map { it.id }.toSet().size)
-    }
-
-    @Test
-    fun bossTwistsAdjustOpponentDecisions() {
-        val hand = Hand(GameVariant.TEXAS_HOLDEM, listOf(SeatSetup("You", 500), SeatSetup("Wall", 500)), 0, Stakes(5, 10), 1)
-        val ctx = hand.context(0).copy(seat = 1, pot = 100, legal = LegalActions(true, false, 40, 80, 500))
-        val wall = Bosses.byId("the_wall")
-        assertEquals(Decision.Call, BossTwists.adjustOpponentDecision(wall, ctx, Decision.Fold, null))
-        val bigBet = ctx.copy(legal = ctx.legal.copy(toCall = 80))
-        assertEquals(Decision.Fold, BossTwists.adjustOpponentDecision(wall, bigBet, Decision.Fold, null))
-        val mirror = Bosses.byId("the_mirror")
-        assertEquals(Decision.RaiseTo(80), BossTwists.adjustOpponentDecision(mirror, ctx, Decision.Fold, ActionKind.RAISE))
-        assertEquals(Decision.Call, BossTwists.adjustOpponentDecision(mirror, ctx, Decision.Fold, ActionKind.CALL))
-        hand.apply(0, Decision.Call)
-        assertEquals(ActionKind.CALL, BossTwists.lastActionOf(hand.events, 0))
-        assertEquals(Decision.Fold, BossTwists.adjustOpponentDecision(null, ctx, Decision.Fold, ActionKind.CALL))
-    }
-
-    @Test
-    fun shapeshifterRotatesGames() {
-        val t = TableSpec.generate(1, 1, Risk.BOSS, 1000).copy(bossId = "the_shapeshifter")
-        assertEquals(GameVariant.entries.size, (1..GameVariant.entries.size).map(t::variantForHand).toSet().size)
-    }
 
     @Test
     fun simulatedTourWithHouseBots() = runTest {
@@ -215,6 +221,7 @@ class RunStateTest {
                 state.table.opponents.mapIndexed { i, o -> HouseBot(o.botStyle, seed = i + 2L, iterations = 40) }
             while (state.phase == RunPhase.TABLE) {
                 val hand = state.startNextHand(match)
+                assertEquals(state.table.variant, hand.variant)
                 hand.playOut(bots)
                 match.settle()
                 state = state.applyHandResult(HandOutcome.from(hand), match.chips, hand.button).state
@@ -223,7 +230,7 @@ class RunStateTest {
                 state = RunState.fromJson(state.toJson())
             }
             if (state.phase == RunPhase.CHOOSE) {
-                state = state.choose(tables % 3)!!
+                state = state.choose(tables % 2)!!
                 tables++
             }
         }

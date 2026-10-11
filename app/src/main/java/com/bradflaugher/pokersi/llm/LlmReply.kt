@@ -9,7 +9,12 @@ import com.bradflaugher.pokersi.engine.LegalActions
  * whatever it clearly meant. [decision] is null when nothing usable was
  * found (the caller then asks the fallback agent).
  */
-data class LlmReply(val say: String?, val decision: Decision?) {
+data class LlmReply(
+    val say: String?,
+    val decision: Decision?,
+    /** The decision as the model wrote it, before [LegalActions.coerce] (the debug console shows both). */
+    val parsed: Decision? = decision,
+) {
     companion object {
         private val sayStart = Regex(""""say"\s*:\s*"""")
         private val actionField = Regex(""""action"\s*:\s*"?([A-Za-z_ -]+)""")
@@ -28,7 +33,7 @@ data class LlmReply(val say: String?, val decision: Decision?) {
             // Ignore the talk when looking for the decision: "I fold!" is not a fold.
             val rest = withoutSay(text)
             val decision = if (legal.discard != null) parseDiscard(rest, handSize) else parseBet(rest, legal)
-            return LlmReply(say, decision?.let(legal::coerce))
+            return LlmReply(say, decision?.let(legal::coerce), decision)
         }
 
         /**

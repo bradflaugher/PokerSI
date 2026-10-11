@@ -26,7 +26,10 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bradflaugher.pokersi.game.AttractLines
 import com.bradflaugher.pokersi.game.GameController
+import com.bradflaugher.pokersi.game.TitleFacts
+import androidx.compose.runtime.remember
 import com.bradflaugher.pokersi.game.GameSpeed
 import com.bradflaugher.pokersi.game.PauseReason
 import com.bradflaugher.pokersi.game.RunScreen
@@ -40,6 +43,8 @@ import com.bradflaugher.pokersi.ui.pixel.rememberChiptuneSound
 import com.bradflaugher.pokersi.ui.screens.BodyText
 import com.bradflaugher.pokersi.ui.screens.ChoiceRow
 import com.bradflaugher.pokersi.ui.screens.ChooseTableScreen
+import com.bradflaugher.pokersi.ui.screens.DebugConsole
+import com.bradflaugher.pokersi.debug.AiLog
 import com.bradflaugher.pokersi.ui.screens.HowToPlayScreen
 import com.bradflaugher.pokersi.ui.screens.LocalCardSway
 import com.bradflaugher.pokersi.ui.models.ModelsScreen
@@ -77,6 +82,8 @@ fun PokerSiApp(vm: PokerViewModel) {
     val haptics by s.haptics.collectAsStateWithLifecycle()
     val crt by s.crt.collectAsStateWithLifecycle()
     val sway by s.cardSway.collectAsStateWithLifecycle()
+    val debug by s.debugConsole.collectAsStateWithLifecycle()
+    val console by vm.console.collectAsStateWithLifecycle()
     val player = rememberChiptuneSound(sound)
     val haptic = LocalHapticFeedback.current
     // Bots (and their model) don't play on while nobody is looking.
@@ -95,7 +102,7 @@ fun PokerSiApp(vm: PokerViewModel) {
                     Screen.Picker -> PickerRoute(vm)
                     Screen.Table -> TableRoute(vm, run = null)
                     Screen.Run -> RunRoute(vm)
-                    Screen.Models -> ModelsScreen(onBack = { vm.back() })
+                    Screen.Models -> ModelsScreen(onBack = { vm.back() }, onConsole = if (debug) vm::toggleConsole else null)
                     Screen.HowTo -> HowToPlayScreen(onBack = { vm.back() })
                     Screen.Settings -> SettingsRoute(vm)
                     Screen.Stats -> StatsScreen(
@@ -105,6 +112,12 @@ fun PokerSiApp(vm: PokerViewModel) {
                     )
                 }
                 BackHandler(enabled = vm.backStack.size > 1 && vm.backStack.last() !in setOf(Screen.Table, Screen.Run)) { vm.back() }
+                if (debug) {
+                    val entries by AiLog.entries.collectAsStateWithLifecycle()
+                    DebugConsole(entries, console, onClose = vm::closeConsole, onClear = AiLog::clear)
+                    // Composed last, so Back closes the console before anything under it.
+                    BackHandler(enabled = console) { vm.closeConsole() }
+                }
             }
         }
     }
@@ -116,10 +129,15 @@ private fun TitleRoute(vm: PokerViewModel) {
     val saved by vm.runSaver.saved.collectAsStateWithLifecycle()
     val daily by vm.daily.result.collectAsStateWithLifecycle()
     val tips by vm.tips.collectAsStateWithLifecycle()
+    val stats by vm.stats.stats.collectAsStateWithLifecycle()
+    // The saved tour is read once per visit (and when one is saved or cleared).
+    val tour = remember(saved) { if (saved) vm.runSaver.load() else null }
+    val attract = remember(tour, daily, stats, label) { AttractLines.lines(TitleFacts(tour, daily, stats, label)) }
     TitleScreen(
         brainLabel = label,
         hasSavedRun = saved,
         dailyLabel = daily.label,
+        attract = attract,
         callbacks = TitleCallbacks(
             onQuickGame = { vm.go(Screen.Picker) },
             onRunMode = vm::newRun,
@@ -158,6 +176,7 @@ private fun SettingsRoute(vm: PokerViewModel) {
         haptics = s.haptics.collectAsStateWithLifecycle().value,
         crt = s.crt.collectAsStateWithLifecycle().value,
         cardSway = s.cardSway.collectAsStateWithLifecycle().value,
+        debugConsole = s.debugConsole.collectAsStateWithLifecycle().value,
         speed = s.speed.collectAsStateWithLifecycle().value,
         hasSavedRun = vm.runSaver.saved.collectAsStateWithLifecycle().value,
         version = BuildConfig.VERSION_NAME,
@@ -170,6 +189,7 @@ private fun SettingsRoute(vm: PokerViewModel) {
             onHaptics = s::setHaptics,
             onCrt = s::setCrt,
             onCardSway = s::setCardSway,
+            onDebugConsole = s::setDebugConsole,
             onSpeed = s::setSpeed,
             onResetRun = vm::resetRun,
             onShowTips = vm::showTips,
@@ -237,6 +257,7 @@ private fun TableRoute(vm: PokerViewModel, run: RunUiState?) {
                 onPlayAgain = vm::newQuickTable,
                 onMenu = vm::toTitle,
                 onPause = { menu = true },
+                onConsole = if (vm.settings.debugConsole.collectAsStateWithLifecycle().value) vm::toggleConsole else null,
             ),
             run = run,
         )

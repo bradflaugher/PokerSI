@@ -12,7 +12,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -46,8 +54,9 @@ class TitleCallbacks(
 
 /**
  * The attract screen: the POKER S.I. marquee, a royal flush fanned out,
- * blinking INSERT COIN, the menu and a cabinet status line saying who plays
- * the opponents.
+ * the cabinet's attract line cycling through [attract] (credits, tour, daily,
+ * records: see [com.bradflaugher.pokersi.game.AttractLines]), the menu and a
+ * status strip saying who plays the opponents.
  */
 @Composable
 fun TitleScreen(
@@ -56,6 +65,7 @@ fun TitleScreen(
     callbacks: TitleCallbacks,
     modifier: Modifier = Modifier,
     dailyLabel: String = "DAILY TOUR",
+    attract: List<String> = listOf("INSERT COIN  -  PRESS START"),
 ) {
     val p = PixelTheme.palette
     ArcadeScreen(modifier) {
@@ -67,7 +77,7 @@ fun TitleScreen(
                         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             TitleMarquee()
                             CardFan()
-                            InsertCoin()
+                            AttractLine(attract)
                         }
                         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             TitleMenu(hasSavedRun, callbacks, dailyLabel)
@@ -83,7 +93,7 @@ fun TitleScreen(
                         ) {
                             TitleMarquee(Modifier.readable(520.dp))
                             CardFan(if (tall > 640.dp) 72.dp else 56.dp)
-                            InsertCoin()
+                            AttractLine(attract)
                             Column(Modifier.readable(460.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 TitleMenu(hasSavedRun, callbacks, dailyLabel)
                             }
@@ -116,11 +126,52 @@ private fun CardFan(size: androidx.compose.ui.unit.Dp = 54.dp) {
     }
 }
 
+/**
+ * The attract line: each message types itself out like a cabinet's LED
+ * scroller, holds, blinks twice and gives way to the next. Static renders
+ * show the first message, whole and still.
+ */
 @Composable
-private fun InsertCoin() {
+private fun AttractLine(lines: List<String>) {
     val p = PixelTheme.palette
-    Blinking(1200) {
-        PixelText("INSERT COIN  -  PRESS START", style = PixelType.Small, color = p.yellow, textAlign = TextAlign.Center)
+    val messages = lines.ifEmpty { listOf("FREE PLAY") }
+    var index by remember(messages) { mutableIntStateOf(0) }
+    var typed by remember(messages) { mutableIntStateOf(Int.MAX_VALUE) }
+    var lit by remember { mutableStateOf(true) }
+    if (PixelTheme.animated) {
+        LaunchedEffect(messages) {
+            while (true) {
+                val text = messages[index % messages.size]
+                lit = true
+                for (n in 0..text.length) {
+                    typed = n
+                    delay(28)
+                }
+                delay(2_400)
+                repeat(2) {
+                    lit = false
+                    delay(160)
+                    lit = true
+                    delay(160)
+                }
+                index = (index + 1) % messages.size
+            }
+        }
+    }
+    val text = messages[index % messages.size]
+    val shown = text.take(typed)
+    // Reserves two lines so the menu below never jumps; TalkBack reads the whole message.
+    Box(
+        Modifier.fillMaxWidth().heightIn(min = 34.dp).clearAndSetSemantics { contentDescription = text },
+        contentAlignment = Alignment.Center,
+    ) {
+        PixelText(
+            if (lit) shown + if (shown.length < text.length) "_" else "" else "",
+            style = PixelType.Small,
+            color = if (index == 0) p.yellow else p.ledAmber,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+        )
     }
 }
 
