@@ -35,6 +35,8 @@ class LlmAgent(
     private val random: Random = Random(persona.seed),
     /** Talk every turn instead of now and then (tests). */
     private val alwaysTalks: Boolean = false,
+    /** SETTINGS > TABLE TALK, asked at each decision: when off, every turn is a quiet one. */
+    private val talks: () -> Boolean = { true },
 ) : PlayerAgent {
     private val who = persona.name
 
@@ -46,6 +48,7 @@ class LlmAgent(
         if (!engine.isReady) return fallBack(context, onChatter, null, "no model")
 
         val plan = TalkPlan.make(context, persona, talk, random, lastHintKind, alwaysSpeak = alwaysTalks)
+            .let { if (talks()) it else it.copy(speak = false, catchphraseOk = false) }
         lastHintKind = plan.kind
         // Off-turn, the catchphrase counts as already said.
         val avoid = if (plan.catchphraseOk || persona.catchphrase.isBlank()) emptyList() else listOf(persona.catchphrase)
@@ -57,6 +60,7 @@ class LlmAgent(
         AiLog.add(AiLogKind.GRAMMAR, who, { "grammar (${grammar.lines().size} rules)" }) { grammar }
         val replyId = AiLog.add(AiLogKind.REPLY, who, { "streaming…" })
 
+        // What the bubble shows (whole words): kept if the House Bot has to decide.
         var shown: String? = null
         var firstTokenAt = 0L
         var tokens = 0
@@ -74,10 +78,17 @@ class LlmAgent(
                 AiLog.update(replyId, body = soFar)
                 val full = LlmReply.sayPrefix(soFar, Int.MAX_VALUE)
                 val say = full?.let { LlmReply.sayPrefix(soFar) }
-                // Held back while it could still turn out to be a line already said.
-                if (!say.isNullOrEmpty() && say != shown && !talk.mightRepeat(say, avoid, who)) {
-                    shown = say
-                    onChatter(say)
+                // Whole words only until the say is closed: a cut-off word can't be judged yet. Punctuation
+                // ends a word too ("Yeehaw!").
+                val words = if (say.isNullOrEmpty() || sayClosed.containsMatchIn(soFar) || say.last() in wordEnds) say
+                    else say.substringBeforeLast(' ', "").trimEnd(' ', ',', ';', ':', '-')
+                // Held back while it could still turn out to be a line already said. The bubble shows
+                // [words], which may end sooner than [say]: both are checked.
+                if (!words.isNullOrEmpty() && words != shown && !talk.mightRepeat(say!!, avoid, who, PokerGrammar.SAY_MAX) &&
+                    !talk.isRepeat(words, who, avoid)
+                ) {
+                    shown = words
+                    onChatter(words)
                 }
                 // The decision comes first; stop once the say has run long (it gets trimmed anyway).
                 full == null || full.length <= PokerGrammar.SAY_MAX + 10
@@ -95,7 +106,8 @@ class LlmAgent(
         val end = now()
         AiLog.update(replyId, title = "${raw.length} chars", body = raw)
 
-        val reply = LlmReply.parse(raw, context.legal, context.holeCards.size)
+        // A say cut off by the token limit keeps only its whole words, as the bubble showed it.
+        val reply = LlmReply.parse(raw, context.legal, context.holeCards.size).let { if (sayClosed.containsMatchIn(raw)) it else it.copy(say = shown) }
         val decision = reply.decision ?: return fallBack(context, onChatter, reply.say ?: shown, "unusable reply: $raw", start, avoid, quiet = !plan.speak)
         val say = fresh(reply.say ?: shown, decision, context, avoid)
         say?.let(onChatter)
@@ -151,6 +163,12 @@ class LlmAgent(
     private fun now(): Long = System.nanoTime() / 1_000_000
 
     companion object {
+        /** Characters after which the last word of a streaming say is complete. */
+        private const val wordEnds = ".!?,;:…)]}"
+
+        /** A finished say field (the grammar allows no quotes inside it). */
+        private val sayClosed = Regex(""""say"\s*:\s*"[^"]*"""")
+
         /** A decision in console words: "RAISE 120", "DISCARD 1 3". */
         fun describe(d: Decision): String = when (d) {
             Decision.Fold -> "FOLD"

@@ -88,6 +88,12 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
   model reads and writes less. The system prompt is the same either way.
   SETTINGS > FAST FOLD (on by default): once the player has folded, the
   rest of the hand plays out at once, each opponent's `HouseBot` deciding.
+- **Table talk is opt-in.** SETTINGS > TABLE TALK is off by default (small
+  models give their hands away, and quiet turns are faster). Off, every turn
+  is a quiet one (`LlmAgent` is told through `OpponentBrains.agentFor`'s
+  `talks`), and `GameController` shows and records no line from anyone,
+  House Bot and sit-down catchphrases included. The rules below are for
+  when it is on.
 - **Table talk stays fresh.** Small models parrot whatever the prompt
   repeats, so the catchphrase is not in the prompt (it is said when a
   character sits down, and offered only now and then by `TalkPlan`). Each
@@ -98,7 +104,10 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
   Bot) and new for each table, remembers what was said; a line that
   repeats it (same words, mostly the same words, or the catchphrase
   uninvited) is held back while it streams and swapped for a House Bot
-  line nobody said lately, or silence.
+  line nobody said lately, or silence. Held back means held for as long as
+  the finished line could still turn out a repeat (`TableTalk.mightRepeat`),
+  so a bubble never shows a line that is then swapped; the bubble streams
+  whole words only.
 - **Bubbles come and go.** At most the two latest speakers' lines show,
   laid out together so they never overlap (`stackBubbles`), and a finished
   line goes away by itself after a short hold (`Pacing.chatterHoldAt`: a

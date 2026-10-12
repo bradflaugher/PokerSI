@@ -96,7 +96,7 @@ class HarnessSessionTest {
         var heroDecisions = 0
         val brains = object : OpponentBrains {
             override val label = MutableStateFlow(model!!.name)
-            override fun agentFor(seat: Int, opponent: OpponentProfile, fallback: PlayerAgent, talk: TableTalk): PlayerAgent {
+            override fun agentFor(seat: Int, opponent: OpponentProfile, fallback: PlayerAgent, talk: TableTalk, talks: () -> Boolean): PlayerAgent {
                 if (opponent.name != hero.name) return fallback
                 val llm = LlmAgent(HarnessBackend(bin!!, model!!), opponent.toPersona(), fallback, talk, timeoutMs = 120_000, random = kotlin.random.Random(System.nanoTime()))
                 return object : PlayerAgent {

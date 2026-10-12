@@ -59,15 +59,44 @@ class TableTalkTest {
         val nearRepeat = "Well, I reckon the cards ain't lookin' my way"
         for (end in 1..nearRepeat.length) assertTrue(nearRepeat.take(end), talk.mightRepeat(nearRepeat.take(end), speaker = "Dusty"))
         assertTrue(talk.isRepeat(nearRepeat, "Dusty"))
-        // A fresh line streams once it has a few words of its own.
-        assertFalse(talk.mightRepeat("My horse Biscuit could play", speaker = "Dusty"))
-        assertFalse(talk.isRepeat("My horse Biscuit could play better.", "Dusty"))
+        // A fresh line streams once it has enough words of its own that it can't become one.
+        assertTrue("could still end \"i reckon the cards aint lookin way\"", talk.mightRepeat("My horse Biscuit could play", speaker = "Dusty"))
+        assertFalse(talk.mightRepeat("My horse Biscuit could play poker better than you", speaker = "Dusty"))
+        assertFalse(talk.isRepeat("My horse Biscuit could play poker better than you.", "Dusty"))
+        // ...or sooner, when the words it would need no longer fit in the bubble.
+        assertFalse(talk.mightRepeat("My horse Biscuit could play", speaker = "Dusty", maxLength = 40))
         // An uninvited catchphrase with a word in front is held too, and a line that
         // only starts like it streams once it clearly isn't it.
         val catchphrase = listOf("Yeehaw, saddle up partner and pay up!")
         assertTrue(talk.mightRepeat("Well yeehaw, saddle up partner and", also = catchphrase, speaker = "Dusty"))
         assertTrue(talk.isRepeat("Well yeehaw, saddle up partner and pay up", "Dusty", also = catchphrase))
         assertFalse(talk.mightRepeat("Yeehaw, the river came in hot tonight", also = catchphrase, speaker = "Dusty"))
+    }
+
+    @Test
+    fun aLineShownWhileStreamingIsNeverSwappedForARepeat() {
+        val talk = TableTalk()
+        talk.record("Granny", "Back in my day we bet buttons and liked it.")
+        talk.record("Dusty", "I reckon the cards ain't lookin' my way.")
+        talk.record("Dusty", "Yeehaw!")
+        // Different first words, then mostly someone else's line: once a prefix was
+        // shown, the whole line must not turn out a repeat.
+        val lines = listOf(
+            "Well partner, back in my day we bet buttons and liked it",
+            "Howdy folks, I reckon the cards ain't lookin' my way",
+            "Shucks, my horse Biscuit says the cards ain't lookin' my way",
+            "My horse Biscuit could play poker better than you",
+        )
+        for (line in lines) {
+            val shownEarly = (1..line.length).any { !talk.mightRepeat(line.take(it), speaker = "Dusty", maxLength = 80) }
+            if (talk.isRepeat(line, "Dusty")) assertFalse("\"$line\" was shown, then dropped", shownEarly)
+        }
+        assertTrue(talk.isRepeat(lines[0], "Dusty") && talk.isRepeat(lines[1], "Dusty"))
+        // A cut-off word that can become one the line already has adds nothing new.
+        val nice = TableTalk().apply { record("Granny", "Nice bet") }
+        assertTrue(nice.mightRepeat("Well, nice bet, b", speaker = "Dusty", maxLength = 80))
+        assertTrue(nice.isRepeat("Well, nice bet, bet!", "Dusty"))
+        assertFalse(talk.isRepeat(lines[3], "Dusty"))
     }
 
     @Test

@@ -49,7 +49,9 @@ download a model.
   plain words. The reply is held to a tiny JSON shape by a grammar
   (`{"action": "raise", "amount": 120, "say": "..."}`, the decision first), the line it says
   shows up in a speech bubble, and the action is clamped to something legal.
-- **Table talk that doesn't repeat.** Each turn a character gets a
+- **Table talk, if you want it.** SETTINGS > TABLE TALK (off by default:
+  small models like to blurt out their cards, and quiet turns are faster)
+  lets the characters chat in speech bubbles. Each turn a character gets a
   different nudge (react to the last bet, answer whoever spoke, tease
   someone, the pot, the board, something in character) plus what was just
   said at the table, so they banter with each other. The table remembers

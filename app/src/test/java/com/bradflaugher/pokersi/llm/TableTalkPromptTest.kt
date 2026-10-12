@@ -112,6 +112,17 @@ class TableTalkPromptTest {
     }
 
     @Test
+    fun withTableTalkOffEveryTurnIsQuiet() = runBlocking {
+        val backend = ScriptedBackend("""{"action": "check", "amount": 0}""")
+        val agent = LlmAgent(backend, cowboy, houseBot, talkWith("Miss Quill" to "hi"), alwaysTalks = true, talks = { false })
+        repeat(5) {
+            val reply = agent.decide(context)
+            assertEquals(null, reply.say)
+        }
+        assertTrue(backend.prompts.all { it[1].content.contains("Stay quiet this turn") })
+    }
+
+    @Test
     fun aQuietReplyDecidesAndSaysNothing() = runBlocking {
         val backend = ScriptedBackend("""{"action": "check", "amount": 0}""")
         // A random that always rolls high: every turn is quiet.
@@ -198,6 +209,46 @@ class TableTalkPromptTest {
     }
 
     @Test
+    fun thePromptSaysNotToMentionTheCards() = runBlocking {
+        val backend = ScriptedBackend("""{"action": "check", "amount": 0, "say": "Yeehaw!"}""")
+        LlmAgent(backend, cowboy, houseBot, TableTalk(), alwaysTalks = true).decide(context)
+        assertTrue(backend.prompts.single()[1].content.contains("Never mention your cards or say what hand you have."))
+    }
+
+    @Test
+    fun aSayCutOffByTheTokenLimitKeepsItsWholeWords() = runBlocking {
+        val backend = ScriptedBackend("""{"action": "check", "amount": 0, "say": "Howdy, Miss Quill, my fri""")
+        val bubble = mutableListOf<String>()
+        val reply = LlmAgent(backend, cowboy, houseBot, TableTalk(), alwaysTalks = true).decide(context) { bubble += it }
+        assertEquals("Howdy, Miss Quill, my", reply.say)
+        assertTrue("streamed: $bubble", bubble.none { it.endsWith("fri") })
+        // Punctuation ends a word, so a cut-off line ending in it is kept whole.
+        val punct = ScriptedBackend("""{"action": "check", "amount": 0, "say": "Howdy, partner!""")
+        assertEquals("Howdy, partner!", LlmAgent(punct, cowboy, houseBot, TableTalk(), alwaysTalks = true).decide(context).say)
+        val paren = ScriptedBackend("""{"action": "check", "amount": 0, "say": "Howdy, (partner)""")
+        assertEquals("Howdy, (partner)", LlmAgent(paren, cowboy, houseBot, TableTalk(), alwaysTalks = true).decide(context).say)
+    }
+
+    @Test
+    fun anEmptySayWhileStreamingIsNotAFailure() = runBlocking {
+        // A token that ends right after the opening quote: the say so far is "".
+        val backend = object : LlmBackend {
+            override val isReady = true
+            override suspend fun generate(
+                messages: List<ChatMessage>, grammar: String?, maxTokens: Int, temperature: Float, seed: Int, timeoutMs: Long,
+                onText: (String) -> Boolean,
+            ): String {
+                val reply = """{"action": "check", "amount": 0, "say": "Howdy there!"}"""
+                onText(reply.substringBefore("Howdy"))
+                onText(reply)
+                return reply
+            }
+        }
+        val reply = LlmAgent(backend, cowboy, houseBot, TableTalk(), alwaysTalks = true).decide(context)
+        assertEquals("the model decided, not the House Bot", "Howdy there!", reply.say)
+    }
+
+    @Test
     fun aFreshLineStreamsAndIsKept() = runBlocking {
         val talk = talkWith("Miss Quill" to "Shhh! I'm raising.")
         val backend = ScriptedBackend("""{"action": "check", "amount": 0, "say": "Howdy, Miss Quill, my horse says hush."}""")
@@ -271,8 +322,10 @@ class TableTalkPromptTest {
         val bubble = mutableListOf<String>()
         val reply = LlmAgent(dies, cowboy, chatty, TableTalk(), alwaysTalks = true).decide(context) { bubble += it }
         assertEquals(Decision.Check, reply.decision)
-        assertEquals("the model's line is kept", line, reply.say)
+        // Up to its last whole word: the stream died, so "hush" may have been cut off.
+        val kept = line.substringBeforeLast(' ')
+        assertEquals("the model's line is kept", kept, reply.say)
         assertTrue("streamed: $bubble", bubble.none { it == "House!" })
-        assertEquals(line, bubble.last())
+        assertEquals(kept, bubble.last())
     }
 }
