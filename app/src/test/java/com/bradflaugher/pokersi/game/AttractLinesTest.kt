@@ -28,7 +28,7 @@ class AttractLinesTest {
         val lines = AttractLines.lines(TitleFacts(tour, DailyResult(played = true, finished = true, bestTables = 4), stats, "Qwen 3.5 2B"))
         assertEquals("CHIPS ${formatChips(tour.playerChips)} · TOUR STOP 1", lines.first())
         assertTrue("DAILY TOUR: BEST 4 TABLES" in lines)
-        assertTrue("QWEN 3 1.7B IS AT THE TABLE" in lines)
+        assertTrue("QWEN 3.5 2B IS AT THE TABLE" in lines)
         assertTrue("BIGGEST POT 3,200" in lines)
         assertTrue("BEST HAND: FULL HOUSE" in lines)
         assertFalse(lines.any { it.startsWith("WELCOME") })
