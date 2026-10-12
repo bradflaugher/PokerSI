@@ -222,7 +222,7 @@ Signed release builds need all four of `POKERSI_KEYSTORE_PATH`,
 `POKERSI_STORE_PASSWORD`, `POKERSI_KEY_ALIAS`, `POKERSI_KEY_PASSWORD` (or
 none, for an unsigned build). CI restores the keystore from the
 `POKERSI_KEYSTORE_BASE64` secret. Keeping the toolchain, llama.cpp and CI
-current is covered in [`MAINTAINING.md`](MAINTAINING.md).
+current is covered in [`MAINTAINING.md`](MAINTAINING.md). Every merge to `main` also goes to Google Play's closed testing, with the store listing; how to ship an update, change the listing or go to production is in [MAINTAINING.md › Releasing](MAINTAINING.md#releasing).
 
 ## Privacy
 
