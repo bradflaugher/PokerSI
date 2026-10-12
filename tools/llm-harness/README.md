@@ -34,7 +34,7 @@ Needs CMake, Ninja, a C++17 compiler, the llama.cpp submodule checked out
 and some GGUF models (any from `ModelCatalog`).
 
 ```sh
-tools/llm-harness/run.sh ~/models/LFM2.5-1.2B-Instruct-Q4_K_M.gguf ~/models/Qwen3-0.6B-Q4_K_M.gguf
+tools/llm-harness/run.sh ~/models/LFM2.5-1.2B-Instruct-Q4_K_M.gguf ~/models/gemma-4-E2B_q4_0-it.gguf
 ```
 
 Environment: `LLAMA_DIR` (llama.cpp tree, default the submodule),
@@ -53,7 +53,8 @@ built it; pass `-DGGML_NATIVE=OFF` to cmake to share one between machines.
 
 ## What we learned
 
-Measured on a 4-core x86 cloud VM (shared, so timings are noisy), Q4_K_M:
+Measured on a 4-core x86 cloud VM (shared, so timings are noisy), Q4_K_M unless noted
+(a recent phone is several times faster):
 
 | model | prompt tok/s | gen tok/s | per decision | play |
 |---|---|---|---|---|
@@ -61,6 +62,12 @@ Measured on a 4-core x86 cloud VM (shared, so timings are noisy), Q4_K_M:
 | LFM2.5 1.2B | ~270 | ~19 | ~2.8 s | sensible and short; a little passive |
 | Llama 3.2 1B | ~290 | ~10-15 | ~3-4 s | good talk, stubborn caller |
 | Gemma 3 1B | ~130 | ~9 | ~5-7 s | follows the advice, flowery; slow prompt (262k vocab) |
+| Qwen 3.5 0.8B | ~210 | ~17 | ~4.4 s | follows the advice, rambles; sometimes names its cards |
+| MiniCPM5 1B | ~280 | ~20 | ~3.9 s | quick, but talks strategy out loud and names its cards |
+| Qwen 3.5 2B | ~110 | ~9 | ~8 s | sound play, short lively lines |
+| Qwen 3.5 4B | ~46 | ~4.4 | ~17 s | strong and in character; slowest here |
+| Gemma 4 E2B (QAT Q4_0) | ~105 | ~11 | ~6.9 s | sensible bets, short in-character lines, never shows its hand |
+| Gemma 4 E4B (QAT Q4_0) | ~56 | ~6.5 | ~12 s | the steadiest play and talk; for 12 GB+ phones |
 
 Every reply from every model was valid JSON and parsed to a legal decision.
 
