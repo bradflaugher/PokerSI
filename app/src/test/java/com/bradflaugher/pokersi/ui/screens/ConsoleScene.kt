@@ -36,8 +36,8 @@ say ::= sayc+
 sayc ::= [^"\\\x00-\x1F]"""
 
     val entries: List<AiLogEntry> = listOf(
-        AiLogEntry(1, T0, AiLogKind.ENGINE, "ENGINE", "loading Qwen 3 1.7B"),
-        AiLogEntry(2, T0 + 2_310, AiLogKind.ENGINE, "ENGINE", "ready: Qwen 3 1.7B", "qwen3 1.7B Q4_K_M · 4 threads · ctx 4096"),
+        AiLogEntry(1, T0, AiLogKind.ENGINE, "ENGINE", "loading Qwen 3.5 2B"),
+        AiLogEntry(2, T0 + 2_310, AiLogKind.ENGINE, "ENGINE", "ready: Qwen 3.5 2B", "qwen35 2B Q4_K_M · 4 threads · ctx 4096"),
         AiLogEntry(3, T0 + 9_004, AiLogKind.TABLE, "TABLE", "hand 12: Texas Hold'em, blinds 10/20"),
         AiLogEntry(4, T0 + 10_120, AiLogKind.TABLE, "TABLE", "Captain Chip calls 20"),
         AiLogEntry(5, T0 + 14_870, AiLogKind.TABLE, "TABLE", "You raises to 80"),
