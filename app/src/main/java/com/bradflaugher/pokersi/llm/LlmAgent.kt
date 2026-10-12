@@ -4,7 +4,6 @@ import com.bradflaugher.pokersi.debug.AiLog
 import com.bradflaugher.pokersi.debug.AiLogKind
 import com.bradflaugher.pokersi.engine.AgentReply
 import com.bradflaugher.pokersi.engine.BotLines
-import com.bradflaugher.pokersi.engine.Card
 import com.bradflaugher.pokersi.engine.Decision
 import com.bradflaugher.pokersi.engine.DecisionContext
 import com.bradflaugher.pokersi.engine.PlayerAgent
@@ -23,9 +22,8 @@ import kotlin.random.Random
  *
  * [talk] is the table's shared memory of what was said: the prompt shows the
  * latest lines and a hint of what to talk about (see [TalkPlan]), and a line
- * that repeats something already said, or names the seat's hand
- * ([HandTalk]), is held back while it streams and then swapped for a fresh
- * House Bot line, or silence.
+ * that repeats something already said is held back while it streams and then
+ * swapped for a fresh House Bot line, or silence.
  */
 class LlmAgent(
     private val engine: LlmBackend,
@@ -64,7 +62,6 @@ class LlmAgent(
 
         // What the bubble shows (whole words): kept if the House Bot has to decide.
         var shown: String? = null
-        val seen = seenCards(context)
         var firstTokenAt = 0L
         var tokens = 0
         val raw = try {
@@ -81,14 +78,14 @@ class LlmAgent(
                 AiLog.update(replyId, body = soFar)
                 val full = LlmReply.sayPrefix(soFar, Int.MAX_VALUE)
                 val say = full?.let { LlmReply.sayPrefix(soFar) }
-                // Whole words only until the say is closed: a cut-off word can't be judged yet ("ace" of
-                // "aces"). Punctuation ends a word too ("Yeehaw!").
+                // Whole words only until the say is closed: a cut-off word can't be judged yet. Punctuation
+                // ends a word too ("Yeehaw!").
                 val words = if (say.isNullOrEmpty() || sayClosed.containsMatchIn(soFar) || say.last() in wordEnds) say
                     else say.substringBeforeLast(' ', "").trimEnd(' ', ',', ';', ':', '-')
-                // Held back while it could still turn out to be a line already said, or gives the hand away.
-                // The bubble shows [words], which may end sooner than [say]: both are checked.
+                // Held back while it could still turn out to be a line already said. The bubble shows
+                // [words], which may end sooner than [say]: both are checked.
                 if (!words.isNullOrEmpty() && words != shown && !talk.mightRepeat(say!!, avoid, who, PokerGrammar.SAY_MAX) &&
-                    !talk.isRepeat(words, who, avoid) && !HandTalk.revealsHand(say, seen) && !HandTalk.revealsHand(words, seen)
+                    !talk.isRepeat(words, who, avoid)
                 ) {
                     shown = words
                     onChatter(words)
@@ -122,19 +119,14 @@ class LlmAgent(
     }
 
     /**
-     * [say], unless it repeats something said at the table or gives the hand
-     * away ([HandTalk]): then a House Bot line for [decision] nobody said
-     * lately, or nothing at all.
+     * [say], unless it repeats something said at the table: then a House Bot
+     * line for [decision] nobody said lately, or nothing at all.
      */
     private fun fresh(say: String?, decision: Decision, context: DecisionContext, avoid: List<String>): String? {
         if (say == null) return null
-        val why = when {
-            talk.isRepeat(say, who, avoid) -> "a repeat"
-            HandTalk.revealsHand(say, seenCards(context)) -> "a hand giveaway"
-            else -> return say
-        }
+        if (!talk.isRepeat(say, who, avoid)) return say
         val instead = BotLines.pickFresh(BotLines.momentFor(decision, context.legal.canCheck), random, talk)
-        AiLog.add(AiLogKind.ERROR, who, { "dropped $why: \"$say\"" }) { instead?.let { "said instead: \"$it\"" } ?: "said nothing instead" }
+        AiLog.add(AiLogKind.ERROR, who, { "dropped a repeat: \"$say\"" }) { instead?.let { "said instead: \"$it\"" } ?: "said nothing instead" }
         return instead
     }
 
@@ -160,10 +152,6 @@ class LlmAgent(
         final.say?.let(onChatter)
         return final
     }
-
-    /** Cards everyone can see, which may be talked about: "that Kd on the board". */
-    private fun seenCards(context: DecisionContext): List<Card> =
-        context.board + context.seats.filter { it.seat != context.seat }.flatMap { it.cards.filterNotNull() }
 
     private fun timing(start: Long, firstTokenAt: Long, end: Long, tokens: Int): String {
         val total = end - start

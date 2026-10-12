@@ -55,8 +55,8 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
     serializes every call on one thread), the model catalog, downloads
     (WorkManager), model storage (app storage + user-picked SAF folders),
     the prompt builder, GBNF grammar and reply parser (`LlmAgent`, which
-    talks to a model through `LlmBackend`), `TalkPlan` (what a character
-    talks about this turn) and `HandTalk` (lines that give a hand away).
+    talks to a model through `LlmBackend`), and `TalkPlan` (what a character
+    talks about this turn).
   - `ui/` — Compose. The pixel design system (`ui/pixel/`: fonts, palette,
     `PixelCard`, buttons, LED digits, green felt, CRT overlay, procedural
     pixel avatars, chiptune sound), and the screens: title, game picker,
@@ -108,10 +108,6 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
   the finished line could still turn out a repeat (`TableTalk.mightRepeat`),
   so a bubble never shows a line that is then swapped; the bubble streams
   whole words only.
-- **Table talk never gives the hand away.** The prompt says what the seat
-  holds, so a small model likes to announce it while it bets. The prompt
-  forbids it, and a line that names a hand ("two pair", "pocket aces",
-  "ace-king", "my cards"; `HandTalk`) is held back and swapped like a repeat.
 - **Bubbles come and go.** At most the two latest speakers' lines show,
   laid out together so they never overlap (`stackBubbles`), and a finished
   line goes away by itself after a short hold (`Pacing.chatterHoldAt`: a
