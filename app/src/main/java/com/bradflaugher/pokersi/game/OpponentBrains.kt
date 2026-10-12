@@ -17,12 +17,14 @@ import kotlinx.coroutines.flow.asStateFlow
  * with the opponent's style: an LLM agent should hand any decision it fumbles
  * (timeout, bad output) to it so a hand never stalls. [talk] is the table's
  * memory of what has been said, shared by every seat and new for each table.
+ * [talks] says, at each decision, whether table talk is on (SETTINGS > TABLE
+ * TALK): when it isn't, an agent needn't ask its model for a line.
  */
 interface OpponentBrains {
     /** Short status for the table header, e.g. "QWEN 3 1.7B" or "HOUSE BOT". */
     val label: StateFlow<String>
 
-    fun agentFor(seat: Int, opponent: OpponentProfile, fallback: PlayerAgent, talk: TableTalk): PlayerAgent
+    fun agentFor(seat: Int, opponent: OpponentProfile, fallback: PlayerAgent, talk: TableTalk, talks: () -> Boolean = { true }): PlayerAgent
 }
 
 /** Every seat is played by the built-in House Bot. */
@@ -30,7 +32,7 @@ object HouseOnlyBrains : OpponentBrains {
     private val _label = MutableStateFlow("HOUSE BOT")
     override val label: StateFlow<String> = _label.asStateFlow()
 
-    override fun agentFor(seat: Int, opponent: OpponentProfile, fallback: PlayerAgent, talk: TableTalk): PlayerAgent = fallback
+    override fun agentFor(seat: Int, opponent: OpponentProfile, fallback: PlayerAgent, talk: TableTalk, talks: () -> Boolean): PlayerAgent = fallback
 }
 
 /**

@@ -112,6 +112,17 @@ class TableTalkPromptTest {
     }
 
     @Test
+    fun withTableTalkOffEveryTurnIsQuiet() = runBlocking {
+        val backend = ScriptedBackend("""{"action": "check", "amount": 0}""")
+        val agent = LlmAgent(backend, cowboy, houseBot, talkWith("Miss Quill" to "hi"), alwaysTalks = true, talks = { false })
+        repeat(5) {
+            val reply = agent.decide(context)
+            assertEquals(null, reply.say)
+        }
+        assertTrue(backend.prompts.all { it[1].content.contains("Stay quiet this turn") })
+    }
+
+    @Test
     fun aQuietReplyDecidesAndSaysNothing() = runBlocking {
         val backend = ScriptedBackend("""{"action": "check", "amount": 0}""")
         // A random that always rolls high: every turn is quiet.

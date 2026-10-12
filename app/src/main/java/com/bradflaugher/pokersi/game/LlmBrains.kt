@@ -27,9 +27,9 @@ class LlmBrains(private val engine: LlamaEngine, scope: CoroutineScope) : Oppone
         .map(::labelFor)
         .stateIn(scope, SharingStarted.Eagerly, labelFor(engine.state.value))
 
-    override fun agentFor(seat: Int, opponent: OpponentProfile, fallback: PlayerAgent, talk: TableTalk): PlayerAgent {
+    override fun agentFor(seat: Int, opponent: OpponentProfile, fallback: PlayerAgent, talk: TableTalk, talks: () -> Boolean): PlayerAgent {
         // Seeded afresh at every table, so a familiar face doesn't replay the same talk.
-        val llm = LlmAgent(engine, opponent.toPersona(), fallback, talk, random = Random(opponent.avatarSeed xor System.nanoTime()))
+        val llm = LlmAgent(engine, opponent.toPersona(), fallback, talk, random = Random(opponent.avatarSeed xor System.nanoTime()), talks = talks)
         return object : PlayerAgent {
             override suspend fun decide(context: DecisionContext, onChatter: (String) -> Unit): AgentReply =
                 if (engine.isReady) llm.decide(context, onChatter) else fallback.decide(context, onChatter)

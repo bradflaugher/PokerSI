@@ -37,6 +37,8 @@ class LlmAgent(
     private val random: Random = Random(persona.seed),
     /** Talk every turn instead of now and then (tests). */
     private val alwaysTalks: Boolean = false,
+    /** SETTINGS > TABLE TALK, asked at each decision: when off, every turn is a quiet one. */
+    private val talks: () -> Boolean = { true },
 ) : PlayerAgent {
     private val who = persona.name
 
@@ -48,6 +50,7 @@ class LlmAgent(
         if (!engine.isReady) return fallBack(context, onChatter, null, "no model")
 
         val plan = TalkPlan.make(context, persona, talk, random, lastHintKind, alwaysSpeak = alwaysTalks)
+            .let { if (talks()) it else it.copy(speak = false, catchphraseOk = false) }
         lastHintKind = plan.kind
         // Off-turn, the catchphrase counts as already said.
         val avoid = if (plan.catchphraseOk || persona.catchphrase.isBlank()) emptyList() else listOf(persona.catchphrase)

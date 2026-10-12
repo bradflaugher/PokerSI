@@ -149,6 +149,8 @@ class GameController(
     private val speed: StateFlow<GameSpeed> = MutableStateFlow(GameSpeed.NORMAL),
     /** SETTINGS > FAST FOLD: once the player has folded, the rest of the hand plays out at once ([outOfIt]). */
     private val fastFold: StateFlow<Boolean> = MutableStateFlow(false),
+    /** SETTINGS > TABLE TALK: when off, opponents say nothing (no bubbles, no catchphrases). */
+    private val tableTalk: StateFlow<Boolean> = MutableStateFlow(true),
     private val compute: CoroutineDispatcher = Dispatchers.Default,
     private val runSaver: RunSaver? = null,
     /** Plays the human seat and skips every wait (tests, attract mode). */
@@ -325,7 +327,7 @@ class GameController(
             profiles = profiles.toMutableList().also { it[seat] = profile }
             val fallback = HouseBot(profile.style, Match.mix(config.seed, 1000 + seat + 7 * replacements), houseBotIterations, tableTalk = talk)
             fallbacks = fallbacks.toMutableList().also { it[seat] = fallback }
-            agents = agents.toMutableList().also { it[seat] = brains.agentFor(seat, profile, fallback, talk) }
+            agents = agents.toMutableList().also { it[seat] = brains.agentFor(seat, profile, fallback, talk, tableTalk::value) }
             news = news + "${profile.name} sits down"
         }
         return due.toSet()
@@ -578,7 +580,7 @@ class GameController(
         fallbacks = ps.mapIndexed { seat, p ->
             HouseBot(p?.style ?: BotStyle.BALANCED, Match.mix(seed, 1000 + seat), houseBotIterations, tableTalk = talk)
         }
-        agents = ps.mapIndexed { seat, p -> if (p == null) fallbacks[seat] else brains.agentFor(seat, p, fallbacks[seat], talk) }
+        agents = ps.mapIndexed { seat, p -> if (p == null) fallbacks[seat] else brains.agentFor(seat, p, fallbacks[seat], talk, tableTalk::value) }
         AiLog.add(AiLogKind.TABLE, TABLE, { "new table: " + ps.filterNotNull().joinToString { it.name } })
     }
 
@@ -592,7 +594,7 @@ class GameController(
         boardLimit = null
         phase = TablePhase.Playing
         // Newcomers say hello.
-        arrivals.forEach { seat ->
+        if (tableTalk.value) arrivals.forEach { seat ->
             val p = profiles.getOrNull(seat) ?: return@forEach
             p.catchphrase.takeIf { it.isNotBlank() }?.let {
                 setChatter(seat, it)
@@ -702,8 +704,9 @@ class GameController(
         // Table talk streams in on the agent's thread (the LLM's inference thread):
         // hop back to the table's thread, as a child of this game so leaving cancels it.
         val game = currentCoroutineContext()[Job]
+        val talks = tableTalk.value
         val onChatter: (String) -> Unit = { text ->
-            scope.launch(game ?: Job()) { streamChatter(id, seat, text) }
+            if (talks) scope.launch(game ?: Job()) { streamChatter(id, seat, text) }
         }
         val reply = decideSafely(agents[seat], fallbacks[seat], ctx, onChatter)
         val elapsed = (System.nanoTime() - started) / 1_000_000
@@ -712,7 +715,7 @@ class GameController(
         val decision = reply.decision
         thinkingSeat = null
         streamingSeat = null
-        val say = reply.say?.let(::tidySay)
+        val say = reply.say?.takeIf { talks }?.let(::tidySay)
         if (say != null) {
             setChatter(seat, say)
             talk.record(ctx.seats.firstOrNull { it.seat == seat }?.name ?: "Seat $seat", say)

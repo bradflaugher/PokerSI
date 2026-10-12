@@ -1,7 +1,7 @@
 Poker against a table of oddballs, and every one of them is an AI running on your phone. Chunky 8-bit cards on green felt, CRT scanlines and marquee lights: a 90s video poker cabinet with a whole table of characters. Texas Hold'em, Omaha, Draw, Stud, Short Deck and Crazy Pineapple, plus a Run mode that keeps raising the stakes.
 
 THE TABLE TALKS BACK
-• Every opponent is a freshly rolled persona with a pixel face, a name and a personality, from timid to reckless. A small language model plays each one, deciding the bet and the trash talk together.
+• Every opponent is a freshly rolled persona with a pixel face, a name and a personality, from timid to reckless. A small language model plays each one, deciding every bet, and with TABLE TALK switched on in the settings, the trash talk too.
 • The AI runs entirely on your phone with llama.cpp. Nothing you play is sent anywhere.
 • Each opponent only ever sees what its seat can see. The deck is shuffled fairly and nobody peeks.
 • No model yet? House Bot, a built-in opponent, plays every seat with no download at all, and steps in for any AI player that stalls.

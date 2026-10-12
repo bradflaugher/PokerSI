@@ -189,6 +189,7 @@ private fun SettingsRoute(vm: PokerViewModel) {
         debugConsole = s.debugConsole.collectAsStateWithLifecycle().value,
         speed = s.speed.collectAsStateWithLifecycle().value,
         fastFold = s.fastFold.collectAsStateWithLifecycle().value,
+        tableTalk = s.tableTalk.collectAsStateWithLifecycle().value,
         hasSavedRun = vm.runSaver.saved.collectAsStateWithLifecycle().value,
         version = BuildConfig.VERSION_NAME,
     )
@@ -203,6 +204,7 @@ private fun SettingsRoute(vm: PokerViewModel) {
             onDebugConsole = s::setDebugConsole,
             onSpeed = s::setSpeed,
             onFastFold = s::setFastFold,
+            onTableTalk = s::setTableTalk,
             onResetRun = vm::resetRun,
             onShowTips = vm::showTips,
             onShare = context::shareApp,

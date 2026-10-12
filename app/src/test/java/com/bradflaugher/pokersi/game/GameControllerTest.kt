@@ -38,12 +38,14 @@ class GameControllerTest {
         pacing: Pacing = Pacing.Instant,
         recorder: HandRecorder? = null,
         fastFold: Boolean = false,
+        tableTalk: Boolean = true,
     ) = GameController(
         scope = backgroundScope,
         brains = brains,
         pacing = pacing,
         speed = MutableStateFlow(GameSpeed.NORMAL),
         fastFold = MutableStateFlow(fastFold),
+        tableTalk = MutableStateFlow(tableTalk),
         compute = Dispatchers.Unconfined,
         runSaver = saver,
         autopilot = autopilot,
@@ -60,7 +62,7 @@ class GameControllerTest {
     /** Every opponent seat played by [agent]. */
     private fun brainsOf(agent: (seat: Int, fallback: PlayerAgent) -> PlayerAgent) = object : OpponentBrains {
         override val label = MutableStateFlow("TEST")
-        override fun agentFor(seat: Int, opponent: OpponentProfile, fallback: PlayerAgent, talk: TableTalk) = agent(seat, fallback)
+        override fun agentFor(seat: Int, opponent: OpponentProfile, fallback: PlayerAgent, talk: TableTalk, talks: () -> Boolean) = agent(seat, fallback)
     }
 
     /** Plays the human seat by checking or calling (holding the suggested cards, tossing the first) until [done]. */
@@ -311,7 +313,7 @@ class GameControllerTest {
         var n = 0
         val brains = object : OpponentBrains {
             override val label = MutableStateFlow("TEST")
-            override fun agentFor(seat: Int, opponent: OpponentProfile, fallback: PlayerAgent, talk: TableTalk): PlayerAgent {
+            override fun agentFor(seat: Int, opponent: OpponentProfile, fallback: PlayerAgent, talk: TableTalk, talks: () -> Boolean): PlayerAgent {
                 memories += talk
                 return agentOf { ctx, _ -> AgentReply(if (ctx.legal.canCheck) Decision.Check else Decision.Call, "line ${n++}") }
             }
@@ -477,6 +479,29 @@ class GameControllerTest {
         drive(c) { c.table.value.handNumber >= 3 }
         // Whenever the human is asked to act, no opponent's dropped line lingers.
         assertTrue(c.table.value.seats.none { it.chatter == "Saddle up" })
+        c.stop()
+    }
+
+    @Test
+    fun withTableTalkOffNobodySpeaks() = runTest {
+        val asked = mutableListOf<Boolean>()
+        val chatty = brainsOf { _, _ -> agentOf { ctx, onChatter ->
+            onChatter("Yeehaw, I got pocket aces")
+            AgentReply(if (ctx.legal.canCheck) Decision.Check else Decision.Call, "Yeehaw, I got pocket aces")
+        } }
+        val brains = object : OpponentBrains by chatty {
+            override fun agentFor(seat: Int, opponent: OpponentProfile, fallback: PlayerAgent, talk: TableTalk, talks: () -> Boolean): PlayerAgent {
+                asked += talks()
+                return chatty.agentFor(seat, opponent, fallback, talk, talks)
+            }
+        }
+        val c = controller(brains = brains, pacing = talkyPacing, tableTalk = false)
+        c.startQuick(config(opponents = 3, seed = 5L))
+        drive(c) {
+            assertTrue("a bubble showed: ${c.table.value.seats.mapNotNull { it.chatter }}", c.table.value.seats.all { it.chatter.isNullOrEmpty() })
+            c.table.value.handNumber >= 3
+        }
+        assertTrue("agents are told talk is off: $asked", asked.isNotEmpty() && asked.none { it })
         c.stop()
     }
 
