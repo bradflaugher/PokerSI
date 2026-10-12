@@ -173,10 +173,26 @@ most 30 characters, `short_description.txt` at most 80,
 `full_description.txt` at most 4000) and the release notes in
 `changelogs/default.txt`. The images in `images/` come from
 `tools/screenshots/`; rerun it after a visible UI change. The privacy
-policy Play links to is <https://bradflaugher.com/privacy/pokersi/>, in the
-[bradflaugher.com](https://github.com/bradflaugher/bradflaugher.com) repository
-(`privacy/pokersi/index.html`); keep it in step with what the app does
+policy Play and the app link to is <https://bradflaugher.github.io/PokerSI/privacy/>
+(`site/privacy/index.html`); keep it in step with what the app does
 (network use, permissions, storage).
+
+## Website
+
+`site/` is the project site, <https://bradflaugher.github.io/PokerSI/>:
+hand-written HTML and CSS, no build step, no scripts and nothing loaded
+from another origin (the fonts are the app's own, as WOFF2). Preview it
+with `python3 -m http.server -d site`. `.github/workflows/pages.yml` checks
+it on pull requests (`.github/scripts/check-site.py`: links resolve,
+nothing external) and deploys it on every push to `main` that touches it;
+Pages is set to "GitHub Actions" in Settings › Pages. Its screenshots are
+smaller WebP copies of `docs/screenshots/`; after `shoot.py`, refresh them
+with
+
+```sh
+for f in site/img/*.webp; do n=$(basename "$f" .webp); [ -f "docs/screenshots/$n.png" ] &&
+  magick "docs/screenshots/$n.png" -resize 540x960 -quality 82 "$f"; done
+```
 
 ## Play Console settings that live outside the repository
 
@@ -185,7 +201,7 @@ Set when the app was created (October 2026); check or recreate them here:
 | Setting | Value |
 |---|---|
 | App | Free game, category Card; contact brad@bradflaugher.com and the GitHub repository |
-| Privacy policy URL | `https://www.bradflaugher.com/privacy/pokersi/` (the same page; the `www` form because Play cached a 404 for the bare URL from before the page existed) |
+| Privacy policy URL | `https://bradflaugher.github.io/PokerSI/privacy/` |
 | Closed testing - Alpha | Testers: the Google Group `testers-community@googlegroups.com` (Testers Community); feedback to brad@bradflaugher.com |
 | Countries | All, except the markets where Play bans simulated gambling: Algeria, Iran, Jordan, Libya, Oman, Qatar, Saudi Arabia, South Korea, Tunisia, the United Arab Emirates and Yemen (Palestine and Syria aren't offered). South Korea would need a GRAC rating first |
 | Content rating | Game with simulated gambling (playable casino games, a strong focus, no cash payouts); 18+ in most regions, ESRB Teen |

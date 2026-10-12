@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Privacy policy — PokerSI</title>
+  <meta name="description" content="Privacy policy for PokerSI (com.bradflaugher.pokersi): no account, ads or analytics; the AI runs on your phone, and the only network use is a model download you start.">
+  <meta name="theme-color" content="#05071c">
+  <meta name="color-scheme" content="dark">
+  <link rel="canonical" href="https://bradflaugher.github.io/PokerSI/privacy/">
+  <link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <link rel="stylesheet" href="../style.css">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="PokerSI">
+  <meta property="og:title" content="Privacy policy — PokerSI">
+  <meta property="og:description" content="No account, ads or analytics. The AI runs on your phone.">
+  <meta property="og:url" content="https://bradflaugher.github.io/PokerSI/privacy/">
+  <meta property="og:image" content="https://bradflaugher.github.io/PokerSI/og.png">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="topbar">
+    <div class="wrap">
+      <a class="brand" href="../"><img src="../icon.png" alt="" width="32" height="32"><b>Poker<span>SI</span></b></a>
+      <nav aria-label="Site">
+        <a href="../#features">Features</a>
+        <a href="../#games">Games</a>
+        <a href="../#screens">Screens</a>
+        <a class="keep" href="../#get">Get it</a>
+        <a class="keep" href="./" aria-current="page">Privacy</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="page">
+    <div class="wrap">
+      <div class="marquee">
+        <div class="marquee__panel">
+          <h1>PRIVACY</h1>
+          <p>The fine print, in plain words</p>
+        </div>
+      </div>
+
+      <article class="prose">
+        <p class="updated">Last updated 2026-10-12</p>
+
+        <p class="summary"><strong>Short version:</strong> PokerSI collects nothing about you and shares nothing. The AI runs on your phone. The game only goes online to download a model you chose.</p>
+
+        <p>PokerSI (package <strong>com.bradflaugher.pokersi</strong>) is an Android poker game whose opponents are played by an AI model running on your phone. PokerSI itself collects no data about you and shares none. There are no accounts, ads, or analytics, and it never asks you for a rating. The only time it goes online is to download a model you chose from Hugging Face, which sees that request as described under Network below.</p>
+
+        <h2>What stays on your device</h2>
+        <ul>
+          <li>Your chips, games, Poker Tour progress, records, settings, and everything your opponents say are stored in app-private storage. Android app backup is turned off, so none of it is copied to the cloud or to a new phone. Uninstalling the app or clearing its data deletes it.</li>
+          <li>The AI. Opponents are played by a language model running on your device with llama.cpp. No prompt, card, or move is sent to a server.</li>
+          <li>Models you download are kept in the app's storage until you delete them.</li>
+          <li>The optional debug console records nothing unless you turn it on, and its log only leaves the app if you copy it yourself.</li>
+        </ul>
+
+        <h2>Network</h2>
+        <p>Only a model download you start yourself from the Models screen. PokerSI then connects to Hugging Face (huggingface.co and the servers it hands the file off to) to download that file. Like any web server, Hugging Face sees your IP address and the file requested, under <a href="https://huggingface.co/privacy" rel="noopener">Hugging Face's privacy policy</a>. PokerSI sends no identifiers and nothing about you or your games. If you never download a model, PokerSI never goes online: the built-in House Bot plays every seat.</p>
+
+        <h2>Your own model files</h2>
+        <p>You can load your own GGUF model files from a folder you pick with Android's file picker. PokerSI reads that folder only to load a model; it does not copy, change, or upload the files. Removing the folder in PokerSI gives that access back.</p>
+
+        <h2>Links out</h2>
+        <p><strong>Share</strong> hands the game's Google Play link to your device's share sheet. <strong>Rate</strong> opens the game's page in the Play Store app, or in your browser. <strong>Feedback</strong> opens the GitHub new-issue page in your browser, and <strong>Privacy policy</strong> and <strong>Source code</strong> open a web page. Those are other apps, and their own privacy policies apply from there; the game itself sends nothing.</p>
+
+        <h2>Permissions</h2>
+        <ul>
+          <li><strong>Internet</strong> and <strong>network state</strong>, for model downloads only.</li>
+          <li><strong>Notifications</strong> (you are asked first), to show a download's progress. Saying no only hides the notification.</li>
+          <li><strong>Foreground service (data sync)</strong>, so a large model can finish downloading while you do something else.</li>
+        </ul>
+
+        <h2>No gambling</h2>
+        <p>Chips are pretend. They cannot be bought, won, or cashed out for money or anything of value.</p>
+
+        <h2>Children</h2>
+        <p>PokerSI is not directed at children, and it collects no personal data from anyone.</p>
+
+        <h2>This website</h2>
+        <p>This site is hosted on GitHub Pages. It has no cookies, scripts, analytics, or third-party requests; GitHub may log visits to its servers under <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" rel="noopener">GitHub's privacy statement</a>.</p>
+
+        <h2>Contact</h2>
+        <p>Questions about this policy: <a href="mailto:brad@bradflaugher.com">brad@bradflaugher.com</a></p>
+      </article>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <nav aria-label="Footer">
+        <a href="../">Home</a>
+        <a href="https://github.com/bradflaugher/PokerSI">Source</a>
+        <a href="https://github.com/bradflaugher/PokerSI/issues/new">Feedback</a>
+        <a href="https://github.com/bradflaugher/PokerSI/blob/main/LICENSE">MIT license</a>
+      </nav>
+      <p>PokerSI, by <a href="https://bradflaugher.com">Brad Flaugher</a>.</p>
+    </div>
+  </footer>
+</body>
+</html>
