@@ -52,7 +52,7 @@
 
         <h2>What stays on your device</h2>
         <ul>
-          <li>Your chips, games, Poker Tour progress, records, settings, and everything your opponents say are stored in app-private storage. Android app backup is turned off, so none of it is copied to the cloud or to a new phone. Uninstalling the app or clearing its data deletes it.</li>
+          <li>Your chips, games, Poker Tour progress, records, settings, and everything your opponents say are stored in app-private storage. Android app backup is turned off, so none of it is copied to the cloud or to a new phone. Clearing the app's data deletes it. When you uninstall, Android may offer to keep the app's data (your downloaded models and saved games) on the phone in case you reinstall; it stays only on your device, and if you decline, or clear it later in Android's settings, it is deleted.</li>
           <li>The AI. Opponents are played by a language model running on your device with llama.cpp. No prompt, card, or move is sent to a server.</li>
           <li>Models you download are kept in the app's storage until you delete them.</li>
           <li>The optional debug console records nothing unless you turn it on, and its log only leaves the app if you copy it yourself.</li>
@@ -65,7 +65,7 @@
         <p>You can load your own GGUF model files from a folder you pick with Android's file picker. PokerSI reads that folder only to load a model; it does not copy, change, or upload the files. Removing the folder in PokerSI gives that access back.</p>
 
         <h2>Links out</h2>
-        <p><strong>Share</strong> hands the game's Google Play link to your device's share sheet. <strong>Rate</strong> opens the game's page in the Play Store app, or in your browser. <strong>Feedback</strong> opens the GitHub new-issue page in your browser, and <strong>Privacy policy</strong> and <strong>Source code</strong> open a web page. Those are other apps, and their own privacy policies apply from there; the game itself sends nothing.</p>
+        <p><strong>Share</strong> hands the game's Google Play link to your device's share sheet. <strong>Rate</strong> opens the game's page in the Play Store app, or in your browser. <strong>Feedback</strong> opens a new GitHub issue in your browser, pre-filled with the app version, your Android version, and your device model so a bug report is useful. Those three details are part of the page address, so your browser passes them to GitHub when the page opens. Nothing else is included, and nothing is posted unless you submit the issue yourself; you can edit or remove the details first. <strong>Privacy policy</strong> and <strong>Source code</strong> open a web page. Those are other apps and sites, and their own privacy policies apply from there; the game itself sends nothing else.</p>
 
         <h2>Permissions</h2>
         <ul>
