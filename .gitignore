@@ -38,3 +38,4 @@ tools/icon/preview.html
 __pycache__/
 .claude/worktrees/
 .kotlin/
+/vendor/bundle
