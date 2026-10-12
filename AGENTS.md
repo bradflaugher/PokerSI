@@ -145,8 +145,12 @@ Use it for unit tests, lint and screenshot work.
 `.github/workflows/ci.yml` runs the unit tests and lint on every pull
 request and push to `main`. Every push to `main` builds a signed APK and
 Play bundle and publishes them as the single date-labeled GitHub release
-`vYYYY.MM.DD.<run>`, deleting all older releases. Pull requests build
-unsigned and publish nothing. Keep `main` green.
+`vYYYY.MM.DD.<run>`, deleting all older releases. The same run uploads the
+bundle to Google Play's Closed testing - Alpha track and syncs the store
+listing (text, icon, graphics, screenshots) from
+`fastlane/metadata/android`; production is the manual `play-promote.yml`
+(see `MAINTAINING.md`). Pull requests build unsigned and publish nothing.
+Keep `main` green.
 
 ## Screenshots
 
