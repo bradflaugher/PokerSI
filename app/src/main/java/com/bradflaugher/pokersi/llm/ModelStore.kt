@@ -32,6 +32,13 @@ sealed interface ModelLocation {
 
     /** A Storage Access Framework document the user picked (loaded through its file descriptor). */
     data class Document(val uri: Uri) : ModelLocation
+
+    /** The id of a model file that is not in the catalog: where it lives. */
+    val customId: String
+        get() = when (this) {
+            is FilePath -> file.path
+            is Document -> uri.toString()
+        }
 }
 
 /**
@@ -164,11 +171,7 @@ class ModelStore private constructor(context: Context) {
         }
         val catalogNames = ModelCatalog.models.map { it.fileName }.toSet()
         val custom = files.filter { it.name !in catalogNames }.map { f ->
-            val id = when (val l = f.location) {
-                is ModelLocation.FilePath -> l.file.path
-                is ModelLocation.Document -> l.uri.toString()
-            }
-            LocalModel(id, f.name.removeSuffix(".gguf"), f.name, f.size, f.location, null)
+            LocalModel(f.location.customId, f.name.removeSuffix(".gguf"), f.name, f.size, f.location, null)
         }.distinctBy { it.id }.sortedBy { it.name.lowercase() }
         return catalog + custom
     }

@@ -331,13 +331,15 @@ class LlamaEngine private constructor(context: Context) : LlmBackend {
         val location = prefs.getString(KEY_PATH, null)?.let { ModelLocation.FilePath(File(it)) }
             ?: prefs.getString(KEY_URI, null)?.toUri()?.let { ModelLocation.Document(it) }
             ?: return null
+        // A model since dropped from the catalog is listed as the player's own file, by location.
+        val catalog = ModelCatalog.byId(id)
         return LocalModel(
-            id = id,
+            id = if (catalog != null) id else location.customId,
             name = prefs.getString(KEY_NAME, null) ?: id,
             fileName = prefs.getString(KEY_FILE, null) ?: "",
             sizeBytes = 0,
             location = location,
-            catalog = ModelCatalog.byId(id),
+            catalog = catalog,
         )
     }
 
