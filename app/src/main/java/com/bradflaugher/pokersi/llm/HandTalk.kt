@@ -30,7 +30,10 @@ object HandTalk {
             "trips", "three of a kind", "four of a kind", "quads", "full house", "set of", "a set", "my set",
             // "the Royal Flush" (a dinghy, a catchphrase) and "the Holy Flush" (a quest) are
             // persona jokes; "a royal flush" is a hand.
-            "(?<!the royal )(?<!holy )flush", "straight(?! face)", "kicker", "high card", "suited", "offsuit", "my cards", "the nuts",
+            "(?<!the royal )(?<!holy )flush", "high card", "offsuit", "my cards", "the nuts",
+            // Everyday words only count in poker phrasing: "a straight" (not "ride straight"),
+            // "my kicker" (not "here's the kicker"); "suited" comes with its two ranks.
+            "(?:a|my) straight(?! face)", "straight draw", "(?:my|good|big|weak|${anyOf(singular)}) kicker",
             "${anyOf(singular)} high",
             // "ace-king", "eight-seven offsuit"
             "${anyOf(singular)} ${anyOf(singular)}",

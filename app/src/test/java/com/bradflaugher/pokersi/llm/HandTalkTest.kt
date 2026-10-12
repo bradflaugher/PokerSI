@@ -39,6 +39,7 @@ class HandTalkTest {
             "I drew an ace, yeehaw.",
             "I was dealt a king.",
             "I drew As, partner.",
+            "Ace kicker, baby.",
             "My ace's looking good.",
             "A king's what I drew.",
             "My ace looks good.",
@@ -79,6 +80,9 @@ class HandTalkTest {
             "Keep a straight face",
             "Yes, my queen, I shall call.",
             "My nine cats bring me luck.",
+            "I'm suited for this mission.",
+            "Here's the kicker, partner.",
+            "Let's ride straight into town.",
             "My ten chips are in.",
             "",
         ).forEach { assertFalse(it, HandTalk.revealsHand(it)) }

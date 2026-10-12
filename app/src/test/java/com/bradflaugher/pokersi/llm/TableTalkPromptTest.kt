@@ -231,6 +231,27 @@ class TableTalkPromptTest {
         // Punctuation ends a word, so a cut-off line ending in it is kept whole.
         val punct = ScriptedBackend("""{"action": "check", "amount": 0, "say": "Howdy, partner!""")
         assertEquals("Howdy, partner!", LlmAgent(punct, cowboy, houseBot, TableTalk(), alwaysTalks = true).decide(context).say)
+        val paren = ScriptedBackend("""{"action": "check", "amount": 0, "say": "Howdy, (partner)""")
+        assertEquals("Howdy, (partner)", LlmAgent(paren, cowboy, houseBot, TableTalk(), alwaysTalks = true).decide(context).say)
+    }
+
+    @Test
+    fun anEmptySayWhileStreamingIsNotAFailure() = runBlocking {
+        // A token that ends right after the opening quote: the say so far is "".
+        val backend = object : LlmBackend {
+            override val isReady = true
+            override suspend fun generate(
+                messages: List<ChatMessage>, grammar: String?, maxTokens: Int, temperature: Float, seed: Int, timeoutMs: Long,
+                onText: (String) -> Boolean,
+            ): String {
+                val reply = """{"action": "check", "amount": 0, "say": "Howdy there!"}"""
+                onText(reply.substringBefore("Howdy"))
+                onText(reply)
+                return reply
+            }
+        }
+        val reply = LlmAgent(backend, cowboy, houseBot, TableTalk(), alwaysTalks = true).decide(context)
+        assertEquals("the model decided, not the House Bot", "Howdy there!", reply.say)
     }
 
     @Test

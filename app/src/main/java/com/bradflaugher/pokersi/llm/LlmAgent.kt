@@ -83,7 +83,7 @@ class LlmAgent(
                 val say = full?.let { LlmReply.sayPrefix(soFar) }
                 // Whole words only until the say is closed: a cut-off word can't be judged yet ("ace" of
                 // "aces"). Punctuation ends a word too ("Yeehaw!").
-                val words = if (say == null || sayClosed.containsMatchIn(soFar) || say.last() in wordEnds) say
+                val words = if (say.isNullOrEmpty() || sayClosed.containsMatchIn(soFar) || say.last() in wordEnds) say
                     else say.substringBeforeLast(' ', "").trimEnd(' ', ',', ';', ':', '-')
                 // Held back while it could still turn out to be a line already said, or gives the hand away.
                 // The bubble shows [words], which may end sooner than [say]: both are checked.
@@ -176,7 +176,7 @@ class LlmAgent(
 
     companion object {
         /** Characters after which the last word of a streaming say is complete. */
-        private const val wordEnds = ".!?,;:…"
+        private const val wordEnds = ".!?,;:…)]}"
 
         /** A finished say field (the grammar allows no quotes inside it). */
         private val sayClosed = Regex(""""say"\s*:\s*"[^"]*"""")
