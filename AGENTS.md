@@ -65,6 +65,11 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
 - `app/src/test/` — JVM unit tests (engine, run, prompt/grammar/parser,
   table talk, the console log, stats, links). `InvariantsTest` checks the
   rules below that a compiler can't.
+- `site/` — the project site on GitHub Pages
+  (<https://bradflaugher.github.io/PokerSI/>), including the privacy policy
+  the app and Play link to (`site/privacy/`). Static HTML and CSS in the
+  cabinet look, nothing loaded from another origin; `pages.yml` deploys it
+  (see `MAINTAINING.md` › Website). Keep the policy true to the app.
 - `tools/` — `icon/gen_icon.py` (launcher icon), `screenshots/`
   (Play/README screenshots and captions), `llm-harness/` (the real prompts
   and grammars through llama.cpp on a desktop, single cases and whole

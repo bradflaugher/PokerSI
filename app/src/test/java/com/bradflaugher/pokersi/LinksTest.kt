@@ -16,8 +16,8 @@ class LinksTest {
     }
 
     @Test
-    fun privacyPolicyIsTheBradflaugherComPage() {
-        assertEquals("https://bradflaugher.com/privacy/pokersi/", Links.PRIVACY_POLICY_URL)
+    fun privacyPolicyIsTheProjectSitePage() {
+        assertEquals("https://bradflaugher.github.io/PokerSI/privacy/", Links.PRIVACY_POLICY_URL)
     }
 
     @Test

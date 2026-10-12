@@ -24,8 +24,8 @@ object Links {
     const val SOURCE_URL = "https://github.com/bradflaugher/PokerSI"
     const val ISSUES_URL = "$SOURCE_URL/issues/new"
 
-    /** Hosted on bradflaugher.com with the author's other apps' policies. */
-    const val PRIVACY_POLICY_URL = "https://bradflaugher.com/privacy/pokersi/"
+    /** The project site on GitHub Pages, built from `site/` in this repository. */
+    const val PRIVACY_POLICY_URL = "https://bradflaugher.github.io/PokerSI/privacy/"
 
     const val SHARE_TEXT = "PokerSI: retro video poker against AI opponents that run on your phone. No ads, no accounts. $PLAY_URL"
 

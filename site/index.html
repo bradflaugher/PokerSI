@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>PokerSI — play poker with a super intelligence</title>
+  <meta name="description" content="A 90s video poker cabinet for Android where every opponent is a tiny AI running on your phone. Six games, a Poker Tour, trash talk, no ads, no account.">
+  <meta name="theme-color" content="#05071c">
+  <meta name="color-scheme" content="dark">
+  <link rel="canonical" href="https://bradflaugher.github.io/PokerSI/">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="preload" href="fonts/press_start_2p.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/vt323.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="style.css">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="PokerSI">
+  <meta property="og:title" content="PokerSI — play poker with a super intelligence">
+  <meta property="og:description" content="Pixel poker against quirky AI rivals that run on your phone. No ads, no account.">
+  <meta property="og:url" content="https://bradflaugher.github.io/PokerSI/">
+  <meta property="og:image" content="https://bradflaugher.github.io/PokerSI/og.png">
+  <meta property="og:image:width" content="1024">
+  <meta property="og:image:height" content="500">
+  <meta property="og:image:alt" content="The PokerSI marquee over a fan of pixel cards on green felt, and a robot chip saying “I'm all in, meatbag.”">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="topbar">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="icon.png" alt="" width="32" height="32"><b>Poker<span>SI</span></b></a>
+      <nav aria-label="Site">
+        <a href="#features">Features</a>
+        <a href="#games">Games</a>
+        <a href="#screens">Screens</a>
+        <a class="keep" href="#get">Get it</a>
+        <a class="keep" href="privacy/">Privacy</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="hero">
+      <div class="wrap">
+        <div>
+          <div class="marquee">
+            <div class="marquee__panel">
+              <h1>POKER <span class="si">S.I.</span></h1>
+              <p>Play poker with a super intelligence</p>
+            </div>
+          </div>
+          <p class="hero__lead">Or at least a very small one that lives on your phone. Every rival at the table is a <strong>language model running on your device</strong>: it bets, it bluffs, and if you let it, it talks trash.</p>
+          <div class="bubble-row">
+            <img src="icon.png" alt="" width="64" height="64">
+            <p class="bubble">I'm all in, meatbag.</p>
+          </div>
+          <div class="ctas">
+            <a class="btn btn--green" href="#get">Deal me in</a>
+            <a class="btn btn--gold" href="https://github.com/bradflaugher/PokerSI">Source code</a>
+          </div>
+        </div>
+        <figure class="phone">
+          <img src="img/table-holdem.webp" width="540" height="960" alt="A Texas Hold'em table against three AI opponents, one of them talking trash: “Big bet. Huge. You don't have the chips for my bluffs, meatbag.”">
+        </figure>
+      </div>
+    </div>
+
+    <div class="ticker">
+      <ul>
+        <li>Six games</li>
+        <li>Poker Tour</li>
+        <li>AI on the phone</li>
+        <li>No ads</li>
+        <li>No account</li>
+        <li>Open source</li>
+      </ul>
+    </div>
+
+    <section id="features">
+      <div class="wrap">
+        <p class="kicker">What's on the table</p>
+        <h2>A cabinet full of tiny AIs</h2>
+        <p class="intro">Chunky 8-bit cards, lamp-lit pixel felt, CRT scanlines, marquee lights, LED pot counters, HOLD buttons and chiptune bleeps. Plus a table of quirky characters who think for themselves, right on your phone.</p>
+        <ul class="cards">
+          <li class="card" data-rank="A&#10;♠">
+            <h3>The AI plays</h3>
+            <p>Each opponent is a randomly rolled persona, with a name, a pixel face and a personality, played by the model you loaded. Its move is held to legal poker, so a hand never breaks.</p>
+          </li>
+          <li class="card" data-rank="K&#10;♥">
+            <h3>Table talk</h3>
+            <p>Turn it on and the characters banter in speech bubbles, reacting to bets, the board and each other. Anyone who starts repeating themselves gets cut off.</p>
+          </li>
+          <li class="card" data-rank="Q&#10;♣">
+            <h3>House Bot</h3>
+            <p>No model yet? A built-in opponent plays every seat, and it steps in whenever a model fumbles. The game never waits on a download.</p>
+          </li>
+          <li class="card" data-rank="J&#10;♦">
+            <h3>Fair dealing</h3>
+            <p>Decks are shuffled from a seed, and each opponent only sees what its seat may know: its own cards, the board, the bets.</p>
+          </li>
+          <li class="card" data-rank="10&#10;♠">
+            <h3>Private</h3>
+            <p>No account, no ads, no analytics. The only network use is downloading a model you pick, from Hugging Face.</p>
+          </li>
+          <li class="card" data-rank="9&#10;♥">
+            <h3>Stats</h3>
+            <p>Lifetime records, your best hand ever dealt out in pixel cards, and a 13×13 chart of every Hold'em starting hand you played.</p>
+          </li>
+          <li class="card" data-rank="8&#10;♣">
+            <h3>Accessible</h3>
+            <p>TalkBack reads your cards, the opponents, what they say and the pot, and announces every action at the table.</p>
+          </li>
+          <li class="card" data-rank="7&#10;♦">
+            <h3>Debug console</h3>
+            <p>For the curious: a Quake-style terminal with every prompt, the raw reply as it streams, and tokens per second. Off by default.</p>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="games">
+      <div class="wrap">
+        <p class="kicker">Pick your poison</p>
+        <h2>Six games</h2>
+        <table class="games">
+          <caption class="sr-only">The six poker variants and how each one deals</caption>
+          <tbody>
+            <tr><th scope="row"><span aria-hidden="true">♠</span>Texas Hold'em</th><td>Two hole cards, five community cards.</td></tr>
+            <tr><th scope="row"><span aria-hidden="true">♥</span>Pot-Limit Omaha</th><td>Four hole cards; use exactly two of them with three from the board.</td></tr>
+            <tr><th scope="row"><span aria-hidden="true">♣</span>Five-Card Draw</th><td>Five cards. Tap HOLD on the keepers, draw once.</td></tr>
+            <tr><th scope="row"><span aria-hidden="true">♦</span>Seven-Card Stud</th><td>Three down, four up, no board.</td></tr>
+            <tr><th scope="row"><span aria-hidden="true">♠</span>Short Deck</th><td>Sixes and up: 36 cards. A flush beats a full house, and A-6-7-8-9 is a straight.</td></tr>
+            <tr><th scope="row"><span aria-hidden="true">♥</span>Crazy Pineapple</th><td>Three hole cards, discard one after the flop, then play Hold'em.</td></tr>
+          </tbody>
+        </table>
+        <p class="after-table">All-ins, side pots and split pots are handled for you, and a how-to-play screen covers every game and the hand rankings.</p>
+      </div>
+    </section>
+
+    <section id="tour">
+      <div class="wrap split">
+        <div>
+          <p class="kicker">Roguelite mode</p>
+          <h2>The Poker Tour</h2>
+          <ul class="ticks">
+            <li><strong>Escalating tables.</strong> Hit each table's chip target within its hand limit, or bust everyone. Your chips carry over; go broke and the tour is over.</li>
+            <li><strong>Choose your next table.</strong> Low stakes, or high stakes with an extra opponent, bigger blinds and a bigger bonus. Plain poker, no rule twists.</li>
+            <li><strong>Ten stops, then endless.</strong> Clear the tenth table to win, then keep going.</li>
+            <li><strong>Seeded and daily tours.</strong> The daily tour deals everyone the same seed that day.</li>
+          </ul>
+          <p>Quick games never run dry either: when an opponent goes broke, a new character sits down a hand later.</p>
+        </div>
+        <div class="shots">
+          <figure class="phone"><img src="img/tour.webp" width="540" height="960" loading="lazy" alt="Poker Tour: choose your next table, low stakes or high stakes."></figure>
+          <figure class="phone"><img src="img/tour-table.webp" width="540" height="960" loading="lazy" alt="A Poker Tour table at stop 5, high stakes, with a chip target and hands remaining."></figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="models">
+      <div class="wrap split">
+        <div class="shots">
+          <figure class="phone"><img src="img/models.webp" width="540" height="960" loading="lazy" alt="The Models screen, listing small downloadable models and a folder of your own GGUF files."></figure>
+          <figure class="phone"><img src="img/stats.webp" width="540" height="960" loading="lazy" alt="Stats: a 13 by 13 chart of how often you played each Hold'em starting hand."></figure>
+        </div>
+        <div>
+          <p class="kicker">Bring your own brain</p>
+          <h2>Models</h2>
+          <ul class="ticks">
+            <li><strong>Download a curated model.</strong> A short list of small GGUF models picked to play well and fit on phones. They download in the background, straight from Hugging Face.</li>
+            <li><strong>Or load your own.</strong> Pick a folder and every <code>.gguf</code> in it shows up. Files are read in place, never copied. Small instruction-tuned models, roughly 0.5B to 4B parameters at Q4, are the sweet spot.</li>
+            <li><strong>Or skip it.</strong> House Bot plays every game and a whole tour without a download.</li>
+          </ul>
+          <p>Powered by <a href="https://github.com/ggml-org/llama.cpp">llama.cpp</a>, which picks the fastest CPU backend for your phone at runtime. The AI wants a reasonably recent 64-bit phone with a few gigabytes of free memory and storage.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="screens">
+      <div class="wrap">
+        <p class="kicker">Attract mode</p>
+        <h2>Screenshots</h2>
+        <ul class="reel">
+          <li><figure><div class="phone"><img src="img/title.webp" width="540" height="960" loading="lazy" alt="The title screen: the marquee, a fan of pixel cards, and buttons for Continue Tour, Quick Game, New Tour and the daily tour."></div><figcaption><b>Title</b>Pull up a chair.</figcaption></figure></li>
+          <li><figure><div class="phone"><img src="img/picker.webp" width="540" height="960" loading="lazy" alt="The game picker with six poker variants."></div><figcaption><b>Six games</b>Pick one, pick your rivals.</figcaption></figure></li>
+          <li><figure><div class="phone"><img src="img/draw.webp" width="540" height="960" loading="lazy" alt="Five-Card Draw with HOLD buttons under the player's cards."></div><figcaption><b>Five-Card Draw</b>HOLD the keepers.</figcaption></figure></li>
+          <li><figure><div class="phone"><img src="img/showdown.webp" width="540" height="960" loading="lazy" alt="A full house wins the showdown."></div><figcaption><b>Showdown</b>Full house!</figcaption></figure></li>
+          <li><figure><div class="phone"><img src="img/tablet.webp" width="540" height="960" loading="lazy" alt="Texas Hold'em on a 10-inch tablet."></div><figcaption><b>Tablet</b>The same cabinet, bigger cards.</figcaption></figure></li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="get">
+      <div class="wrap">
+        <p class="kicker">Insert coin</p>
+        <h2>Get PokerSI</h2>
+        <p class="intro">Free, for Android 13 and newer.</p>
+        <div class="panels">
+          <div class="panel">
+            <h3>Download the APK</h3>
+            <p>Every update to the game is published as a signed APK on GitHub. Grab <code>pokersi.apk</code> from the latest release and sideload it, and check it against the <code>pokersi.apk.sha256</code> next to it (<a href="https://github.com/bradflaugher/PokerSI/blob/main/SECURITY.md#verifying-a-release">how</a>).</p>
+            <a class="btn btn--green" href="https://github.com/bradflaugher/PokerSI/releases/latest">Latest release</a>
+          </div>
+          <div class="panel">
+            <h3>Google Play <span class="led">SOON</span></h3>
+            <p>PokerSI is in closed testing on Google Play and isn't publicly listed yet. Until it is, the APK above is the same game, built by the same CI run.</p>
+          </div>
+          <div class="panel">
+            <h3>Build it yourself</h3>
+            <p>It's MIT licensed. llama.cpp is a submodule, so clone recursively:</p>
+            <pre><code>git clone --recursive \
+  https://github.com/bradflaugher/PokerSI.git
+cd PokerSI
+./gradlew assembleDebug</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <nav aria-label="Footer">
+        <a href="privacy/">Privacy</a>
+        <a href="https://github.com/bradflaugher/PokerSI">Source</a>
+        <a href="https://github.com/bradflaugher/PokerSI/issues/new">Feedback</a>
+        <a href="https://github.com/bradflaugher/PokerSI/blob/main/LICENSE">MIT license</a>
+      </nav>
+      <p>Made by <a href="https://bradflaugher.com">Brad Flaugher</a>. Built on <a href="https://github.com/ggml-org/llama.cpp">llama.cpp</a>, inspired by <a href="https://github.com/andriydruk/LMPlayground">LM Playground</a>. Pixel fonts under the <a href="fonts/OFL-PressStart2P.txt">SIL Open Font License</a>. Chips are pretend: no real-money gambling.</p>
+      <p class="credit">Game over? Insert coin.</p>
+    </div>
+  </footer>
+</body>
+</html>

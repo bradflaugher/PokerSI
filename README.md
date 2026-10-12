@@ -10,7 +10,7 @@ video poker cabinet on a green card table: chunky 8-bit cards, lamp-lit
 pixel felt, CRT scanlines, marquee lights, LED pot counters, HOLD
 buttons, and a table of quirky characters who bet, bluff and talk trash.
 Six variants, a Poker Tour mode, and no network at all unless you
-download a model.
+download a model. Website: <https://bradflaugher.github.io/PokerSI/>.
 
 <div align="center">
   <img src="docs/screenshots/table-holdem.png" alt="A Texas Hold'em table against three AI opponents, one of them talking trash" width="49%">
@@ -233,7 +233,7 @@ Games, settings and everything the opponents say stay on the phone, and so
 does the AI. The app goes online only to download a model you chose, from
 Hugging Face. Folders of your own models are opened read-only through the
 system file picker. The full policy is at
-<https://bradflaugher.com/privacy/pokersi/>.
+<https://bradflaugher.github.io/PokerSI/privacy/>.
 
 ## Credits
 
