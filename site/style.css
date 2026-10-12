@@ -607,6 +607,7 @@ pre code { color: inherit; font-size: inherit; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+  .marquee::before,
   .marquee::after,
   .bubble::after { animation: none; }
   .btn { transition: none; }

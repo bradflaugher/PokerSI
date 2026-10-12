@@ -65,7 +65,9 @@ def main() -> int:
                 target = page.parent / path
             if target.is_dir() or path.endswith("/"):
                 target = target / "index.html"
-            if not target.resolve().is_file():
+            if not inside(root, target):
+                errors.append(f"{where} points outside the site")
+            elif not target.resolve().is_file():
                 errors.append(f"{where} points at a missing file")
 
     # Stylesheets, plus <style> blocks and style="" attributes in the pages.
@@ -95,9 +97,16 @@ def css_errors(root: Path, source: Path) -> list:
             target = root / path[len(BASE):]
         else:
             target = source.parent / path
-        if path and not target.resolve().is_file():
+        if path and not inside(root, target):
+            errors.append(f"{where} points outside the site")
+        elif path and not target.resolve().is_file():
             errors.append(f"{where} points at a missing file")
     return errors
+
+
+def inside(root: Path, target: Path) -> bool:
+    """Only site/ is published, so a file elsewhere in the repo is a broken link."""
+    return target.resolve().is_relative_to(root)
 
 
 if __name__ == "__main__":

@@ -23,6 +23,13 @@ on:
 permissions:
   contents: read
 
+# Main runs queue one at a time for the whole run, check through deploy, so
+# an older push can never deploy over a newer one, and none is cancelled
+# halfway. Pull requests only check, so a newer push cancels the older run.
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('pages-{0}', github.ref) || 'pages' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   check:
     name: Check site
@@ -60,10 +67,6 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    # One deploy at a time, and never cancel one halfway.
-    concurrency:
-      group: pages
-      cancel-in-progress: false
 
     steps:
       - name: Deploy
