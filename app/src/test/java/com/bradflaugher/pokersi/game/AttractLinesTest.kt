@@ -25,7 +25,7 @@ class AttractLinesTest {
         val tour = RunState.new(5L)
         val best = BestHand.of(HandEvaluator.evaluate(Card.parseList("As Ah Ad Ks Kh")), GameVariant.TEXAS_HOLDEM)
         val stats = LifetimeStats(handsPlayed = 40, handsWon = 12, biggestPot = 3200, bestHand = best)
-        val lines = AttractLines.lines(TitleFacts(tour, DailyResult(played = true, finished = true, bestTables = 4), stats, "Qwen 3 1.7B"))
+        val lines = AttractLines.lines(TitleFacts(tour, DailyResult(played = true, finished = true, bestTables = 4), stats, "Qwen 3.5 2B"))
         assertEquals("CHIPS ${formatChips(tour.playerChips)} · TOUR STOP 1", lines.first())
         assertTrue("DAILY TOUR: BEST 4 TABLES" in lines)
         assertTrue("QWEN 3 1.7B IS AT THE TABLE" in lines)

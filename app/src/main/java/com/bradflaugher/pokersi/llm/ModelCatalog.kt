@@ -14,29 +14,30 @@ data class CatalogModel(
 )
 
 /**
- * Small instruct GGUFs (Q4_K_M) that run on a phone and follow a JSON
- * format well enough to play. Sizes were checked with HTTP HEAD requests
- * (Hugging Face's x-linked-size); the URLs are the ones LM Playground uses
- * where it has the model.
+ * Small instruct GGUFs that run on a phone and follow a JSON format well
+ * enough to play: the newest of each family LM Playground carries, Q4_K_M
+ * (Gemma 4 is Google's own quantization-aware Q4_0). Sizes were checked
+ * with HTTP HEAD requests (Hugging Face's x-linked-size); the URLs are the
+ * repos LM Playground uses.
  */
 object ModelCatalog {
     private const val HF = "https://huggingface.co"
 
     val models: List<CatalogModel> = listOf(
         CatalogModel(
-            "qwen3-0.6b", "Qwen 3 0.6B", "Alibaba", "Qwen3-0.6B-Q4_K_M.gguf",
-            "$HF/lmstudio-community/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q4_K_M.gguf", 484_219_808,
+            "qwen3.5-0.8b", "Qwen 3.5 0.8B", "Alibaba", "Qwen_Qwen3.5-0.8B-Q4_K_M.gguf",
+            "$HF/bartowski/Qwen_Qwen3.5-0.8B-GGUF/resolve/main/Qwen_Qwen3.5-0.8B-Q4_K_M.gguf", 579_615_840,
             "Pocket-sized and quick. Plays like it just learned the rules.",
+        ),
+        CatalogModel(
+            "minicpm5-1b", "MiniCPM5 1B", "OpenBMB", "MiniCPM5-1B-Q4_K_M.gguf",
+            "$HF/openbmb/MiniCPM5-1B-GGUF/resolve/main/MiniCPM5-1B-Q4_K_M.gguf", 688_065_920,
+            "Tiny and eager. Shows up early and counts its chips twice.",
         ),
         CatalogModel(
             "llama3.2-1b", "Llama 3.2 1B", "Meta", "Llama-3.2-1B-Instruct-Q4_K_M.gguf",
             "$HF/lmstudio-community/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf", 807_690_688,
             "Steady and talkative. A safe pair of hands for any phone.",
-        ),
-        CatalogModel(
-            "gemma3-1b", "Gemma 3 1B", "Google", "gemma-3-1b-it-Q4_K_M.gguf",
-            "$HF/lmstudio-community/gemma-3-1b-it-GGUF/resolve/main/gemma-3-1b-it-Q4_K_M.gguf", 806_058_240,
-            "Chatty and charming. Never met a pun it didn't like.",
         ),
         CatalogModel(
             "lfm2.5-1.2b", "LFM2.5 1.2B Instruct", "Liquid AI", "LFM2.5-1.2B-Instruct-Q4_K_M.gguf",
@@ -50,14 +51,9 @@ object ModelCatalog {
             "All business. Brings a spreadsheet to game night.",
         ),
         CatalogModel(
-            "qwen3-1.7b", "Qwen 3 1.7B", "Alibaba", "Qwen3-1.7B-Q4_K_M.gguf",
-            "$HF/lmstudio-community/Qwen3-1.7B-GGUF/resolve/main/Qwen3-1.7B-Q4_K_M.gguf", 1_282_439_328,
+            "qwen3.5-2b", "Qwen 3.5 2B", "Alibaba", "Qwen_Qwen3.5-2B-Q4_K_M.gguf",
+            "$HF/bartowski/Qwen_Qwen3.5-2B-GGUF/resolve/main/Qwen_Qwen3.5-2B-Q4_K_M.gguf", 1_396_198_496,
             "A sharper player that still fits on most phones.",
-        ),
-        CatalogModel(
-            "llama3.2-3b", "Llama 3.2 3B", "Meta", "Llama-3.2-3B-Instruct-Q4_K_M.gguf",
-            "$HF/lmstudio-community/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf", 2_019_377_440,
-            "Reads the table like a regular. Needs a roomy phone.",
         ),
         CatalogModel(
             "smollm3-3b", "SmolLM3 3B", "Hugging Face", "HuggingFaceTB_SmolLM3-3B-Q4_K_M.gguf",
@@ -65,14 +61,29 @@ object ModelCatalog {
             "Small name, big ideas. Fully open, all the way down.",
         ),
         CatalogModel(
+            "llama3.2-3b", "Llama 3.2 3B", "Meta", "Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+            "$HF/lmstudio-community/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf", 2_019_377_440,
+            "Reads the table like a regular. Needs a roomy phone.",
+        ),
+        CatalogModel(
             "phi4-mini", "Phi-4 mini", "Microsoft", "Phi-4-mini-instruct-Q4_K_M.gguf",
             "$HF/lmstudio-community/Phi-4-mini-instruct-GGUF/resolve/main/Phi-4-mini-instruct-Q4_K_M.gguf", 2_491_874_400,
             "The math whiz. Counts outs in its sleep.",
         ),
         CatalogModel(
-            "qwen3-4b", "Qwen 3 4B", "Alibaba", "Qwen3-4B-Q4_K_M.gguf",
-            "$HF/lmstudio-community/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q4_K_M.gguf", 2_497_280_704,
+            "qwen3.5-4b", "Qwen 3.5 4B", "Alibaba", "Qwen_Qwen3.5-4B-Q4_K_M.gguf",
+            "$HF/bartowski/Qwen_Qwen3.5-4B-GGUF/resolve/main/Qwen_Qwen3.5-4B-Q4_K_M.gguf", 3_013_027_808,
             "The table shark. Slow on older phones, scary on new ones.",
+        ),
+        CatalogModel(
+            "gemma4-e2b", "Gemma 4 E2B", "Google", "gemma-4-E2B_q4_0-it.gguf",
+            "$HF/google/gemma-4-E2B-it-qat-q4_0-gguf/resolve/main/gemma-4-E2B_q4_0-it.gguf", 3_349_516_256,
+            "Google's phone-sized ace. Charming, sharp, and needs 8 GB of RAM.",
+        ),
+        CatalogModel(
+            "gemma4-e4b", "Gemma 4 E4B", "Google", "gemma-4-E4B_q4_0-it.gguf",
+            "$HF/google/gemma-4-E4B-it-qat-q4_0-gguf/resolve/main/gemma-4-E4B_q4_0-it.gguf", 5_154_941_280,
+            "The high roller. Plays a mean game on a 12 GB flagship.",
         ),
     )
 

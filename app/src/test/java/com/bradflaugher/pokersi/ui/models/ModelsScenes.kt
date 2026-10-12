@@ -13,7 +13,7 @@ object ModelsScenes {
         fun scene(): ModelsUiState {
             val catalog = ModelCatalog.models.map { c ->
                 val location = if (c.recommended) ModelLocation.FilePath(File("/models/${c.fileName}")) else null
-                val download = if (c.id == "qwen3-1.7b") DownloadProgress(DownloadProgress.State.RUNNING, 512_000_000, c.sizeBytes, 14_000_000) else null
+                val download = if (c.id == "qwen3.5-2b") DownloadProgress(DownloadProgress.State.RUNNING, 512_000_000, c.sizeBytes, 14_000_000) else null
                 LocalModel(c.id, c.name, c.fileName, c.sizeBytes, location, c, download)
             }
             val loaded = catalog.first { it.catalog!!.recommended }
