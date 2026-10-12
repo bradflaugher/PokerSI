@@ -139,6 +139,8 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
   carry content descriptions, the table announces its news in a live
   region, and every action button is at least 48dp tall.
 - Poker on a green table, not a deck-builder: no Jokers, no shop.
+- Never say "insert coin" (or any variant) anywhere: app strings, site,
+  store listing, screenshots, docs. The author doesn't want it.
 - Keep the engine pure: all Android code lives outside `engine/` and `run/`.
 - The debug console (SETTINGS > DEBUG CONSOLE, then the "~" toggle pinned
   top right at the table and in the model bay, which stays put over the open
