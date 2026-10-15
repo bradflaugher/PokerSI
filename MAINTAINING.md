@@ -219,7 +219,7 @@ recreate them:
 |---|---|
 | Ruleset `Main` (default branch) | No deletion or force push, linear history, changes through a squash-merged PR, required checks: `build`, `Unit tests`, `Android lint`, `Analyze (java-kotlin)`, `Analyze (actions)`, `Analyze (python)`, `store listing` |
 | Merge buttons | Squash only, PR title as the commit title, branches deleted after merge |
-| Actions permissions | GitHub-owned actions plus `android-actions/setup-android`, `gradle/actions/*` and `reactivecircus/android-emulator-runner`; full-SHA pinning required |
+| Actions permissions | GitHub-owned actions plus `android-actions/setup-android`, `gradle/actions/*`, `reactivecircus/android-emulator-runner` and `ruby/setup-ruby`; full-SHA pinning required |
 | Google Play API access | Service account `github-play-publisher@play-publishing-511400.iam.gserviceaccount.com` (Google Cloud project `play-publishing-511400`), invited in Play Console › Users and permissions with account-wide: view app information, release to production, release to testing tracks, manage store presence. Its JSON key is the `PLAY_SERVICE_ACCOUNT_JSON` secret of the `google-play` environment |
 | Environment `google-play` | Deployable from `main` only; holds `PLAY_SERVICE_ACCOUNT_JSON`; the `Google Play` job and `play-promote.yml` run in it |
 | Default `GITHUB_TOKEN` | Read-only; jobs ask for more themselves |
