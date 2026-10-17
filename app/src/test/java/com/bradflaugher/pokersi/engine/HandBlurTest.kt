@@ -66,6 +66,10 @@ class HandBlurTest {
         assertEquals("I feel lucky", blur("I feel lucky", hole = nothing, made = null))
         assertEquals("These are", left(blur("These are offsuit", hole = cards("Ah", "Kd"), made = "Ace-King offsuit")))
         assertEquals("I've only got", left(blur("I've only got high card", hole = nothing, made = "Nine high")))
+        val omaha = cards("Ah", "Kd", "7c", "2s")
+        assertEquals("My cards are", left(blur("My cards are rainbow", hole = omaha, made = "Ace-King-Seven-Two, rainbow")))
+        assertEquals("Mine are", left(blur("Mine are double-suited", hole = cards("Ah", "Kh", "7c", "2c"), made = "Ace-King-Seven-Two, double-suited")))
+        assertEquals("These are", left(blur("These are all one suit", hole = cards("Ah", "Kh", "7h", "2h"), made = "Ace-King-Seven-Two, all one suit")))
     }
 
     @Test
@@ -76,6 +80,12 @@ class HandBlurTest {
         // Short Deck: A-6-7-8-9 on the board is a straight there, and public.
         val shortBoard = cards("As", "6d", "7c", "8h", "9s")
         assertEquals("Straight on the board!", HandBlur.blur("Straight on the board!", cards("Kh", "2c"), madeHand = "Straight, Nine high", board = shortBoard, shortDeck = true))
+        // A pocket pair is private even on a paired board.
+        assertEquals("I have a", left(blur("I have a pocket pair", hole = cards("Kh", "Kc"), made = "Two Pair, Kings and Nines", board = board)))
+        // Pointing at a public king is fair even when holding one; claiming kings is not.
+        val kingBoard = cards("Ks", "7d", "2c")
+        assertEquals("Nice king on the board!", blur("Nice king on the board!", hole = cards("Kh", "4c"), made = "Pair of Kings", board = kingBoard))
+        assertEquals("I love", left(blur("I love kings", hole = cards("Kh", "4c"), made = "Pair of Kings", board = kingBoard)))
         // Omaha: a five-heart board is nobody's flush; claiming one is private.
         val hearts = cards("2h", "5h", "8h", "Jh", "Kh")
         assertEquals("I have a", left(HandBlur.blur("I have a flush", cards("Ah", "Qh", "3c", "4d"), madeHand = "Flush, Ace high", board = hearts, boardPlays = false)))

@@ -54,7 +54,9 @@ object HandBlur {
             public.size >= 5 -> HandEvaluator.evaluate(public, shortDeck).description
             else -> HandEvaluator.describe(public, emptyList(), GameVariant.FIVE_CARD_DRAW, moreCardsToCome = false)
         }
-        for (pattern in patterns(hidden, madeHand, publicHand)) {
+        // A rank that is also out on the table may be talked about there ("the king on the board").
+        val publicRanks = (board + faceUp).map { it.rank }.toSet()
+        for (pattern in patterns(hidden, madeHand, publicHand, publicRanks)) {
             out = pattern.replace(out) { m ->
                 // Only the group that gives it away, if the pattern marks one.
                 val g = m.groups.takeIf { it.size > 1 }?.get(1)
@@ -84,7 +86,7 @@ object HandBlur {
 
     private fun bar(text: String): String = text.map { if (it.isWhitespace()) it else MARK }.joinToString("")
 
-    private fun patterns(hidden: List<Card>, madeHand: String?, publicHand: String?): List<Regex> {
+    private fun patterns(hidden: List<Card>, madeHand: String?, publicHand: String?, publicRanks: Set<Rank>): List<Regex> {
         val words = mutableListOf<String>()
         val ranks = hidden.map { it.rank }.distinct()
         for (card in hidden) {
@@ -92,10 +94,15 @@ object HandBlur {
             words += "(?:${rankWords(card.rank).joinToString("|")}|${card.rank.face}|${card.rank.letter}) of ${card.suit.label}"
         }
         for (rank in ranks) {
-            words += rank.plural.lowercase()
-            if (rank.value >= Rank.JACK.value) words += rank.label.lowercase()
+            val said = listOfNotNull(rank.plural.lowercase(), rank.label.lowercase().takeIf { rank.value >= Rank.JACK.value })
+            // Pointing at the public card is fair: "that king on the board", "kings showing".
+            val guard = if (rank in publicRanks) "(?! on (?:the )?board| showing| up)" else ""
+            said.forEach { words += "$it$guard" }
         }
-        hidden.groupBy { it.rank }.filterValues { it.size >= 2 }.keys.forEach { rank -> nicknames[rank]?.let(words::add) }
+        val pocketPairs = hidden.groupBy { it.rank }.filterValues { it.size >= 2 }.keys
+        pocketPairs.forEach { rank -> nicknames[rank]?.let(words::add) }
+        // A pair in the hole is private whatever the board shows.
+        if (pocketPairs.isNotEmpty()) words += "pocket pairs?|pockets?"
         val shown = publicHand?.lowercase().orEmpty()
         madeHand?.lowercase()?.let { made -> categories.filter { (key, _) -> key in made && key !in shown }.forEach { (_, said) -> words += said } }
         val list = mutableListOf<Regex>()
@@ -153,6 +160,10 @@ object HandBlur {
         "royal" to "royal(?: flush)?",
         "offsuit" to "off-?suit",
         "high" to "high cards?",
+        // Omaha starting hands.
+        "one suit" to "all one suit|one suit",
+        "double-suited" to "double-?suited",
+        "rainbow" to "rainbow",
     )
 
     /** "my hand is strong", "I've got a monster hand": the claim is blurred, true or not. */
