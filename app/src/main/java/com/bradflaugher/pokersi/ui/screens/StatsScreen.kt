@@ -63,7 +63,7 @@ import com.bradflaugher.pokersi.ui.pixel.PixelType
 fun StatsScreen(stats: LifetimeStats, onReset: () -> Unit, onBack: () -> Unit, modifier: Modifier = Modifier) {
     val p = PixelTheme.palette
     var confirmReset by rememberSaveable { mutableStateOf(false) }
-    ArcadeScreen(modifier) {
+    ArcadeScreen(modifier.modalBehind(confirmReset)) {
         Column(Modifier.fillMaxSize()) {
             ArcadeTopBar("STATS", onBack)
             Column(

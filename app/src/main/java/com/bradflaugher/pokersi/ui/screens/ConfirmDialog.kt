@@ -28,6 +28,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.paneTitle
@@ -43,6 +44,12 @@ import com.bradflaugher.pokersi.ui.pixel.PixelText
 import com.bradflaugher.pokersi.ui.pixel.PixelTheme
 import com.bradflaugher.pokersi.ui.pixel.PixelType
 import com.bradflaugher.pokersi.ui.pixel.Sfx
+
+/**
+ * What sits under an [open] overlay (a [ConfirmDialog], the pause menu, the
+ * tour) is hidden from TalkBack, so swiping can't reach a control behind it.
+ */
+fun Modifier.modalBehind(open: Boolean): Modifier = if (open) clearAndSetSemantics { } else this
 
 /**
  * The cabinet's "are you sure?", for the one tap that would lose something:

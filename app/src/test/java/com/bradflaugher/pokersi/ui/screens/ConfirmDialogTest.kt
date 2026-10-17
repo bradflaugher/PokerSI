@@ -1,17 +1,21 @@
 package com.bradflaugher.pokersi.ui.screens
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.bradflaugher.pokersi.ui.pixel.LocalPixelRenderMode
+import com.bradflaugher.pokersi.ui.pixel.PixelButton
 import com.bradflaugher.pokersi.ui.pixel.PixelRenderMode
 import com.bradflaugher.pokersi.ui.pixel.PixelTheme
 import com.bradflaugher.pokersi.ui.screenshot.registerComponentActivity
@@ -48,6 +52,25 @@ class ConfirmDialogTest {
             assertEquals(1 to 0, stayed to confirmed)
             exit.performClick()
             assertEquals(1 to 1, stayed to confirmed)
+        }
+    }
+
+    @Test
+    fun whatIsBehindIsOutOfTalkBacksReach() {
+        registerComponentActivity()
+        runComposeUiTest {
+            setContent {
+                CompositionLocalProvider(LocalPixelRenderMode provides PixelRenderMode.Static) {
+                    PixelTheme {
+                        Box {
+                            PixelButton("NEW TOUR", {}, Modifier.modalBehind(true))
+                            ConfirmDialog("START A NEW TOUR?", "Your saved tour is thrown away.", "NEW TOUR?", "KEEP MY TOUR", onConfirm = {}, onStay = {})
+                        }
+                    }
+                }
+            }
+            onNodeWithText("NEW TOUR").assertDoesNotExist()
+            onNodeWithText("KEEP MY TOUR").assertExists()
         }
     }
 }

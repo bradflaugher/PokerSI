@@ -68,6 +68,7 @@ import com.bradflaugher.pokersi.ui.screens.TitleCallbacks
 import com.bradflaugher.pokersi.ui.screens.TitleScreen
 import com.bradflaugher.pokersi.ui.screens.StatsScreen
 import com.bradflaugher.pokersi.ui.screens.TourOverlay
+import com.bradflaugher.pokersi.ui.screens.modalBehind
 import com.bradflaugher.pokersi.ui.screens.onAnyTouch
 import com.bradflaugher.pokersi.ui.screens.rememberCoach
 import com.bradflaugher.pokersi.game.CoachMarks
@@ -116,6 +117,8 @@ fun PokerSiApp(vm: PokerViewModel) {
             LocalCardSway provides sway,
         ) {
             Box(Modifier.fillMaxSize().background(Color.Black)) {
+                val touring by vm.guide.tour.collectAsStateWithLifecycle()
+                Box(Modifier.fillMaxSize().modalBehind(touring)) {
                 when (vm.backStack.last()) {
                     Screen.Title -> TitleRoute(vm)
                     Screen.Picker -> PickerRoute(vm)
@@ -130,9 +133,10 @@ fun PokerSiApp(vm: PokerViewModel) {
                         onBack = { vm.back() },
                     )
                 }
+                }
                 BackHandler(enabled = vm.backStack.size > 1 && vm.backStack.last() !in setOf(Screen.Table, Screen.Run)) { vm.back() }
                 // The tour, over the title on first launch (or wherever TAKE THE TOUR was tapped).
-                if (vm.guide.tour.collectAsStateWithLifecycle().value) TourOverlay(onDismiss = vm::dismissTips)
+                if (touring) TourOverlay(onDismiss = vm::dismissTips)
                 if (debug) {
                     val entries by AiLog.entries.collectAsStateWithLifecycle()
                     DebugConsole(entries, console, onClose = vm::closeConsole, onClear = AiLog::clear)
@@ -164,47 +168,63 @@ private fun TitleRoute(vm: PokerViewModel) {
     val attract = remember(tour, daily, stats, label) { AttractLines.lines(TitleFacts(tour, daily, stats, label)) }
     val confirmExit by vm.settings.confirmExit.collectAsStateWithLifecycle()
     var exiting by rememberSaveable { mutableStateOf(false) }
-    var replacingTour by rememberSaveable { mutableStateOf(false) }
     val activity = LocalActivity.current
-    TitleScreen(
-        brainLabel = label,
-        hasSavedRun = saved,
-        dailyLabel = daily.label,
-        attract = attract,
-        callbacks = TitleCallbacks(
-            onQuickGame = { vm.go(Screen.Picker) },
-            // NEW TOUR over a saved one would throw it away: ask first.
-            onRunMode = { if (saved) replacingTour = true else vm.newRun() },
-            onContinue = vm::continueRun,
-            onDaily = vm::dailyRun,
-            onModels = { vm.go(Screen.Models) },
-            onHowTo = { vm.go(Screen.HowTo) },
-            onSettings = { vm.go(Screen.Settings) },
-            onStats = { vm.go(Screen.Stats) },
-        ),
-    )
-    // Back at the bottom of the stack leaves the app: SETTINGS > CONFIRM EXIT asks first.
-    BackHandler(enabled = confirmExit) { exiting = true }
-    if (exiting) {
-        ConfirmDialog(
-            question = "LEAVE THE CABINET?",
-            message = "The cards will miss you. Your tour and records are saved for next time.",
-            confirmLabel = "EXIT",
-            stayLabel = "STAY",
-            onConfirm = { exiting = false; activity?.finish() },
-            onStay = { exiting = false },
-            mood = Mood.Sad,
+    NewTourGuard(vm) { onNewRun, behind ->
+        TitleScreen(
+            modifier = behind.modalBehind(exiting),
+            brainLabel = label,
+            hasSavedRun = saved,
+            dailyLabel = daily.label,
+            attract = attract,
+            callbacks = TitleCallbacks(
+                onQuickGame = { vm.go(Screen.Picker) },
+                onRunMode = onNewRun,
+                onContinue = vm::continueRun,
+                onDaily = vm::dailyRun,
+                onModels = { vm.go(Screen.Models) },
+                onHowTo = { vm.go(Screen.HowTo) },
+                onSettings = { vm.go(Screen.Settings) },
+                onStats = { vm.go(Screen.Stats) },
+            ),
         )
+        // Back at the bottom of the stack leaves the app: SETTINGS > CONFIRM EXIT asks first.
+        // (In here, so the NEW TOUR question, composed after, takes Back before it.)
+        BackHandler(enabled = confirmExit) { exiting = true }
+        if (exiting) {
+            ConfirmDialog(
+                question = "LEAVE THE CABINET?",
+                message = "The cards will miss you. Your tour and records are saved for next time.",
+                confirmLabel = "EXIT",
+                stayLabel = "STAY",
+                onConfirm = { exiting = false; activity?.finish() },
+                onStay = { exiting = false },
+                mood = Mood.Sad,
+            )
+        }
     }
-    if (replacingTour && saved) {
+}
+
+/**
+ * Hands [content] the NEW TOUR action, wherever it is offered (the title, a
+ * tour's end, victory): over a saved tour it asks first, since starting one
+ * throws the saved one away. [content] puts the modifier on what the dialog covers.
+ */
+@Composable
+private fun NewTourGuard(vm: PokerViewModel, content: @Composable (onNewRun: () -> Unit, behind: Modifier) -> Unit) {
+    val saved by vm.runSaver.saved.collectAsStateWithLifecycle()
+    var asking by rememberSaveable { mutableStateOf(false) }
+    val open = asking && saved
+    content({ if (saved) asking = true else vm.newRun() }, Modifier.modalBehind(open))
+    if (open) {
+        val tour = remember { vm.runSaver.load() }
         ConfirmDialog(
             question = "START A NEW TOUR?",
             message = tour?.let { "Your saved tour (table ${it.level}, ${formatChips(it.bankroll)} chips) is thrown away." }
                 ?: "Your saved tour is thrown away.",
             confirmLabel = "NEW TOUR",
             stayLabel = "KEEP MY TOUR",
-            onConfirm = { replacingTour = false; vm.newRun() },
-            onStay = { replacingTour = false },
+            onConfirm = { asking = false; vm.newRun() },
+            onStay = { asking = false },
         )
     }
 }
@@ -299,11 +319,15 @@ private fun RunRoute(vm: PokerViewModel) {
         }
         RunScreen.Victory -> {
             BackHandler { c.continueEndless() }
-            RunOverScreen(ui, victory = true, onNewRun = vm::newRun, onMenu = vm::toTitle, onContinue = c::continueEndless)
+            NewTourGuard(vm) { onNewRun, behind ->
+                RunOverScreen(ui, victory = true, onNewRun = onNewRun, onMenu = vm::toTitle, modifier = behind, onContinue = c::continueEndless)
+            }
         }
         RunScreen.GameOver -> {
             BackHandler { vm.toTitle() }
-            RunOverScreen(ui, victory = false, onNewRun = vm::newRun, onMenu = vm::toTitle)
+            NewTourGuard(vm) { onNewRun, behind ->
+                RunOverScreen(ui, victory = false, onNewRun = onNewRun, onMenu = vm::toTitle, modifier = behind)
+            }
         }
     }
 }
@@ -333,7 +357,8 @@ private fun TableRoute(vm: PokerViewModel, run: RunUiState?) {
     Box(Modifier.fillMaxSize().onAnyTouch(coach::dismiss)) {
         TableScreen(
             table,
-            TableCallbacks(
+            modifier = Modifier.modalBehind(menu),
+            callbacks = TableCallbacks(
                 onAct = c::act,
                 onToggle = c::toggleSelect,
                 onConfirmDiscard = c::confirmDiscard,

@@ -314,7 +314,7 @@ fun SettingsScreen(settings: SettingsUi, callbacks: SettingsCallbacks, modifier:
         if (settings.volume != heardVolume) sound.play(Sfx.Chip)
         heardVolume = settings.volume
     }
-    ArcadeScreen(modifier) {
+    ArcadeScreen(modifier.modalBehind(confirmReset && settings.hasSavedRun)) {
         Column(Modifier.fillMaxSize()) {
             ArcadeTopBar("SETTINGS", callbacks.onBack)
             Column(
