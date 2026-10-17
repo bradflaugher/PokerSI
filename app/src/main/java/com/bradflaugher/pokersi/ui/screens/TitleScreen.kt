@@ -34,6 +34,7 @@ import com.bradflaugher.pokersi.ui.pixel.MarqueeFrame
 import com.bradflaugher.pokersi.ui.pixel.PixelButton
 import com.bradflaugher.pokersi.ui.pixel.PixelButtonVariant
 import com.bradflaugher.pokersi.ui.pixel.PixelCardFan
+import com.bradflaugher.pokersi.ui.pixel.PixelSpacing
 import com.bradflaugher.pokersi.ui.pixel.PixelText
 import com.bradflaugher.pokersi.ui.pixel.PixelTheme
 import com.bradflaugher.pokersi.ui.pixel.PixelType
@@ -175,17 +176,21 @@ private fun AttractLine(lines: List<String>) {
     }
 }
 
+/**
+ * The menu, in two groups: the ways to play on top (big, colored), then a
+ * gap and the cabinet's back office (models, stats, rules, settings).
+ */
 @Composable
 private fun TitleMenu(hasSavedRun: Boolean, callbacks: TitleCallbacks, dailyLabel: String) {
     if (hasSavedRun) {
         PixelButton("CONTINUE TOUR", callbacks.onContinue, Modifier.fillMaxWidth(), variant = PixelButtonVariant.Call, sound = Sfx.Deal)
     }
     PixelButton("QUICK GAME", callbacks.onQuickGame, Modifier.fillMaxWidth(), variant = PixelButtonVariant.Deal, sound = Sfx.Deal)
-    Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(PixelSpacing.Tap)) {
         PixelButton(if (hasSavedRun) "NEW TOUR" else "POKER TOUR", callbacks.onRunMode, Modifier.weight(1f), variant = PixelButtonVariant.Pink, textStyle = PixelType.Small)
         PixelButton(dailyLabel, callbacks.onDaily, Modifier.weight(1f), variant = PixelButtonVariant.Bet, textStyle = PixelType.Small)
     }
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(Modifier.padding(top = PixelSpacing.S), horizontalArrangement = Arrangement.spacedBy(PixelSpacing.Tap)) {
         val small = PixelType.Small.copy(fontSize = 9.sp)
         PixelButton("MODELS", callbacks.onModels, Modifier.weight(1.1f), variant = PixelButtonVariant.Hold, textStyle = small)
         PixelButton("STATS", callbacks.onStats, Modifier.weight(1f), variant = PixelButtonVariant.Gray, textStyle = small)

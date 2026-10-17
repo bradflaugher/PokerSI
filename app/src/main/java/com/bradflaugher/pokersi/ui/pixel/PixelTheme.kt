@@ -54,7 +54,8 @@ data class PixelPalette(
     val teal: Color = Color(0xFF1FD6C4),
     val green: Color = Color(0xFF2FD15A),
     val greenDark: Color = Color(0xFF137A33),
-    val gray: Color = Color(0xFF8D8AA6),
+    // Light enough for secondary text on felt and cabinet panels (see ContrastTest).
+    val gray: Color = Color(0xFFBCB9D4),
     val grayDark: Color = Color(0xFF4A4763),
     // LEDs.
     val ledRed: Color = Color(0xFFFF2B2B),

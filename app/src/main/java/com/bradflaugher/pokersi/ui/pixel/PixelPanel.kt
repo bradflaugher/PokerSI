@@ -38,10 +38,10 @@ private class PanelColors(val border: Color, val borderLight: Color, val borderD
 private fun panelColors(style: PanelStyle): PanelColors {
     val p = LocalPixelPalette.current
     return when (style) {
-        PanelStyle.Cabinet -> PanelColors(p.gold, p.yellow, p.goldDark, p.cabinetDeep, p.cabinet, p.suitRed)
+        PanelStyle.Cabinet -> PanelColors(p.gold, p.yellow, p.goldDark, p.cabinetDeep, p.cabinet, p.signRed)
         PanelStyle.Felt -> PanelColors(p.gold, p.yellow, p.goldDark, p.feltDark, p.felt, p.purple)
-        PanelStyle.Dark -> PanelColors(p.gray, Color(0xFFC9C6DD), p.grayDark, p.cabinetBlack, p.inkSoft, p.hotPinkDark)
-        PanelStyle.Paper -> PanelColors(p.ink, p.inkSoft, p.ink, p.cardCream, p.cardHighlight, p.suitRed)
+        PanelStyle.Dark -> PanelColors(p.gray, Color(0xFFDEDBEE), p.grayDark, p.cabinetBlack, p.inkSoft, p.hotPinkDark)
+        PanelStyle.Paper -> PanelColors(p.ink, p.inkSoft, p.ink, p.cardCream, p.cardHighlight, p.signRed)
     }
 }
 
@@ -140,7 +140,7 @@ fun PayTable(
                                 onRowClick(i)
                             },
                         )
-                        .drawBehind { if (hot) notchedRect(0, 0, size.width.toInt(), size.height.toInt(), unit, 1, if (on) p.suitRed else p.redDark) }
+                        .drawBehind { if (hot) notchedRect(0, 0, size.width.toInt(), size.height.toInt(), unit, 1, if (on) p.signRed else p.redDark) }
                         .padding(horizontal = with(density) { (unit * 2).toDp() }, vertical = with(density) { unit.toDp() }),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {

@@ -28,6 +28,10 @@ class ScreensScreenshotTest {
     @Test
     fun phone() = render(DeviceSpec.PHONE)
 
+    /** A small 360x640dp phone: nothing may clip, and the title menu must fit without scrolling. */
+    @Test
+    fun phoneSmall() = render(DeviceSpec("phone-small", 720, 1280, 320))
+
     @Test
     fun tablet7() = render(DeviceSpec.TABLET_7)
 

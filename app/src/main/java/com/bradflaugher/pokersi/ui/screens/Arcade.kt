@@ -54,6 +54,7 @@ import com.bradflaugher.pokersi.ui.pixel.LocalSoundPlayer
 import com.bradflaugher.pokersi.ui.pixel.PixelButton
 import com.bradflaugher.pokersi.ui.pixel.PixelButtonVariant
 import com.bradflaugher.pokersi.ui.pixel.PixelPalette
+import com.bradflaugher.pokersi.ui.pixel.PixelSpacing
 import com.bradflaugher.pokersi.ui.pixel.PixelTheme
 import com.bradflaugher.pokersi.ui.pixel.PixelText
 import com.bradflaugher.pokersi.ui.pixel.PixelType
@@ -183,7 +184,7 @@ fun <T> ChoiceRow(
     onSelect: (T) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(PixelSpacing.Tap)) {
         options.forEach { o ->
             PixelButton(
                 label(o),
