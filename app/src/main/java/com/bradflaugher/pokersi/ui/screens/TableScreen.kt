@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -95,7 +96,9 @@ import com.bradflaugher.pokersi.ui.pixel.PixelCardDefaults
 import com.bradflaugher.pokersi.ui.pixel.PixelText
 import com.bradflaugher.pokersi.ui.pixel.PixelTheme
 import com.bradflaugher.pokersi.ui.pixel.PixelType
+import com.bradflaugher.pokersi.ui.pixel.PixelSpacing
 import com.bradflaugher.pokersi.ui.pixel.Sfx
+import com.bradflaugher.pokersi.ui.pixel.signRed
 import com.bradflaugher.pokersi.ui.pixel.SpeechBubble
 import com.bradflaugher.pokersi.ui.pixel.shake
 
@@ -378,7 +381,7 @@ private fun ActionTag(seat: SeatUi) {
         a == "Fold" -> Triple("FOLD", p.grayDark, p.white)
         a == "Check" -> Triple("CHECK", p.cabinetLight, p.white)
         a == "Call" -> Triple(if (seat.bet > 0) "CALL ${formatChips(seat.bet)}" else "CALL", p.greenDark, p.white)
-        a == "All-in" -> Triple("ALL IN!", p.red, p.yellow)
+        a == "All-in" -> Triple("ALL IN!", p.signRed, p.yellow)
         a.startsWith("Raise") -> Triple("RAISE ${a.removePrefix("Raise ").toIntOrNull()?.let(::formatChips) ?: ""}", p.gold, p.ink)
         a.startsWith("Bet") -> Triple("BET ${a.removePrefix("Bet ").toIntOrNull()?.let(::formatChips) ?: ""}", p.gold, p.ink)
         a == "Small blind" -> Triple("SB ${formatChips(seat.bet)}", p.purpleDark, p.white)
@@ -640,7 +643,7 @@ private fun HumanArea(state: TableUiState, m: TableMetrics, callbacks: TableCall
                 }
                 val made = state.madeHand
                 if (made != null && !me.folded) {
-                    PixelText(made.uppercase(), style = PixelType.LabelBold.copy(fontSize = 12.sp), color = if (me.isWinner) p.yellow else p.cardCream, maxLines = 1)
+                    PixelText(made.uppercase(), style = PixelType.LabelBold.copy(fontSize = 12.sp), color = if (me.isWinner) p.yellow else p.cardCream, maxLines = 2)
                 }
             }
             LedCounter(me.chips, label = "CREDIT", color = LedColor.Red, minDigits = 5, segmentUnits = if (m.big) 2 else 1, contentDescription = "Your chips ${formatChips(me.chips)}")
@@ -666,7 +669,7 @@ private fun HumanArea(state: TableUiState, m: TableMetrics, callbacks: TableCall
                                 flipOnDeal = true,
                                 onClick = if (discarding) ({ callbacks.onToggle(i) }) else null,
                             )
-                            if (tossing) PixelTag("TOSS", p.red, textColor = p.yellow, style = PixelType.Small)
+                            if (tossing) PixelTag("TOSS", p.signRed, textColor = p.yellow, style = PixelType.Small)
                         }
                     }
                 }
@@ -722,16 +725,18 @@ private fun BettingBar(state: TableUiState, callbacks: TableCallbacks) {
     val min = legal.minRaiseTo
     val max = legal.maxRaiseTo
     var amount by remember(state.handNumber, state.street, legal) { mutableStateOf(min ?: 0) }
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(PixelSpacing.S)) {
         if (raising && min != null && max != null) {
             RaisePanel(turn, amount, { amount = it.coerceIn(min, max) }, onCancel = { raising = false }, onConfirm = {
                 raising = false
                 callbacks.onAct(if (amount >= max && max == turn.betThisRound + turn.stack) Decision.AllIn else Decision.RaiseTo(amount))
             })
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        // FOLD stands apart, past a moat, so a thumb reaching for CALL can't fold a hand.
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             if (legal.canFold && !legal.canCheck) {
                 PixelButton("FOLD", { callbacks.onAct(Decision.Fold) }, Modifier.weight(1f), variant = PixelButtonVariant.Gray, textStyle = PixelType.Small)
+                FoldMoat()
             }
             val callAllIn = !legal.canCheck && legal.toCall >= turn.stack
             val callLabel = when {
@@ -741,6 +746,7 @@ private fun BettingBar(state: TableUiState, callbacks: TableCallbacks) {
             }
             PixelButton(callLabel, { callbacks.onAct(if (legal.canCheck) Decision.Check else Decision.Call) }, Modifier.weight(1.2f), variant = PixelButtonVariant.Call, textStyle = PixelType.Small, sound = Sfx.Chip)
             if (min != null && max != null) {
+                Spacer(Modifier.width(PixelSpacing.Tap))
                 val word = if (state.seats.all { it.bet == 0 }) "BET" else "RAISE"
                 if (min == max) {
                     PixelButton("$word\n${formatChips(min)}", { callbacks.onAct(Decision.RaiseTo(min)) }, Modifier.weight(1.2f), variant = PixelButtonVariant.Bet, textStyle = PixelType.Small, sound = Sfx.Chip)
@@ -752,6 +758,23 @@ private fun BettingBar(state: TableUiState, callbacks: TableCallbacks) {
     }
 }
 
+/** The gap between FOLD and the chip buttons: [PixelSpacing.Guard] wide, with a dashed rail down the middle. */
+@Composable
+private fun FoldMoat() {
+    val p = PixelTheme.palette
+    val unit = LocalPixelUnit.current
+    Box(
+        Modifier.width(PixelSpacing.Guard).height(44.dp).drawBehind {
+            val x = (size.width.toInt() - unit) / 2
+            var y = 0
+            while (y < size.height.toInt()) {
+                pxRect(x, y, unit, unit * 2, p.feltLight)
+                y += unit * 4
+            }
+        },
+    )
+}
+
 @Composable
 private fun RaisePanel(turn: HumanTurn, amount: Int, onAmount: (Int) -> Unit, onCancel: () -> Unit, onConfirm: () -> Unit) {
     val legal = turn.legal
@@ -759,27 +782,27 @@ private fun RaisePanel(turn: HumanTurn, amount: Int, onAmount: (Int) -> Unit, on
     val max = legal.maxRaiseTo ?: return
     val step = turn.bigBlind.coerceAtLeast(1)
     PixelPanel(Modifier.fillMaxWidth(), style = PanelStyle.Dark, paddingUnits = 2) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(PixelSpacing.Tap)) {
             PixelButton("-", { onAmount(amount - step) }, Modifier.size(52.dp, 50.dp), variant = PixelButtonVariant.Hold, enabled = amount > min)
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                 LedCounter(amount, label = "RAISE TO", color = LedColor.Green, minDigits = 5, segmentUnits = 1)
             }
             PixelButton("+", { onAmount(amount + step) }, Modifier.size(52.dp, 50.dp), variant = PixelButtonVariant.Hold, enabled = amount < max)
         }
-        VGap(6.dp)
+        VGap(PixelSpacing.S)
         PixelSlider(
             fraction = if (max > min) (amount - min).toFloat() / (max - min) else 1f,
             onFraction = { f -> onAmount(min + ((max - min) * f).toInt()) },
             modifier = Modifier.fillMaxWidth(),
         )
-        VGap(6.dp)
-        Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        VGap(PixelSpacing.S)
+        Row(horizontalArrangement = Arrangement.spacedBy(PixelSpacing.Tap)) {
             SmallButton("1/2 POT", { onAmount(raiseFor(0.5f, turn)) }, Modifier.weight(1f))
             SmallButton("POT", { onAmount(raiseFor(1f, turn)) }, Modifier.weight(1f))
             SmallButton("ALL IN", { onAmount(max) }, Modifier.weight(1f), variant = PixelButtonVariant.Deal)
         }
-        VGap(6.dp)
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        VGap(PixelSpacing.S)
+        Row(horizontalArrangement = Arrangement.spacedBy(PixelSpacing.Tap)) {
             SmallButton("CANCEL", onCancel, Modifier.weight(1f))
             PixelButton(
                 if (amount >= max && max == turn.betThisRound + turn.stack) "ALL IN!" else "RAISE ${formatChips(amount)}",
