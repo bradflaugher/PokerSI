@@ -709,8 +709,9 @@ class GameController(
         val game = currentCoroutineContext()[Job]
         val talks = tableTalk.value
         val blur = blurFor(h, seat, ctx)
+        val blurStreaming = blurFor(h, seat, ctx, streaming = true)
         val onChatter: (String) -> Unit = { text ->
-            if (talks) scope.launch(game ?: Job()) { streamChatter(id, seat, blur(text)) }
+            if (talks) scope.launch(game ?: Job()) { streamChatter(id, seat, blurStreaming(text)) }
         }
         val reply = decideSafely(agents[seat], fallbacks[seat], ctx, onChatter)
         val elapsed = (System.nanoTime() - started) / 1_000_000
@@ -738,14 +739,15 @@ class GameController(
     /**
      * What [seat] says in [ctx], as the table hears it: with HAND BLUR on, the
      * words that give its hand away blurred ([HandBlur]); always without a
-     * model's own censor marks.
+     * model's own censor marks. A [streaming] line holds back a last word that
+     * may yet become a giveaway.
      */
-    private fun blurFor(h: Hand, seat: Int, ctx: DecisionContext): (String) -> String {
+    private fun blurFor(h: Hand, seat: Int, ctx: DecisionContext, streaming: Boolean = false): (String) -> String {
         if (!handBlur.value) return HandBlur::clean
         // The seat's own view shows all its cards; the snapshot knows which are face up (stud).
         val mine = h.snapshot(seat).seats[seat]
         val faceUp = mine.cards.filterIndexed { k, _ -> mine.faceUp.getOrElse(k) { false } }.filterNotNull()
-        return { HandBlur.blur(it, ctx.holeCards, faceUp, ctx.madeHand) }
+        return { HandBlur.blur(it, ctx.holeCards, faceUp, ctx.madeHand, streaming) }
     }
 
     /**

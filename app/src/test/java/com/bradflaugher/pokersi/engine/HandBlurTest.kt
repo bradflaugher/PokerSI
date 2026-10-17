@@ -52,6 +52,31 @@ class HandBlurTest {
     }
 
     @Test
+    fun blursFeelingsInThePromptsStrengthWordsAndEveryStartingHandKind() {
+        val nothing = cards("9h", "2c")
+        assertEquals("I feel", left(blur("I feel strong", hole = nothing, made = null)))
+        assertEquals("I'm feeling", left(blur("I'm feeling very strong", hole = nothing, made = null)))
+        assertEquals("I feel lucky", blur("I feel lucky", hole = nothing, made = null))
+        assertEquals("These are", left(blur("These are offsuit", hole = cards("Ah", "Kd"), made = "Ace-King offsuit")))
+        assertEquals("I've only got", left(blur("I've only got high card", hole = nothing, made = "Nine high")))
+    }
+
+    @Test
+    fun aStreamingLineHoldsBackWhatMayYetGiveTheHandAway() {
+        val sevens = cards("7h", "2c")
+        fun stream(line: String) = HandBlur.blur(line, sevens, emptyList(), "Seven high", streaming = true)
+        assertEquals("I hold", stream("I hold seven"))
+        assertEquals("I hold", stream("I hold seven of"))
+        assertEquals("I hold", left(stream("I hold seven of hearts")))
+        assertEquals("Lucky seven, partner", stream("Lucky seven, partner"))
+        assertEquals("I have", stream("I have three of a"))
+        // Not a rank this seat holds: shown as it comes.
+        assertEquals("I see a king", stream("I see a king"))
+        // Finished, the line keeps a plain singular number word.
+        assertEquals("Lucky seven", HandBlur.blur("Lucky seven", sevens, emptyList(), "Seven high"))
+    }
+
+    @Test
     fun aModelsOwnMarksAreDroppedAndBarsAreSpokenAsBleeps() {
         assertEquals("hi", HandBlur.clean("h${m}i"))
         assertFalse(HandBlur.blurred(blur("${m}Howdy", made = null)))

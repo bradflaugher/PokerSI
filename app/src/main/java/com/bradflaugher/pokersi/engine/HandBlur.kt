@@ -25,8 +25,11 @@ object HandBlur {
      * [line] with the giveaways for a seat holding [holeCards] (of which
      * [faceUp] are showing) and [madeHand] ("Pair of Kings") blurred, letter
      * for letter. Any [MARK] already in [line] is dropped first.
+     *
+     * A [streaming] line (still being written) also loses a last word or two
+     * that may yet become a giveaway ("I hold seven" before "of hearts").
      */
-    fun blur(line: String, holeCards: List<Card>, faceUp: Collection<Card> = emptyList(), madeHand: String? = null): String {
+    fun blur(line: String, holeCards: List<Card>, faceUp: Collection<Card> = emptyList(), madeHand: String? = null, streaming: Boolean = false): String {
         var out = clean(line)
         val hidden = holeCards.filter { it !in faceUp }
         if (hidden.isEmpty()) return out
@@ -37,7 +40,16 @@ object HandBlur {
                 if (g == null) bar(m.value) else m.value.replaceRange(g.range.first - m.range.first, g.range.last + 1 - m.range.first, bar(g.value))
             }
         }
+        if (streaming) out = unfinished(hidden).replace(out, "").trimEnd()
         return out
+    }
+
+    /** The start of a giveaway at the end of a line still being written: "seven", "seven of", "three of a". */
+    private fun unfinished(hidden: List<Card>): Regex {
+        val ranks = hidden.map { it.rank }.distinct().flatMap { listOf(it.label.lowercase(), it.face, it.letter.toString()) }.distinct()
+        val starts = ranks.map { "${Regex.escape(it)}(?: of)?" } +
+            listOf("(?:two|three|four)(?: of(?: a)?)?", "pocket", "full", "straight", "royal", "high", "very", "feeling")
+        return Regex("(?<![\\w'])(?:${starts.joinToString("|")})\\s*$", RegexOption.IGNORE_CASE)
     }
 
     /** [line] without [MARK]s (a model writing its own censor bars). */
@@ -77,6 +89,7 @@ object HandBlur {
         }
         list += Regex("(?<![\\w'])(?:${codes.joinToString("|")})(?![\\w'])")
         list += strengthClaim
+        list += feelClaim
         return list
     }
 
@@ -108,12 +121,20 @@ object HandBlur {
         "four of a kind" to "four of a kind|quads",
         "straight flush" to "straight flush",
         "royal" to "royal(?: flush)?",
+        "offsuit" to "off-?suit",
+        "high" to "high cards?",
     )
 
     /** "my hand is strong", "I've got a monster hand": the claim is blurred, true or not. */
     private val strengthClaim = Regex(
         "(?<![\\w'])(?:(?:my|this) (?:hand|cards?) (?:is|are|looks?|feels?) (?:so |really )?|(?:i have|i've got|ive got|i got|i'm holding|im holding|holding) (?:a |an |such a )?)" +
             "((?:very strong|strong|good|great|medium|weak|monster|terrible|bad|lousy|awful|garbage|trash)(?: hands?)?)(?![\\w'])",
+        RegexOption.IGNORE_CASE,
+    )
+
+    /** "I feel strong", "I'm feeling weak": the prompt's own strength words, said as a feeling. */
+    private val feelClaim = Regex(
+        "(?<![\\w'])(?:i feel|i'm feeling|im feeling|feeling) (?:so |really )?((?:very strong|strong|good|medium|weak)(?: hands?)?)(?![\\w'])",
         RegexOption.IGNORE_CASE,
     )
 }
