@@ -708,7 +708,7 @@ class GameController(
         // hop back to the table's thread, as a child of this game so leaving cancels it.
         val game = currentCoroutineContext()[Job]
         val talks = tableTalk.value
-        val blur = blurFor(ctx)
+        val blur = blurFor(h, seat, ctx)
         val onChatter: (String) -> Unit = { text ->
             if (talks) scope.launch(game ?: Job()) { streamChatter(id, seat, blur(text)) }
         }
@@ -721,7 +721,7 @@ class GameController(
         streamingSeat = null
         val raw = reply.say?.takeIf { talks }
         val say = raw?.let(blur)?.let(::tidySay)
-        if (say != null && raw != null && HandBlur.blurred(say)) {
+        if (say != null && HandBlur.blurred(say)) {
             val name = ctx.seats.firstOrNull { it.seat == seat }?.name ?: "Seat $seat"
             AiLog.add(AiLogKind.TABLE, name, { "hand blur: \"$say\"" }) { "said: \"$raw\"" }
         }
@@ -736,13 +736,15 @@ class GameController(
     }
 
     /**
-     * What [ctx]'s seat says, as the table hears it: with HAND BLUR on, the
+     * What [seat] says in [ctx], as the table hears it: with HAND BLUR on, the
      * words that give its hand away blurred ([HandBlur]); always without a
      * model's own censor marks.
      */
-    private fun blurFor(ctx: DecisionContext): (String) -> String {
+    private fun blurFor(h: Hand, seat: Int, ctx: DecisionContext): (String) -> String {
         if (!handBlur.value) return HandBlur::clean
-        val faceUp = ctx.seats.firstOrNull { it.seat == ctx.seat }?.cards?.filterNotNull().orEmpty()
+        // The seat's own view shows all its cards; the snapshot knows which are face up (stud).
+        val mine = h.snapshot(seat).seats[seat]
+        val faceUp = mine.cards.filterIndexed { k, _ -> mine.faceUp.getOrElse(k) { false } }.filterNotNull()
         return { HandBlur.blur(it, ctx.holeCards, faceUp, ctx.madeHand) }
     }
 
