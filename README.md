@@ -76,12 +76,27 @@ download a model. Website: <https://bradflaugher.github.io/PokerSI/>.
   dealt out as pixel cards, plus a 13x13 Texas Hold'em chart of how often
   you played each starting hand (tap one for its numbers). They stay on the
   phone; RESET STATS wipes them.
-- **First-run tips.** One screen on first launch says what nobody would
-  guess (the AI lives on your phone, MODELS, the two modes, HOLD, pause).
-  A tap dismisses it; SETTINGS > SHOW TIPS brings it back.
+- **First-run tour.** Dee the dealer walks you through five short pages on
+  first launch: the AI on your phone, your cards, your move, the two modes,
+  and models and help, each with a small live picture. Swipe or tap
+  through, or SKIP. At the table, a one-time hint points at the right
+  control the first time something comes up (your first turn, raising,
+  HOLD, the pause button, choosing your next tour table). SETTINGS > REPLAY
+  TOUR (or HOW TO > TAKE THE TOUR) brings it all back.
+- **Help.** HOW TO PLAY has jump buttons (hands, games, tour, AI) and a
+  QUESTIONS section: internet, slow opponents, which model, old phones,
+  quiet tables, privacy, reporting a bug.
+- **Nothing lost to a stray tap.** Leaving the app, quitting a quick game
+  (its chips are lost), starting a new tour over a saved one, abandoning a
+  tour and resetting stats all ask first, with the safe choice as the big
+  button. SETTINGS > CONFIRM EXIT turns the leaving-the-app question off.
 - **Accessible.** TalkBack reads cards ("Ace of hearts, held"), opponents
   (name, chips, last action, what they say), the pot and your chips, and
-  announces each action at the table.
+  announces each action at the table. SETTINGS > ACCESSIBILITY has LARGER
+  TEXT (on top of the phone's own font size) and HIGH CONTRAST (brighter
+  secondary text, darker felt, lighter scanlines); SOUND & FEEL has a
+  VOLUME. Text meets WCAG AA contrast (a unit test checks the palette),
+  every button is at least 48dp, and FOLD sits apart from CALL and RAISE.
 - **Debug console.** For the curious: turn on SETTINGS > DEBUG CONSOLE and
   a "~" at the table (and in MODELS, or a keyboard's backtick) drops down a
   Quake-style terminal with every prompt sent to the model, its raw reply as

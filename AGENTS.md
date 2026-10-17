@@ -36,7 +36,9 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
     `Stats` (lifetime records for the STATS screen, fed by `GameController`
     at each hand's end, including the Hold'em starting-hand chart counted
     by `StartingHands`), all in SharedPreferences; `AttractLines` (the title
-    screen's cycling credits/tour/daily/records line).
+    screen's cycling credits/tour/daily/records line); `Guide` (whether the
+    tour and each table hint have been seen) and `CoachMarks` (which hint,
+    when).
   - `debug/` — `AiLog`, the debug console's bounded (400 entries),
     thread-safe ring buffer: prompts, grammars, streaming replies, timings,
     parsed and coerced decisions, fallbacks, engine and table events.
@@ -61,9 +63,11 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
     `PixelCard`, buttons, LED digits, green felt, CRT overlay, procedural
     pixel avatars, chiptune sound), and the screens: title, game picker,
     table, run tour, models, how-to-play, settings, stats, the first-run
-    tips overlay (`Tips.kt`) and the drop-down `DebugConsole`.
+    tour (`Tips.kt`), the one-time table hints (`Coach.kt`), `ConfirmDialog`
+    and the drop-down `DebugConsole`.
 - `app/src/test/` — JVM unit tests (engine, run, prompt/grammar/parser,
-  table talk, the console log, stats, links). `InvariantsTest` checks the
+  table talk, the console log, stats, settings, coach marks and the guide,
+  links, palette contrast). `InvariantsTest` checks the
   rules below that a compiler can't.
 - `site/` — the project site on GitHub Pages
   (<https://bradflaugher.github.io/PokerSI/>), including the privacy policy
@@ -131,10 +135,26 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
   share" nags, and no email addresses in the app: feedback goes to GitHub
   issues. `InvariantsTest` checks this, the permissions and that only the
   launcher activity is exported.
-- The first-run tips must never block: one tap anywhere or Back dismisses
-  them, and SETTINGS > SHOW TIPS brings them back. Launching with the
-  boolean extra `com.bradflaugher.pokersi.SKIP_TIPS` skips them for that
-  launch (screenshots and tests use it).
+- The first-run tour must never block: SKIP, Back, or a tap outside its
+  panel closes it (a tap on the panel turns the page), and SETTINGS >
+  REPLAY TOUR or HOW TO > TAKE THE TOUR brings it back. Launching with the
+  boolean extra `com.bradflaugher.pokersi.SKIP_TIPS` skips the tour and the
+  table hints for that launch (screenshots and tests use it).
+- One-time table hints (`CoachMarks`) show the first time each situation
+  comes up, one at a time, once ever; they never take a tap (a touch ends
+  them), never cover the action buttons or your cards, and fade after
+  about 6 s. REPLAY TOUR resets them.
+- Anything that throws away progress (leaving the app, quitting a quick
+  table, a new tour over a saved one, abandoning a tour, resetting stats)
+  goes through `ConfirmDialog`, with the safe choice as the primary button.
+  Only the leave-the-app question follows SETTINGS > CONFIRM EXIT;
+  destructive resets always ask. Nothing that loses nothing asks.
+- Text size and contrast are set centrally in `PixelTheme` (LARGER TEXT's
+  text scale, `PixelPalette.HighContrast`); screens don't special-case
+  them, and a one-line `PixelText` shrinks to fit rather than clip. Text
+  meets WCAG AA on the palette pairs it uses (`ContrastTest`), adjacent
+  tap targets are at least `PixelSpacing.Tap` apart, and FOLD sits a
+  `PixelSpacing.Guard` away from CALL and RAISE.
 - Accessible to TalkBack: cards, avatars, LED counters and opponent seats
   carry content descriptions, the table announces its news in a live
   region, and every action button is at least 48dp tall.
