@@ -1,6 +1,23 @@
 package com.bradflaugher.pokersi.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import com.bradflaugher.pokersi.llm.ModelCatalog
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -67,22 +84,91 @@ internal val HandExamples = listOf(
     HandExample("HIGH CARD", "NOTHING. OOF.", "Ah Jd 8c 5s 3h", 1),
 )
 
-/** Hand rankings (tap one to see an example), each game's rules, Run mode, and what the AI is. */
+/** A question for HOW TO's QUESTIONS panel, and its answer. Kept true to the app. */
+internal class Faq(val question: String, val answer: String)
+
+internal val Faqs = listOf(
+    Faq(
+        "DO I NEED THE INTERNET?",
+        "Only to download a model, straight from Hugging Face. After that everything runs on your phone, offline: the cards, the AI, all of it.",
+    ),
+    Faq(
+        "WHY ARE OPPONENTS SLOW TO ACT?",
+        "Each one really thinks, on your phone's own chip. A smaller model answers quicker, and GAME SPEED: FAST (in SETUP or the pause menu) cuts the waits. With FAST FOLD on, once you fold the rest of the hand plays out at once.",
+    ),
+    Faq(
+        "WHICH MODEL SHOULD I PICK?",
+        "Start with ${ModelCatalog.recommended.name}: built for phones, quick and sensible. Bigger models play sharper but need more memory and think slower. MODELS can also load GGUF files you already have.",
+    ),
+    Faq(
+        "MY PHONE IS OLD. WILL IT WORK?",
+        "Yes. With no model loaded, House Bot plays every seat: every game and the whole tour work without a download. It also steps in whenever a model fumbles or takes too long, so a hand never stalls.",
+    ),
+    Faq(
+        "WHY ARE OPPONENTS SO QUIET?",
+        "TABLE TALK starts off: small models like to blurt out their own cards, and quiet turns are faster. Switch it on in SETUP and they chat in speech bubbles.",
+    ),
+    Faq(
+        "WHAT IS THE POKER TOUR?",
+        "Ten tables of rising stakes, your chips carried from one to the next. Every tour has a seed (it's shown when the tour ends), and the DAILY TOUR deals everyone the same seed that day.",
+    ),
+    Faq(
+        "IS THERE REAL MONEY?",
+        "No. Chips are just for fun: nothing to buy, nothing to cash out, no ads.",
+    ),
+    Faq(
+        "IS ANYTHING SENT ANYWHERE?",
+        "No. No account, no ads, no analytics: games, stats and settings stay on this phone. The only network use is a model download you pick. The privacy policy is in SETUP, under ABOUT.",
+    ),
+    Faq(
+        "HOW DO I REPORT A BUG?",
+        "SETUP > ABOUT > FEEDBACK / REPORT A BUG opens a new GitHub issue in your browser. Thanks for helping!",
+    ),
+    Faq(
+        "HOW DO I SEE THE TOUR AGAIN?",
+        "Tap TAKE THE TOUR below, or REPLAY TOUR in SETUP. Replaying also brings back the one-time tips at the table.",
+    ),
+)
+
+/** HOW TO's sections, for the jump buttons at the top. */
+private enum class HowToSection(val label: String) { Hands("HANDS"), Games("GAMES"), Tour("TOUR"), Ai("AI"), Faq("FAQ") }
+
+/**
+ * Hand rankings (tap one to see an example), each game's rules, Run mode,
+ * what the AI is, and QUESTIONS (tap one to open it; [openFaq] starts there
+ * with that one open), with jump buttons to each section and TAKE THE TOUR
+ * ([onTour]).
+ */
 @Composable
-fun HowToPlayScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
+fun HowToPlayScreen(onBack: () -> Unit, modifier: Modifier = Modifier, onTour: () -> Unit = {}, openFaq: Int? = null) {
     val p = PixelTheme.palette
+    val scroll = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    val tops = remember { mutableStateMapOf<HowToSection, Int>() }
+    fun Modifier.section(s: HowToSection) = onPlaced { tops[s] = it.positionInParent().y.toInt() }
     ArcadeScreen(modifier) {
         Column(Modifier.fillMaxSize()) {
             ArcadeTopBar("HOW TO PLAY", onBack)
+            Row(Modifier.readable().align(Alignment.CenterHorizontally).padding(horizontal = 10.dp).padding(bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                HowToSection.entries.forEach { s ->
+                    PixelButton(
+                        s.label,
+                        { scope.launch { tops[s]?.let { scroll.animateScrollTo(it) } } },
+                        Modifier.weight(if (s.label.length > 3) 1.25f else 1f).height(48.dp).semantics { contentDescription = "Jump to ${s.name.lowercase()}" },
+                        variant = if (s == HowToSection.Faq) PixelButtonVariant.Bet else PixelButtonVariant.Hold,
+                        textStyle = PixelType.Small.copy(fontSize = 9.sp),
+                    )
+                }
+            }
             Column(
-                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 14.dp),
+                Modifier.fillMaxSize().verticalScroll(scroll).padding(horizontal = 14.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 var picked by remember { mutableIntStateOf(0) }
                 PayTable(
                     HandExamples.map { PayRow(it.name, it.rule) },
-                    Modifier.readable(),
+                    Modifier.readable().section(HowToSection.Hands),
                     title = "HAND RANKINGS",
                     highlight = picked,
                     onRowClick = { picked = it },
@@ -103,7 +189,7 @@ fun HowToPlayScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                     textAlign = TextAlign.Center,
                     shadowUnits = 0,
                 )
-                InfoPanel("THE BASICS") {
+                InfoPanel("THE BASICS", Modifier.section(HowToSection.Games)) {
                     BodyText("Everyone gets cards and bets in turns. On your turn: FOLD (give up), CHECK (pass, when nobody has bet), CALL (match the bet), or RAISE (bet more). Bet so big nobody calls and the pot is yours. Otherwise the best five-card hand at the showdown wins.", small = true)
                 }
                 GameVariant.entries.forEach { v ->
@@ -113,10 +199,10 @@ fun HowToPlayScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                         BodyText(v.howToPlay, small = true)
                     }
                 }
-                InfoPanel("POKER TOUR") {
+                InfoPanel("POKER TOUR", Modifier.section(HowToSection.Tour)) {
                     BodyText("Climb a ladder of poker tables with rising stakes. Your chips go with you from table to table. Win the chip target before you run out of hands (or bust everyone) to clear a table and collect its bonus chips, then pick your next table: low stakes, or high stakes with an extra opponent, bigger blinds and a bigger bonus. Bigger risk, bigger reward. Go broke and the tour is over. Clear the tenth table to win, then keep going in endless mode. Leaving in the middle of a hand folds it. The daily tour is the same deal for everyone, every day.", small = true)
                 }
-                InfoPanel("WHO AM I PLAYING?") {
+                InfoPanel("WHO AM I PLAYING?", Modifier.section(HowToSection.Ai)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         PixelAvatar(4242L, Mood.Smug, size = 56.dp)
                         SpeechBubble("I'm a language model. On your phone. Fear me.", Modifier.weight(1f))
@@ -124,15 +210,51 @@ fun HowToPlayScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                     VGap(6.dp)
                     BodyText("Each opponent is a made-up character played by a small AI language model running on your phone, offline. Every turn it reads the table (only what its seat may see), decides, and says something silly. Download a model from MODELS. With no model, the built-in House Bot plays every seat, and it steps in whenever the AI fumbles, so a hand never stalls.", small = true)
                 }
+                InfoPanel("QUESTIONS", Modifier.section(HowToSection.Faq)) {
+                    var open by remember { mutableStateOf(openFaq) }
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Faqs.forEachIndexed { i, faq ->
+                            FaqRow(faq, open == i, onToggle = { open = if (open == i) null else i })
+                        }
+                        VGap(6.dp)
+                        PixelButton("TAKE THE TOUR", onTour, Modifier.fillMaxWidth(), variant = PixelButtonVariant.Call, textStyle = PixelType.Small)
+                    }
+                }
                 VGap(12.dp)
             }
         }
     }
+    LaunchedEffect(openFaq, tops[HowToSection.Faq]) {
+        if (openFaq != null) tops[HowToSection.Faq]?.let { scroll.scrollTo(it) }
+    }
 }
 
 @Composable
-private fun InfoPanel(title: String, content: @Composable () -> Unit) {
-    PixelPanel(Modifier.readable(), title = title, style = PanelStyle.Cabinet, paddingUnits = 2) { content() }
+private fun InfoPanel(title: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    PixelPanel(modifier.readable(), title = title, style = PanelStyle.Cabinet, paddingUnits = 2) { content() }
+}
+
+/** One question: a row to tap (48dp tall), and its answer under it while open. */
+@Composable
+private fun FaqRow(faq: Faq, open: Boolean, onToggle: () -> Unit) {
+    val p = PixelTheme.palette
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .arcadeClick(onClick = onToggle)
+                .semantics { stateDescription = if (open) "Expanded" else "Collapsed" },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            PixelTag(if (open) "-" else "+", if (open) p.gold else p.cabinetLight, textColor = if (open) p.ink else p.white, style = PixelType.Small.copy(fontSize = 10.sp))
+            PixelText(faq.question, Modifier.weight(1f), style = PixelType.Small.copy(fontSize = 9.sp), color = if (open) p.yellow else p.white)
+        }
+        AnimatedVisibility(open, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+            BodyText(faq.answer, Modifier.fillMaxWidth().padding(start = 4.dp, bottom = 8.dp), color = p.cardCream, small = true)
+        }
+    }
 }
 
 // ---------------------------------------------------------------- settings
@@ -235,7 +357,7 @@ fun SettingsScreen(settings: SettingsUi, callbacks: SettingsCallbacks, modifier:
                     }
                 }
                 PixelPanel(Modifier.readable(), title = "HELP", style = PanelStyle.Dark, paddingUnits = 2) {
-                    SmallButton("SHOW TIPS", callbacks.onShowTips, Modifier.fillMaxWidth(), variant = PixelButtonVariant.Hold)
+                    SmallButton("REPLAY TOUR", callbacks.onShowTips, Modifier.fillMaxWidth(), variant = PixelButtonVariant.Hold)
                 }
                 PixelPanel(Modifier.readable(), title = "WORKSHOP", style = PanelStyle.Dark, paddingUnits = 2) {
                     ToggleRow("DEBUG CONSOLE", "Press ~ at the table to see the AI's prompts and replies", settings.debugConsole, callbacks.onDebugConsole)

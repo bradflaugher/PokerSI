@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.graphics.Color
@@ -24,6 +25,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bradflaugher.pokersi.game.OpponentProfile
+import com.bradflaugher.pokersi.game.Coach
 import com.bradflaugher.pokersi.game.RunUiState
 import com.bradflaugher.pokersi.game.formatChips
 import com.bradflaugher.pokersi.run.Risk
@@ -183,7 +185,7 @@ fun RunClearedScreen(run: RunUiState, onNext: () -> Unit, modifier: Modifier = M
 
 /** Between tables: pick the next one. Bigger risk, bigger bonus. */
 @Composable
-fun ChooseTableScreen(run: RunUiState, onChoose: (Int) -> Unit, onBack: () -> Unit, modifier: Modifier = Modifier) {
+fun ChooseTableScreen(run: RunUiState, onChoose: (Int) -> Unit, onBack: () -> Unit, modifier: Modifier = Modifier, coach: Coach? = null) {
     val p = PixelTheme.palette
     val state = run.state
     ArcadeScreen(modifier) {
@@ -197,6 +199,8 @@ fun ChooseTableScreen(run: RunUiState, onChoose: (Int) -> Unit, onBack: () -> Un
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 PixelText("STOP ${state.level + 1}", style = PixelType.Small, color = p.cardCream)
+                // The one-time hint sits in line, above the offers, so it covers neither.
+                CoachFade(coach) { c, alpha -> CoachBubble(c.text, Modifier.readable().alpha(alpha), arrow = CoachArrow.Down) }
                 state.offers.forEachIndexed { i, spec ->
                     TableOffer(spec, run.offerOpponents.getOrNull(i).orEmpty(), { onChoose(i) }, Modifier.readable())
                 }
