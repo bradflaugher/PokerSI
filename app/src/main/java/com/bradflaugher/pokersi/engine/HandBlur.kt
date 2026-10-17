@@ -39,13 +39,19 @@ object HandBlur {
         madeHand: String? = null,
         streaming: Boolean = false,
         board: List<Card> = emptyList(),
+        /** Short Deck: [board]'s own hand ranks as that variant does (A-6-7-8-9 is a straight). */
+        shortDeck: Boolean = false,
     ): String {
         var out = clean(line)
         val hidden = holeCards.filter { it !in faceUp }
         if (hidden.isEmpty()) return out
         val public = board + faceUp
-        // A boardless variant describes any number of cards ("Pair of Kings", "King high").
-        val publicHand = if (public.isEmpty()) null else HandEvaluator.describe(public, emptyList(), GameVariant.FIVE_CARD_DRAW, moreCardsToCome = false)
+        // Five or more public cards are a hand; fewer, a boardless variant still names them ("Pair of Kings").
+        val publicHand = when {
+            public.isEmpty() -> null
+            public.size >= 5 -> HandEvaluator.evaluate(public, shortDeck).description
+            else -> HandEvaluator.describe(public, emptyList(), GameVariant.FIVE_CARD_DRAW, moreCardsToCome = false)
+        }
         for (pattern in patterns(hidden, madeHand, publicHand)) {
             out = pattern.replace(out) { m ->
                 // Only the group that gives it away, if the pattern marks one.
@@ -96,7 +102,7 @@ object HandBlur {
         // "As"/"Ah"/"Ad", which are words too.
         val plurals = ranks.flatMap { listOf("${it.face}'s", "${it.face}s") }.filter { it !in wordLike }
         val codes = plurals + hidden.flatMap { c ->
-            val pretty = listOf("${Regex.escape(c.rank.face)}${c.suit.symbol}")
+            val pretty = listOf("${Regex.escape(c.rank.face)}${c.suit.symbol}", "${c.rank.letter}${c.suit.symbol}").distinct()
             val letters = listOf("${c.rank.face}${c.suit.letter}", "${c.rank.letter}${c.suit.letter}").distinct()
                 .filter { it !in wordLike }
             pretty + letters

@@ -22,6 +22,7 @@ class HandBlurTest {
         assertEquals("Read 'em and weep:", left(blur("Read 'em and weep: Kh Ks")))
         assertEquals("Howdy, holding the of", left(blur("Howdy, holding the K♥ of")).trim())
         assertEquals("The are coming home", left(blur("The cowboys are coming home")))
+        assertEquals("I have", left(blur("I have T♥", hole = cards("Th", "2c"), made = null)))
         assertEquals("I have the", left(blur("I have the king of hearts")))
         assertEquals("Two partner", left(blur("Two Ks, partner", made = null)))
     }
@@ -66,6 +67,9 @@ class HandBlurTest {
         val board = cards("9s", "9d", "4c")
         // A paired board: "pair" says nothing private; the seat's own ranks still do.
         assertEquals("That pair on the board!", blur("That pair on the board!", hole = cards("Kh", "2c"), made = "Pair of Nines", board = board))
+        // Short Deck: A-6-7-8-9 on the board is a straight there, and public.
+        val shortBoard = cards("As", "6d", "7c", "8h", "9s")
+        assertEquals("Straight on the board!", HandBlur.blur("Straight on the board!", cards("Kh", "2c"), madeHand = "Straight, Nine high", board = shortBoard, shortDeck = true))
         // Two pair with a hole card in it is still the seat's own news.
         assertEquals("I've got", left(blur("I've got two pair", hole = cards("Kh", "Kc"), made = "Two Pair, Kings and Nines", board = board)))
     }
