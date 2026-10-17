@@ -39,9 +39,9 @@ data class TalkPlan(
         private const val CATCHPHRASE_WEIGHT = 0.6
 
         /** How often a character talks: when someone just spoke, when facing a bet or raise, otherwise. */
-        internal const val SPEAK_ANSWER = 0.55
-        internal const val SPEAK_PRESSURE = 0.45
-        internal const val SPEAK_OTHERWISE = 0.3
+        internal const val SPEAK_ANSWER = 0.75
+        internal const val SPEAK_PRESSURE = 0.6
+        internal const val SPEAK_OTHERWISE = 0.45
 
         private val actionVerbs = listOf(
             "folds", "checks", "calls", "bets", "raises", "completes", "draws", "stands pat", "discards", "takes a mulligan",
@@ -54,6 +54,8 @@ data class TalkPlan(
             "Tell a tiny poker joke in your voice.",
             "Mention something from your life story.",
             "Give the table some unasked-for advice, in character.",
+            "Act worried, or act confident: keep them guessing.",
+            "Say how you feel about the stakes, in character.",
         )
 
         /**

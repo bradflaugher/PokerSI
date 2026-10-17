@@ -7,6 +7,7 @@ import com.bradflaugher.pokersi.engine.DecisionContext
 import com.bradflaugher.pokersi.engine.GameVariant
 import com.bradflaugher.pokersi.engine.HouseBot
 import com.bradflaugher.pokersi.engine.PlayerAgent
+import com.bradflaugher.pokersi.engine.HandBlur
 import com.bradflaugher.pokersi.engine.TableTalk
 import com.bradflaugher.pokersi.engine.isDraw
 import com.bradflaugher.pokersi.run.Risk
@@ -39,6 +40,7 @@ class GameControllerTest {
         recorder: HandRecorder? = null,
         fastFold: Boolean = false,
         tableTalk: Boolean = true,
+        handBlur: Boolean = false,
     ) = GameController(
         scope = backgroundScope,
         brains = brains,
@@ -46,6 +48,7 @@ class GameControllerTest {
         speed = MutableStateFlow(GameSpeed.NORMAL),
         fastFold = MutableStateFlow(fastFold),
         tableTalk = MutableStateFlow(tableTalk),
+        handBlur = MutableStateFlow(handBlur),
         compute = Dispatchers.Unconfined,
         runSaver = saver,
         autopilot = autopilot,
@@ -502,6 +505,41 @@ class GameControllerTest {
             c.table.value.handNumber >= 3
         }
         assertTrue("agents are told talk is off: $asked", asked.isNotEmpty() && asked.none { it })
+        c.stop()
+    }
+
+    @Test
+    fun handBlurHidesWhatGivesAHandAwayFromTheBubbleAndTheTable() = runTest {
+        val leaks = mutableMapOf<Int, String>()
+        val memories = mutableListOf<TableTalk>()
+        val blabby = object : OpponentBrains {
+            override val label = MutableStateFlow("TEST")
+            override fun agentFor(seat: Int, opponent: OpponentProfile, fallback: PlayerAgent, talk: TableTalk, talks: () -> Boolean): PlayerAgent {
+                memories += talk
+                return agentOf { ctx, onChatter ->
+                    val card = ctx.holeCards.first()
+                    val line = "Howdy, I hold the ${card.rank.label.lowercase()} of ${card.suit.label}"
+                    leaks[ctx.seat] = line
+                    onChatter(line)
+                    AgentReply(if (ctx.legal.canCheck) Decision.Check else Decision.Call, line)
+                }
+            }
+        }
+        val c = controller(brains = blabby, pacing = talkyPacing, handBlur = true)
+        c.startQuick(config(opponents = 2, seed = 9L))
+        var seen = 0
+        drive(c) {
+            c.table.value.seats.forEach { seat ->
+                // Catchphrases when someone sits down are not ours.
+                val said = seat.chatter?.takeIf { it.startsWith("Howdy") } ?: return@forEach
+                assertTrue("a leak showed: $said", said.startsWith("Howdy, I hold the ") && HandBlur.blurred(said) && " of " !in said.removePrefix("Howdy, I hold the "))
+                seen++
+            }
+            c.table.value.handNumber >= 3
+        }
+        assertTrue("someone spoke", seen > 0 && leaks.isNotEmpty())
+        val heard = memories.flatMap { it.recent(40) }.map { it.text }
+        assertTrue("the table remembers only the blurred lines: $heard", heard.isNotEmpty() && heard.filter { it.startsWith("Howdy") }.all(HandBlur::blurred))
         c.stop()
     }
 

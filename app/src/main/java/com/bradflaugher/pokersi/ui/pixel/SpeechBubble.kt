@@ -21,9 +21,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
+import com.bradflaugher.pokersi.engine.HandBlur
 import kotlinx.coroutines.delay
 import kotlin.math.PI
 import kotlin.math.sin
@@ -39,6 +43,7 @@ enum class BubbleTail {
  * A pixel speech bubble for table talk. New text types out like a
  * terminal; a blinking cursor shows while [streaming] (the LLM is still
  * talking). With [thinking] and no text yet, three dots bounce instead.
+ * Words HAND BLUR hid ([HandBlur.MARK]) show as a censor bar.
  */
 @Composable
 fun SpeechBubble(
@@ -102,14 +107,31 @@ fun SpeechBubble(
             val showCursor = (streaming || typing) && blinkOn > 0.5f
             BasicText(
                 buildAnnotatedString {
-                    append(visible)
+                    appendBlurred(visible, p.inkSoft)
                     if (streaming || typing) {
                         withStyle(SpanStyle(color = if (showCursor) p.hotPink else Color.Transparent)) { append("_") }
                     }
                 },
+                // TalkBack hears a censor bar as "bleep", not the letters drawn under it.
+                modifier = if (HandBlur.blurred(visible)) Modifier.clearAndSetSemantics { contentDescription = HandBlur.spoken(visible) } else Modifier,
                 style = textStyle.copy(color = p.ink),
             )
         }
+    }
+}
+
+/** [text], each run of [HandBlur.MARK]s drawn as a solid bar of [bar] the width of the letters it hides. */
+private fun AnnotatedString.Builder.appendBlurred(text: String, bar: Color) {
+    var i = 0
+    while (i < text.length) {
+        val end = text.indexOf(HandBlur.MARK, i).let { if (it < 0) text.length else it }
+        append(text.substring(i, end))
+        if (end == text.length) break
+        var stop = end
+        while (stop < text.length && text[stop] == HandBlur.MARK) stop++
+        // Letters in the bar's own colour: the font's widths, and nothing to read.
+        withStyle(SpanStyle(color = bar, background = bar)) { append("x".repeat(stop - end)) }
+        i = stop
     }
 }
 

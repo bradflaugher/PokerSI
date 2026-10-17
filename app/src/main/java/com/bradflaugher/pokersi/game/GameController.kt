@@ -9,6 +9,7 @@ import com.bradflaugher.pokersi.engine.Decision
 import com.bradflaugher.pokersi.engine.DecisionContext
 import com.bradflaugher.pokersi.engine.GameVariant
 import com.bradflaugher.pokersi.engine.Hand
+import com.bradflaugher.pokersi.engine.HandBlur
 import com.bradflaugher.pokersi.engine.HouseBot
 import com.bradflaugher.pokersi.engine.Match
 import com.bradflaugher.pokersi.engine.PlayerAgent
@@ -16,6 +17,8 @@ import com.bradflaugher.pokersi.engine.TableTalk
 import com.bradflaugher.pokersi.debug.AiLog
 import com.bradflaugher.pokersi.debug.AiLogKind
 import com.bradflaugher.pokersi.engine.isDraw
+import com.bradflaugher.pokersi.engine.mustUseTwoHoleCards
+import com.bradflaugher.pokersi.engine.usesShortDeck
 import com.bradflaugher.pokersi.run.HandOutcome
 import com.bradflaugher.pokersi.run.RunPhase
 import com.bradflaugher.pokersi.run.RunState
@@ -151,6 +154,8 @@ class GameController(
     private val fastFold: StateFlow<Boolean> = MutableStateFlow(false),
     /** SETTINGS > TABLE TALK: when off, opponents say nothing (no bubbles, no catchphrases). */
     private val tableTalk: StateFlow<Boolean> = MutableStateFlow(true),
+    /** SETTINGS > HAND BLUR: words of table talk that give the speaker's hand away are blurred ([HandBlur]). */
+    private val handBlur: StateFlow<Boolean> = MutableStateFlow(false),
     private val compute: CoroutineDispatcher = Dispatchers.Default,
     private val runSaver: RunSaver? = null,
     /** Plays the human seat and skips every wait (tests, attract mode). */
@@ -705,8 +710,10 @@ class GameController(
         // hop back to the table's thread, as a child of this game so leaving cancels it.
         val game = currentCoroutineContext()[Job]
         val talks = tableTalk.value
+        val blur = blurFor(h, seat, ctx)
+        val blurStreaming = blurFor(h, seat, ctx, streaming = true)
         val onChatter: (String) -> Unit = { text ->
-            if (talks) scope.launch(game ?: Job()) { streamChatter(id, seat, text) }
+            if (talks) scope.launch(game ?: Job()) { streamChatter(id, seat, blurStreaming(text)) }
         }
         val reply = decideSafely(agents[seat], fallbacks[seat], ctx, onChatter)
         val elapsed = (System.nanoTime() - started) / 1_000_000
@@ -715,15 +722,35 @@ class GameController(
         val decision = reply.decision
         thinkingSeat = null
         streamingSeat = null
-        val say = reply.say?.takeIf { talks }?.let(::tidySay)
+        val raw = reply.say?.takeIf { talks }
+        val say = raw?.let(blur)?.let(::tidySay)
+        if (say != null && HandBlur.blurred(say)) {
+            val name = ctx.seats.firstOrNull { it.seat == seat }?.name ?: "Seat $seat"
+            AiLog.add(AiLogKind.TABLE, name, { "hand blur: \"$say\"" }) { "said: \"$raw\"" }
+        }
         if (say != null) {
             setChatter(seat, say)
-            talk.record(ctx.seats.firstOrNull { it.seat == seat }?.name ?: "Seat $seat", say)
+            // The unblurred line only for spotting repeats; prompts see what the table heard.
+            talk.record(ctx.seats.firstOrNull { it.seat == seat }?.name ?: "Seat $seat", say, raw?.let(HandBlur::clean)?.let(::tidySay) ?: say)
         } else {
             // A line that streamed and was then dropped (a repeat) must not linger.
             removeChatter(seat)
         }
         h.apply(seat, decision, say)
+    }
+
+    /**
+     * What [seat] says in [ctx], as the table hears it: with HAND BLUR on, the
+     * words that give its hand away blurred ([HandBlur]); always without a
+     * model's own censor marks. A [streaming] line holds back a last word that
+     * may yet become a giveaway.
+     */
+    private fun blurFor(h: Hand, seat: Int, ctx: DecisionContext, streaming: Boolean = false): (String) -> String {
+        if (!handBlur.value) return HandBlur::clean
+        // The seat's own view shows all its cards; the snapshot knows which are face up (stud).
+        val mine = h.snapshot(seat).seats[seat]
+        val faceUp = mine.cards.filterIndexed { k, _ -> mine.faceUp.getOrElse(k) { false } }.filterNotNull()
+        return { HandBlur.blur(it, ctx.holeCards, faceUp, ctx.madeHand, streaming, ctx.board, ctx.variant.usesShortDeck, !ctx.variant.mustUseTwoHoleCards) }
     }
 
     /**

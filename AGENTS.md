@@ -47,8 +47,9 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
     best 5 of N, Omaha's exactly-two rule, short-deck ranking), every
     `GameVariant`, the hand state machine with side pots, the agent contract
     (`Agent.kt`), `HouseBot` (a heuristic opponent, used with no model
-    loaded and whenever the LLM fails), Monte Carlo equity, and `TableTalk`
-    (what has been said at a table, for keeping lines fresh).
+    loaded and whenever the LLM fails), Monte Carlo equity, `TableTalk`
+    (what has been said at a table, for keeping lines fresh) and `HandBlur`
+    (censors the words of a line that give the speaker's hand away).
   - `run/` — the roguelite "Run" mode: tables (blinds) of rising stakes,
     chips that carry over, choosing your next table (low or high stakes),
     seeded runs and the daily run. Plain poker, no rule twists.
@@ -97,10 +98,16 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
   model reads and writes less. The system prompt is the same either way.
   SETTINGS > FAST FOLD (on by default): once the player has folded, the
   rest of the hand plays out at once, each opponent's `HouseBot` deciding.
-- **Table talk is opt-in.** SETTINGS > TABLE TALK is off by default (small
-  models give their hands away, and quiet turns are faster). Off, every turn
-  is a quiet one (`LlmAgent` is told through `OpponentBrains.agentFor`'s
-  `talks`), and `GameController` shows and records no line from anyone,
+- **Table talk is on, with a hand blur.** SETTINGS > TABLE TALK is on by
+  default. SETTINGS > HAND BLUR (on by default) has `GameController` pass
+  every line through `HandBlur` before it shows, is recorded or reaches the
+  hand history: the words that give the speaker's own hand away (face-down
+  cards and ranks, pocket-pair nicknames, the made hand, a first-person
+  strength claim) become a censor bar of the same length, so the player sees
+  that a model leaked but not what. Off, models blurt freely (that is the
+  point: testing small models' leaks); `AiLog` always keeps the raw reply.
+  With TABLE TALK off, every turn is a quiet one (`LlmAgent` is told
+  through `OpponentBrains.agentFor`'s `talks`), and `GameController` shows and records no line from anyone,
   House Bot and sit-down catchphrases included. The rules below are for
   when it is on.
 - **Table talk stays fresh.** Small models parrot whatever the prompt

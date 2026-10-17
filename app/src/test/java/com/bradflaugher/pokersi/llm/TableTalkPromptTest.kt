@@ -79,20 +79,20 @@ class TableTalkPromptTest {
         val quiet = TableTalk()
         val random = Random(11)
         val talking = (1..1000).count { TalkPlan.make(context, cowboy, quiet, random).speak }
-        assertTrue("about ${TalkPlan.SPEAK_OTHERWISE}: $talking/1000", talking in 220..380)
+        assertTrue("about ${TalkPlan.SPEAK_OTHERWISE}: $talking/1000", talking in 370..530)
         // Spoken to in this hand since our last move: more often.
         val talkedAt = context.copy(history = context.history + "Miss Quill says \"Shhh! I'm raising.\"")
         val answering = (1..1000).count { TalkPlan.make(talkedAt, cowboy, quiet, random).speak }
-        assertTrue("about ${TalkPlan.SPEAK_ANSWER}: $answering/1000", answering in 470..630)
+        assertTrue("about ${TalkPlan.SPEAK_ANSWER}: $answering/1000", answering in 670..830)
         // Once we've acted since, the boost is used up, however recent the line in TableTalk.
         val answered = talkedAt.copy(history = talkedAt.history + "${cowboy.name} checks")
         val after = (1..1000).count { TalkPlan.make(answered, cowboy, talkWith("Miss Quill" to "Shhh! I'm raising."), random).speak }
-        assertTrue("back to about ${TalkPlan.SPEAK_OTHERWISE}: $after/1000", after in 220..380)
+        assertTrue("back to about ${TalkPlan.SPEAK_OTHERWISE}: $after/1000", after in 370..530)
         assertTrue((1..50).all { TalkPlan.make(context, cowboy, quiet, random, alwaysSpeak = true).speak })
         // Facing a bet (whatever happened since): the pressure rate.
         val facing = context.copy(legal = context.legal.copy(canCheck = false, toCall = context.bigBlind * 3))
         val pressed = (1..1000).count { TalkPlan.make(facing, cowboy, quiet, random).speak }
-        assertTrue("about ${TalkPlan.SPEAK_PRESSURE}: $pressed/1000", pressed in 370..530)
+        assertTrue("about ${TalkPlan.SPEAK_PRESSURE}: $pressed/1000", pressed in 520..680)
     }
 
     @Test
@@ -212,7 +212,7 @@ class TableTalkPromptTest {
     fun thePromptSaysNotToMentionTheCards() = runBlocking {
         val backend = ScriptedBackend("""{"action": "check", "amount": 0, "say": "Yeehaw!"}""")
         LlmAgent(backend, cowboy, houseBot, TableTalk(), alwaysTalks = true).decide(context)
-        assertTrue(backend.prompts.single()[1].content.contains("Never mention your cards or say what hand you have."))
+        assertTrue(backend.prompts.single()[1].content.contains("Keep your cards secret."))
     }
 
     @Test
