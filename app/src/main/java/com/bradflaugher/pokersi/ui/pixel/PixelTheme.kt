@@ -81,7 +81,7 @@ data class PixelPalette(
             inkSoft = Color(0xFF1A1630),
             cabinetGlow = Color(0xFFB8CCFF),
             cardCream = Color(0xFFFFF9EA),
-            gray = Color(0xFFC8C5DE),
+            gray = Color(0xFFDEDCF0),
             grayDark = Color(0xFF6A6688),
             highContrast = true,
         )
