@@ -21,6 +21,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -110,6 +112,8 @@ fun SpeechBubble(
                         withStyle(SpanStyle(color = if (showCursor) p.hotPink else Color.Transparent)) { append("_") }
                     }
                 },
+                // TalkBack hears a censor bar as "bleep", not the letters drawn under it.
+                modifier = if (HandBlur.blurred(visible)) Modifier.clearAndSetSemantics { contentDescription = HandBlur.spoken(visible) } else Modifier,
                 style = textStyle.copy(color = p.ink),
             )
         }
