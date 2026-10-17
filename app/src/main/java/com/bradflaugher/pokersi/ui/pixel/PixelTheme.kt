@@ -8,6 +8,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.unit.Density
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -54,15 +55,36 @@ data class PixelPalette(
     val teal: Color = Color(0xFF1FD6C4),
     val green: Color = Color(0xFF2FD15A),
     val greenDark: Color = Color(0xFF137A33),
-    val gray: Color = Color(0xFF8D8AA6),
+    // Light enough for secondary text on felt and cabinet panels (see ContrastTest).
+    val gray: Color = Color(0xFFBCB9D4),
     val grayDark: Color = Color(0xFF4A4763),
     // LEDs.
     val ledRed: Color = Color(0xFFFF2B2B),
     val ledAmber: Color = Color(0xFFFFB21E),
     val ledGreen: Color = Color(0xFF3DFF6E),
+    /**
+     * SETTINGS > HIGH CONTRAST: decoration turns down too (fainter scanlines
+     * and vignette in [CrtOverlay], a darker, flatter felt in [FeltBackground]).
+     */
+    val highContrast: Boolean = false,
 ) {
     companion object {
         val Default = PixelPalette()
+
+        /**
+         * The same cabinet, stronger: secondary grays brighten from mid to
+         * light (on felt and in panel borders), outlines go pure black, and
+         * the cream and glow tones lift a step. Accents keep their hue.
+         */
+        val HighContrast = PixelPalette(
+            ink = Color(0xFF000000),
+            inkSoft = Color(0xFF1A1630),
+            cabinetGlow = Color(0xFFB8CCFF),
+            cardCream = Color(0xFFFFF9EA),
+            gray = Color(0xFFDEDCF0),
+            grayDark = Color(0xFF6A6688),
+            highContrast = true,
+        )
     }
 }
 
@@ -87,6 +109,9 @@ val LocalCrtEnabled = compositionLocalOf { true }
  */
 val LocalPixelUnit = compositionLocalOf { 4 }
 
+/** How much SETTINGS > LARGER TEXT scales text, on top of the system font size. */
+const val LARGER_TEXT_SCALE = 1.2f
+
 /** Whole device pixels per chrome pixel for a display density (about 1.5dp, at least 1px). */
 fun pixelUnitFor(density: Float): Int = max(1, (density * 1.5f).roundToInt())
 
@@ -101,6 +126,8 @@ object PixelTheme {
 /**
  * Root of every PokerSI screen: provides palette, pixel unit, render mode and
  * sound. Inside `@Preview`/inspection mode the render mode is forced to Static.
+ * [textScale] multiplies the system font scale, so every `sp` in the app
+ * (all of [PixelType]) grows with it while layout in `dp` stays put.
  */
 @Composable
 fun PixelTheme(
@@ -108,15 +135,18 @@ fun PixelTheme(
     renderMode: PixelRenderMode? = null,
     crtEnabled: Boolean = true,
     sound: SoundPlayer = LocalSoundPlayer.current,
+    textScale: Float = 1f,
     content: @Composable () -> Unit,
 ) {
-    val density = LocalDensity.current.density
+    val outer = LocalDensity.current
+    val density = if (textScale == 1f) outer else Density(outer.density, outer.fontScale * textScale)
     val mode = renderMode
         ?: if (LocalInspectionMode.current) PixelRenderMode.Static else LocalPixelRenderMode.current
     CompositionLocalProvider(
+        LocalDensity provides density,
         LocalPixelPalette provides palette,
         LocalPixelRenderMode provides mode,
-        LocalPixelUnit provides pixelUnitFor(density),
+        LocalPixelUnit provides pixelUnitFor(density.density),
         LocalCrtEnabled provides crtEnabled,
         LocalSoundPlayer provides sound,
         content = content,

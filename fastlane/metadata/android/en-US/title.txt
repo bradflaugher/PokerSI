@@ -1,1 +1,1 @@
-PokerSI: Pixel Poker vs AI
+PokerSI: Offline Poker vs AI

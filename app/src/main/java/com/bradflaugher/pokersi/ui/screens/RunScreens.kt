@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.graphics.Color
@@ -24,6 +25,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bradflaugher.pokersi.game.OpponentProfile
+import com.bradflaugher.pokersi.game.Coach
 import com.bradflaugher.pokersi.game.RunUiState
 import com.bradflaugher.pokersi.game.formatChips
 import com.bradflaugher.pokersi.run.Risk
@@ -45,6 +47,7 @@ import com.bradflaugher.pokersi.ui.pixel.PixelText
 import com.bradflaugher.pokersi.ui.pixel.PixelTheme
 import com.bradflaugher.pokersi.ui.pixel.PixelType
 import com.bradflaugher.pokersi.ui.pixel.Sfx
+import com.bradflaugher.pokersi.ui.pixel.signRed
 
 /** "LOW STAKES" or "HIGH STAKES". */
 fun stageName(spec: TableSpec): String = spec.risk.label
@@ -64,7 +67,7 @@ fun RunHud(run: RunUiState, modifier: Modifier = Modifier) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                    PixelTag("STOP ${state.level}", p.suitRed, textColor = p.yellow)
+                    PixelTag("STOP ${state.level}", p.signRed, textColor = p.yellow)
                     PixelText(stageName(spec), style = PixelType.Small.copy(fontSize = 8.sp), color = p.white, maxLines = 1)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -136,7 +139,7 @@ fun OpponentLineup(opponents: List<OpponentProfile>, modifier: Modifier = Modifi
         opponents.forEach { o ->
             Column(Modifier.width(avatar + 32.dp).clearAndSetSemantics { contentDescription = o.spoken }, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 PixelAvatar(o.avatarSeed, Mood.Neutral, size = avatar)
-                PixelText(o.name.uppercase(), style = PixelType.LabelBold.copy(fontSize = nameSize(o.name, 10f)), color = p.yellow, textAlign = TextAlign.Center, maxLines = 2)
+                PixelText(o.name.uppercase(), style = PixelType.LabelBold.copy(fontSize = nameSize(o.name, if (avatar < 48.dp) 9f else 10f)), color = p.yellow, textAlign = TextAlign.Center, maxLines = 2)
                 PixelText(o.style.name.uppercase(), style = PixelType.Label.copy(fontSize = 9.sp), color = p.cardCream, textAlign = TextAlign.Center, shadowUnits = 0)
             }
         }
@@ -182,7 +185,7 @@ fun RunClearedScreen(run: RunUiState, onNext: () -> Unit, modifier: Modifier = M
 
 /** Between tables: pick the next one. Bigger risk, bigger bonus. */
 @Composable
-fun ChooseTableScreen(run: RunUiState, onChoose: (Int) -> Unit, onBack: () -> Unit, modifier: Modifier = Modifier) {
+fun ChooseTableScreen(run: RunUiState, onChoose: (Int) -> Unit, onBack: () -> Unit, modifier: Modifier = Modifier, coach: Coach? = null) {
     val p = PixelTheme.palette
     val state = run.state
     ArcadeScreen(modifier) {
@@ -196,6 +199,8 @@ fun ChooseTableScreen(run: RunUiState, onChoose: (Int) -> Unit, onBack: () -> Un
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 PixelText("STOP ${state.level + 1}", style = PixelType.Small, color = p.cardCream)
+                // The one-time hint sits in line, above the offers, so it covers neither.
+                CoachFade(coach) { c, alpha -> CoachBubble(c.text, Modifier.readable().alpha(alpha), arrow = CoachArrow.Down) }
                 state.offers.forEachIndexed { i, spec ->
                     TableOffer(spec, run.offerOpponents.getOrNull(i).orEmpty(), { onChoose(i) }, Modifier.readable())
                 }

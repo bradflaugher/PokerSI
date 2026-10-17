@@ -3,6 +3,10 @@ package com.bradflaugher.pokersi.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,6 +34,7 @@ import com.bradflaugher.pokersi.ui.pixel.Mood
 import com.bradflaugher.pokersi.ui.pixel.PixelAvatar
 import com.bradflaugher.pokersi.ui.pixel.PixelButton
 import com.bradflaugher.pokersi.ui.pixel.PixelButtonVariant
+import com.bradflaugher.pokersi.ui.pixel.PixelSpacing
 import com.bradflaugher.pokersi.ui.pixel.PixelText
 import com.bradflaugher.pokersi.ui.pixel.PixelTheme
 import com.bradflaugher.pokersi.ui.pixel.PixelType
@@ -72,7 +77,8 @@ fun PickerScreen(setup: QuickGameSetup, callbacks: PickerCallbacks, modifier: Mo
                 ) {
                     Column(Modifier.readable(900.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         GameVariant.entries.chunked(columns).forEach { row ->
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            // Tiles in a row share the tallest one's height, so a tagline that wraps on a narrow phone never clips.
+                            Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(PixelSpacing.Tap)) {
                                 row.forEach { v -> VariantTile(v, v == setup.variant, { callbacks.onVariant(v) }, Modifier.weight(1f)) }
                             }
                         }
@@ -121,7 +127,8 @@ private fun VariantTile(variant: GameVariant, selected: Boolean, onClick: () -> 
     val (a, b) = variant.tileFacts()
     Column(
         modifier
-            .height(104.dp)
+            .heightIn(min = 104.dp)
+            .fillMaxHeight()
             .arcadeClick(onClick = onClick)
             .drawBehind {
                 val w = size.width.toInt(); val h = size.height.toInt()
@@ -134,7 +141,8 @@ private fun VariantTile(variant: GameVariant, selected: Boolean, onClick: () -> 
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         PixelText(variant.displayName.uppercase(), style = PixelType.Small.copy(fontSize = 9.sp), color = if (selected) p.hotPink else p.yellow, maxLines = 2)
-        PixelText(variant.tagline, Modifier.weight(1f), style = PixelType.BodySmall.copy(fontSize = 16.sp), color = p.white, shadowUnits = 0, maxLines = 2)
+        PixelText(variant.tagline, style = PixelType.BodySmall.copy(fontSize = 16.sp), color = p.white, shadowUnits = 0, maxLines = 3)
+        Spacer(Modifier.weight(1f))
         FactRow(a)
         FactRow(b)
     }

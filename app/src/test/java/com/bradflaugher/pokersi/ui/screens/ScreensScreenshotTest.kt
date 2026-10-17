@@ -28,6 +28,10 @@ class ScreensScreenshotTest {
     @Test
     fun phone() = render(DeviceSpec.PHONE)
 
+    /** A small 360x640dp phone: nothing may clip, and the title menu must fit without scrolling. */
+    @Test
+    fun phoneSmall() = render(DeviceSpec("phone-small", 720, 1280, 320))
+
     @Test
     fun tablet7() = render(DeviceSpec.TABLET_7)
 
@@ -35,5 +39,5 @@ class ScreensScreenshotTest {
     fun tablet10() = render(DeviceSpec.TABLET_10)
 
     @Test
-    fun phoneLandscape() = render(DeviceSpec.PHONE.landscape(), setOf("title", "table_holdem", "table_showdown", "run_table", "tips", "stats", "table_console_closed", "debug_console"))
+    fun phoneLandscape() = render(DeviceSpec.PHONE.landscape(), setOf("title", "table_holdem", "table_showdown", "run_table", "tour_1_table", "tour_3_move", "table_coach", "stats", "table_console_closed", "debug_console"))
 }

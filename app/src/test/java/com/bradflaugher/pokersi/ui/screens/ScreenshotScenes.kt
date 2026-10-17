@@ -16,6 +16,7 @@ import com.bradflaugher.pokersi.engine.SeatSetup
 import com.bradflaugher.pokersi.engine.Stakes
 import com.bradflaugher.pokersi.engine.hasBoard
 import com.bradflaugher.pokersi.engine.usesShortDeck
+import com.bradflaugher.pokersi.game.Coach
 import com.bradflaugher.pokersi.game.GameController
 import com.bradflaugher.pokersi.game.HumanTurn
 import com.bradflaugher.pokersi.game.OpponentProfile
@@ -36,6 +37,8 @@ import com.bradflaugher.pokersi.engine.HandCategory
 import com.bradflaugher.pokersi.engine.HandEvaluator
 import com.bradflaugher.pokersi.game.BestHand
 import com.bradflaugher.pokersi.game.LifetimeStats
+import com.bradflaugher.pokersi.ui.pixel.LARGER_TEXT_SCALE
+import com.bradflaugher.pokersi.ui.pixel.PixelPalette
 import com.bradflaugher.pokersi.ui.pixel.PixelTheme
 
 /** A named screen in a scripted state, for screenshot tests and store screenshots. */
@@ -344,15 +347,58 @@ object ScreenshotScenes {
                 }
             }
         },
-        Scene("tips") {
+    ) + TourSteps.indices.map { i ->
+        // The first-run tour, page by page, over the title screen.
+        Scene("tour_${i + 1}_" + listOf("table", "cards", "move", "game", "brains")[i]) {
             PixelTheme {
                 androidx.compose.foundation.layout.Box {
                     TitleScreen("HOUSE BOT", hasSavedRun = false, callbacks = TitleCallbacks())
-                    TipsOverlay(onDismiss = {})
+                    TourOverlay(onDismiss = {}, startStep = i)
+                }
+            }
+        }
+    } + listOf(
+        Scene("table_coach") { PixelTheme { TableScreen(holdemMidHand(), TableCallbacks(), coach = Coach.YourTurn) } },
+        Scene("table_coach_hold") { PixelTheme { TableScreen(drawWithHolds(), TableCallbacks(), coach = Coach.Hold) } },
+        Scene("table_coach_pause") { PixelTheme { TableScreen(holdemMidHand().copy(humanTurn = null), TableCallbacks(), coach = Coach.Pause) } },
+        Scene("table_coach_showdown") { PixelTheme { TableScreen(showdownWin().copy(celebrate = 0), TableCallbacks(), coach = Coach.HandOver) } },
+        Scene("run_choose_coach") { PixelTheme { ChooseTableScreen(chooseTable(), {}, {}, coach = Coach.ChooseTable) } },
+        Scene("how_to_play_faq") { PixelTheme { HowToPlayScreen({}, openFaq = 1) } },
+        Scene("settings") { PixelTheme { SettingsScreen(SettingsUi(hasSavedRun = true), SettingsCallbacks()) } },
+        // SETTINGS > LARGER TEXT and HIGH CONTRAST, on the busiest screens.
+        Scene("settings_large_text") {
+            PixelTheme(textScale = LARGER_TEXT_SCALE) { SettingsScreen(SettingsUi(hasSavedRun = true, largerText = true), SettingsCallbacks()) }
+        },
+        Scene("table_large_text") { PixelTheme(textScale = LARGER_TEXT_SCALE) { TableScreen(holdemMidHand(), TableCallbacks()) } },
+        Scene("draw_large_text") { PixelTheme(textScale = LARGER_TEXT_SCALE) { TableScreen(drawWithHolds(), TableCallbacks()) } },
+        Scene("title_large_text") {
+            PixelTheme(textScale = LARGER_TEXT_SCALE) { TitleScreen("QWEN 3 1.7B", hasSavedRun = true, callbacks = TitleCallbacks(), dailyLabel = "DAILY: BEST 4") }
+        },
+        Scene("how_to_play_large_text") { PixelTheme(textScale = LARGER_TEXT_SCALE) { HowToPlayScreen({}) } },
+        Scene("table_high_contrast") { PixelTheme(palette = PixelPalette.HighContrast) { TableScreen(holdemMidHand(), TableCallbacks()) } },
+        Scene("settings_high_contrast") {
+            PixelTheme(palette = PixelPalette.HighContrast) { SettingsScreen(SettingsUi(hasSavedRun = true, highContrast = true), SettingsCallbacks()) }
+        },
+        // The "are you sure?" dialogs: leaving the app, and quitting a quick table.
+        Scene("confirm_exit") {
+            PixelTheme {
+                androidx.compose.foundation.layout.Box {
+                    TitleScreen("QWEN 3 1.7B", hasSavedRun = true, callbacks = TitleCallbacks(), dailyLabel = "DAILY: BEST 4")
+                    ConfirmDialog(
+                        "LEAVE THE CABINET?", "The cards will miss you. Your tour and records are saved for next time.",
+                        confirmLabel = "EXIT", stayLabel = "STAY", onConfirm = {}, onStay = {}, mood = com.bradflaugher.pokersi.ui.pixel.Mood.Sad,
+                    )
                 }
             }
         },
-        Scene("settings") { PixelTheme { SettingsScreen(SettingsUi(hasSavedRun = true), SettingsCallbacks()) } },
+        Scene("confirm_quit_large_text") {
+            PixelTheme(textScale = LARGER_TEXT_SCALE) {
+                androidx.compose.foundation.layout.Box {
+                    TableScreen(holdemMidHand(), TableCallbacks())
+                    ConfirmDialog("QUIT THIS TABLE?", "Your chips at this table are lost.", confirmLabel = "QUIT", stayLabel = "KEEP PLAYING", onConfirm = {}, onStay = {})
+                }
+            }
+        },
         Scene("models") { PixelTheme { ModelsContent(ModelsScenes.scene(), ModelsScenes.noActions) } },
         Scene("table_console_closed") {
             PixelTheme {

@@ -1,36 +1,42 @@
-Poker against a table of oddballs, and every one of them is an AI running on your phone. Chunky 8-bit cards on green felt, CRT scanlines and marquee lights: a 90s video poker cabinet with a whole table of characters. Texas Hold'em, Omaha, Draw, Stud, Short Deck and Crazy Pineapple, plus a Run mode that keeps raising the stakes.
+Offline poker against AI opponents that run right on your phone. Play Texas Hold'em, Omaha, Five-Card Draw, Seven-Card Stud, Short Deck and Crazy Pineapple in a retro pixel-art card room built like a 90s video poker cabinet: chunky 8-bit cards on green felt, CRT scanlines, marquee lights and LED pot counters. Single player, no internet needed to play, no ads, no account.
 
-THE TABLE TALKS BACK
-• Every opponent is a freshly rolled persona with a pixel face, a name and a personality, from timid to reckless. A small language model plays each one, deciding every bet, and with TABLE TALK switched on in the settings, the trash talk too.
-• The AI runs entirely on your phone with llama.cpp. Nothing you play is sent anywhere.
+AI OPPONENTS WITH PERSONALITY
+• Every rival is a freshly rolled character with a name, a pixel face and a personality, from timid to reckless. A small language model plays each one and decides every check, bet, raise, bluff and fold.
+• The AI runs entirely on your device with llama.cpp. Nothing you play is sent anywhere.
+• Switch on TABLE TALK in the settings and they chat and trash-talk in speech bubbles, reacting to the bets, the board and each other. It's off by default, for a quieter, quicker table.
 • Each opponent only ever sees what its seat can see. The deck is shuffled fairly and nobody peeks.
-• No model yet? House Bot, a built-in opponent, plays every seat with no download at all, and steps in for any AI player that stalls.
+• No model yet? House Bot, a built-in poker bot, plays every seat with no download at all, and steps in for any AI player that stalls.
 
-SIX GAMES
-• Texas Hold'em: two hole cards, five on the board.
-• Pot-Limit Omaha: four hole cards, use exactly two.
-• Five-Card Draw: tap HOLD on the keepers, like the cabinet at the arcade.
+SIX POKER GAMES
+• Texas Hold'em: two hole cards, five community cards.
+• Pot-Limit Omaha (PLO): four hole cards, use exactly two.
+• Five-Card Draw: tap HOLD on the keepers, just like a video poker machine.
 • Seven-Card Stud: up cards, down cards, no board.
-• Short Deck: sixes and up, where a flush beats a full house.
+• Short Deck (6+ Hold'em): sixes and up, where a flush beats a full house.
 • Crazy Pineapple: three hole cards, throw one away after the flop.
-• Side pots, all-ins and split pots are all handled for you.
+• Quick games against one to five opponents. All-ins, side pots and split pots are handled for you.
 
-RUN MODE
-• Climb a ladder of tables with rising blinds. Your chips carry over from table to table; bust out and the run is over.
-• After each table, pick your next one: low stakes, or high stakes for a bigger bonus.
-• Seeded runs you can share and replay, and a daily run that is the same for everyone.
+POKER TOUR: A ROGUELITE RUN
+• Climb ten tables of rising blinds and stakes. Your chips carry over from table to table; bust out and the tour is over. Clear the tenth table, then keep going in endless mode.
+• After each table, pick your next one: low stakes, or high stakes with an extra opponent and a bigger bonus. Plain poker, no rule twists.
+• Seeded tours you can replay, and a daily tour that deals everyone the same seed.
 
-PICK YOUR BRAIN
+PRACTICE AND STATS
+• A relaxed place to practice poker against bots at your own pace, with pretend chips.
+• Lifetime stats: hands won, win rate, biggest pot, your best hand ever and a 13x13 Texas Hold'em starting-hand chart of what you actually play.
+• A how-to-play screen covers every game and the hand rankings, plus a quick guided tour for new players and a built-in help/FAQ.
+
+PICK YOUR AI MODEL
 • Download a small model from a short curated list, picked to play well on phones. Downloads come from Hugging Face, run in the background and show their progress.
 • Or point PokerSI at a folder of your own GGUF files and pick any of them.
-• Switch models from the Models screen whenever you like.
 
-RETRO ON THE GLASS
-• Pixel cards, LED pot counters, chiptune bleeps and a scanline CRT glow.
-• A how-to-play screen covers every game and the hand rankings.
+RETRO, AND EASY TO PLAY
+• Pixel cards, LED counters, chiptune sound effects and an optional CRT scanline glow.
+• Big buttons, FAST FOLD to skip hands you've folded, a faster game speed and a pause button.
+• TalkBack reads your cards, the opponents and the pot, with larger text and high-contrast options.
 
-NO NONSENSE
-Free. No ads. No in-app purchases. No account. No analytics or tracking. The only time PokerSI goes online is to download a model you chose, from Hugging Face. No real money is ever involved: chips are pretend.
+NO ADS, NO REAL MONEY
+Free. No ads. No in-app purchases. No account. No analytics or tracking. PokerSI only goes online to download a model you chose. No real-money gambling: chips are pretend. Open source.
 
 The AI opponents need a reasonably recent phone with a few gigabytes of free storage and memory; older phones can still play every game against House Bot. Requires Android 13 or newer.
 

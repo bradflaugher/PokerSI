@@ -27,21 +27,27 @@ import androidx.compose.ui.unit.dp
 /** Cabinet button colors. */
 enum class PixelButtonVariant { Deal, Bet, Hold, Call, Pink, Gray }
 
-private class ButtonColors(val face: Color, val light: Color, val dark: Color, val side: Color, val text: Color, val shadow: Color)
+internal class ButtonColors(val face: Color, val light: Color, val dark: Color, val side: Color, val text: Color, val shadow: Color)
 
-@Composable
-private fun colorsFor(variant: PixelButtonVariant, enabled: Boolean): ButtonColors {
-    val p = LocalPixelPalette.current
+/**
+ * A cabinet button's colors. Every caption passes 4.5:1 on its face
+ * (`ContrastTest`): light captions sit on the deeper [signRed] and [signPink],
+ * dark ink on the bright green, gold and gray faces.
+ */
+internal fun buttonColors(p: PixelPalette, variant: PixelButtonVariant, enabled: Boolean): ButtonColors {
     if (!enabled) return ButtonColors(p.grayDark, lerp(p.grayDark, p.gray, 0.5f), lerp(p.grayDark, p.ink, 0.4f), p.inkSoft, p.gray, p.ink)
     return when (variant) {
-        PixelButtonVariant.Deal -> ButtonColors(p.suitRed, Color(0xFFFF7D8A), Color(0xFFB4152C), p.suitRedDark, p.yellow, p.ink)
+        PixelButtonVariant.Deal -> ButtonColors(p.signRed, Color(0xFFFF7D8A), p.suitRedDark, Color(0xFF5E0718), p.yellow, p.ink)
         PixelButtonVariant.Bet -> ButtonColors(p.gold, p.yellow, p.goldDark, Color(0xFF7A4A06), p.ink, Color(0x66FFFFFF))
         PixelButtonVariant.Hold -> ButtonColors(p.cabinetLight, p.cabinetGlow, p.cabinet, p.cabinetDeep, p.white, p.ink)
-        PixelButtonVariant.Call -> ButtonColors(p.green, Color(0xFF8CF5A6), p.greenDark, Color(0xFF0B4A20), p.white, p.ink)
-        PixelButtonVariant.Pink -> ButtonColors(p.hotPink, Color(0xFFFF9CCB), p.hotPinkDark, Color(0xFF5E0A37), p.white, p.ink)
-        PixelButtonVariant.Gray -> ButtonColors(p.gray, Color(0xFFC9C6DD), p.grayDark, p.inkSoft, p.ink, Color(0x55FFFFFF))
+        PixelButtonVariant.Call -> ButtonColors(p.green, Color(0xFF8CF5A6), p.greenDark, Color(0xFF0B4A20), p.ink, Color(0x66FFFFFF))
+        PixelButtonVariant.Pink -> ButtonColors(p.signPink, Color(0xFFFF9CCB), p.hotPinkDark, Color(0xFF5E0A37), p.white, p.ink)
+        PixelButtonVariant.Gray -> ButtonColors(p.gray, Color(0xFFDEDBEE), p.grayDark, p.inkSoft, p.ink, Color(0x55FFFFFF))
     }
 }
+
+@Composable
+private fun colorsFor(variant: PixelButtonVariant, enabled: Boolean): ButtonColors = buttonColors(LocalPixelPalette.current, variant, enabled)
 
 /**
  * A big rectangular video poker cabinet button: ink outline, bevelled face,

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -32,6 +33,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -160,8 +163,9 @@ fun ModelsContent(state: ModelsUiState, actions: ModelsActions, modifier: Modifi
                 ) {
                     item {
                         Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            PixelButton("BACK", actions::back, variant = PixelButtonVariant.Gray, textStyle = PixelType.Small)
-                            Spacer(Modifier.padding(6.dp))
+                            // The same "<" as every other screen's top bar.
+                            PixelButton("<", actions::back, Modifier.size(48.dp, 48.dp).semantics { contentDescription = "Back" }, variant = PixelButtonVariant.Gray, textStyle = PixelType.Heading)
+                            Spacer(Modifier.width(10.dp))
                             // The titles take what's left, so the console button always keeps its width.
                             Column(Modifier.weight(1f)) {
                                 PixelText("MODEL BAY", style = PixelType.Title, color = p.yellow, maxLines = 1)
@@ -256,7 +260,7 @@ private fun ModelRow(model: LocalModel, engine: EngineState, actions: ModelsActi
             if (catalog?.recommended == true) {
                 PixelText(
                     "★ START HERE",
-                    Modifier.background(p.hotPink).padding(horizontal = 4.dp, vertical = 2.dp),
+                    Modifier.background(p.hotPinkDark).padding(horizontal = 4.dp, vertical = 2.dp),
                     style = PixelType.Small, fontSize = PixelType.Small.fontSize * 0.8f,
                 )
             }
@@ -274,7 +278,7 @@ private fun ModelRow(model: LocalModel, engine: EngineState, actions: ModelsActi
                 Spacer(Modifier.height(6.dp))
                 PixelButton("CANCEL", { actions.cancel(model) }, variant = PixelButtonVariant.Gray, textStyle = PixelType.Small)
             }
-            model.isAvailable -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            model.isAvailable -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 when {
                     loaded -> PixelText("✓ LOADED", style = PixelType.Small, color = p.green)
                     loading -> PixelText("LOADING…", style = PixelType.Small, color = p.cabinetGlow)

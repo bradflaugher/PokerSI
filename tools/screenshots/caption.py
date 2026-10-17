@@ -65,7 +65,7 @@ CAPTIONS = {
         ("picker", "SIX GAMES,\nONE CABINET", "Hold'em, Omaha, Draw, Stud, Short Deck, Pineapple"),
         ("table_showdown", "FULL HOUSE!", "...and the trash talk to go with it"),
         ("run_table", "CLIMB THE\nTOUR", "Poker Tour: rising stakes, chips carry over"),
-        ("run_choose", "PICK YOUR\nNEXT TABLE", "Low stakes or high: bigger risk, bigger bonus"),
+        ("tour_3_move", "NEW TO\nPOKER?", "A guided tour, then tips as you play"),
         ("models", "BRING YOUR\nOWN BRAIN", "Download a tiny model, or load your own GGUF"),
         ("title", "PULL UP\nA CHAIR", "No ads. No account. No real money."),
     ],

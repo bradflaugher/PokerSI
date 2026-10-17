@@ -3,7 +3,6 @@ package com.bradflaugher.pokersi.ui
 import android.app.Application
 import android.content.Context
 import androidx.compose.runtime.mutableStateListOf
-import androidx.core.content.edit
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.bradflaugher.pokersi.AppServices
@@ -11,6 +10,7 @@ import com.bradflaugher.pokersi.debug.AiLog
 import com.bradflaugher.pokersi.engine.GameVariant
 import com.bradflaugher.pokersi.game.DailyRecord
 import com.bradflaugher.pokersi.game.GameController
+import com.bradflaugher.pokersi.game.Guide
 import com.bradflaugher.pokersi.game.Pacing
 import com.bradflaugher.pokersi.game.PrefsRunSaver
 import com.bradflaugher.pokersi.game.QuickGameSetup
@@ -39,10 +39,9 @@ class PokerViewModel(app: Application) : AndroidViewModel(app) {
     val brains = AppServices.brains(app)
     val controller = GameController(viewModelScope, brains, Pacing(), settings.speed, settings.fastFold, settings.tableTalk, runSaver = runSaver, recorder = stats)
 
-    private val _tips = MutableStateFlow(!prefs.getBoolean(KEY_TIPS_SEEN, false))
 
-    /** The first-run tips are showing over the title screen. */
-    val tips: StateFlow<Boolean> = _tips.asStateFlow()
+    /** The first-run tour and the one-time table hints. */
+    val guide = Guide(prefs)
 
     private val _console = MutableStateFlow(false)
 
@@ -85,23 +84,21 @@ class PokerViewModel(app: Application) : AndroidViewModel(app) {
         _console.value = false
     }
 
-    // ---------------------------------------------------------------- tips
+    // ---------------------------------------------------------------- tour
 
-    /** SETTINGS > SHOW TIPS: back to the title screen, tips up. */
+    /** SETTINGS > REPLAY TOUR: back to the title screen, the tour up, every table hint fresh. */
     fun showTips() {
         toTitle()
-        _tips.value = true
+        guide.replay()
     }
 
-    fun dismissTips() {
-        _tips.value = false
-        prefs.edit { putBoolean(KEY_TIPS_SEEN, true) }
-    }
+    /** HOW TO > TAKE THE TOUR: the tour over the screen you are on. */
+    fun openTour() = guide.openTour()
 
-    /** Screenshot and test launches start without the tips, and still see them next launch. */
-    fun skipTips() {
-        _tips.value = false
-    }
+    fun dismissTips() = guide.closeTour()
+
+    /** Screenshot and test launches start without the tour or table hints, and still see them next launch. */
+    fun skipTips() = guide.skipForLaunch()
 
     fun go(screen: Screen) {
         if (screen == Screen.Title) daily.refresh()
@@ -173,7 +170,4 @@ class PokerViewModel(app: Application) : AndroidViewModel(app) {
         controller.stop()
     }
 
-    private companion object {
-        const val KEY_TIPS_SEEN = "tips_seen"
-    }
 }
