@@ -8,17 +8,21 @@ package com.bradflaugher.pokersi.engine
  * Thread-safe: agents read it on their own threads while the table records.
  */
 class TableTalk(private val capacity: Int = 40) {
-    /** One line of table talk. */
-    data class Line(val speaker: String, val text: String)
+    /**
+     * One line of table talk: [text] as the table heard it, and [said], what
+     * the speaker really said (HAND BLUR may have hidden some words from
+     * [text]). Only repeat checks read [said]; prompts show [text].
+     */
+    data class Line(val speaker: String, val text: String, internal val said: String = text)
 
     private val lines = ArrayDeque<Line>()
 
-    /** Remembers that [speaker] said [text] (blank lines are ignored). */
-    fun record(speaker: String, text: String) {
+    /** Remembers that [speaker] said [text] (blank lines are ignored), [said] before any blur. */
+    fun record(speaker: String, text: String, said: String = text) {
         val line = text.trim()
         if (line.isEmpty()) return
         synchronized(lines) {
-            lines.addLast(Line(speaker, line))
+            lines.addLast(Line(speaker, line, said.trim().ifEmpty { line }))
             while (lines.size > capacity) lines.removeFirst()
         }
     }
@@ -43,7 +47,7 @@ class TableTalk(private val capacity: Int = 40) {
         val words = normalize(text)
         if (words.isEmpty()) return false
         val (all, close) = synchronized(lines) {
-            lines.map { it.text } to (lines.filter { it.speaker == speaker }.takeLast(OWN_LINES) + lines.takeLast(TABLE_LINES)).map { it.text }
+            lines.map { it.said } to (lines.filter { it.speaker == speaker }.takeLast(OWN_LINES) + lines.takeLast(TABLE_LINES)).map { it.said }
         }
         val exact = (all + also).map(::normalize)
         if (words in exact) return true
@@ -67,7 +71,7 @@ class TableTalk(private val capacity: Int = 40) {
         val start = normalize(prefix)
         if (start.isEmpty()) return false
         val (all, close) = synchronized(lines) {
-            lines.map { it.text } to (lines.filter { it.speaker == speaker }.takeLast(OWN_LINES) + lines.takeLast(TABLE_LINES)).map { it.text }
+            lines.map { it.said } to (lines.filter { it.speaker == speaker }.takeLast(OWN_LINES) + lines.takeLast(TABLE_LINES)).map { it.said }
         }
         val samePrefix = (all + also).any { line ->
             val n = normalize(line)
@@ -106,7 +110,7 @@ class TableTalk(private val capacity: Int = 40) {
     /** Whether [text] (normalized) was said by anyone in the last [n] lines. */
     fun saidRecently(text: String, n: Int = capacity): Boolean {
         val words = normalize(text)
-        return synchronized(lines) { lines.toList().takeLast(n) }.any { normalize(it.text) == words }
+        return synchronized(lines) { lines.toList().takeLast(n) }.any { normalize(it.said) == words }
     }
 
     companion object {

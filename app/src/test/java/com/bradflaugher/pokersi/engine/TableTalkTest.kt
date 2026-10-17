@@ -28,6 +28,17 @@ class TableTalkTest {
     }
 
     @Test
+    fun aBlurredLineIsRememberedAsSaidForRepeatsButHeardBlurred() {
+        val talk = TableTalk()
+        val heard = HandBlur.blur("I have pocket aces", listOf(Card.parse("Ah"), Card.parse("Ad")), madeHand = "Pocket Aces")
+        talk.record("Dusty", heard, said = "I have pocket aces")
+        assertTrue(talk.isRepeat("I have pocket aces!", "Dusty"))
+        assertTrue(talk.mightRepeat("I have pocket", speaker = "Dusty"))
+        assertEquals(heard, talk.recent(1).single().text)
+        assertEquals(listOf(heard), talk.saidBy("Dusty", 3))
+    }
+
+    @Test
     fun nearRepeatsByWordOverlap() {
         val talk = TableTalk()
         talk.record("Dusty", "I reckon the cards ain't lookin' my way.")

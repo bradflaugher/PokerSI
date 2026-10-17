@@ -10,8 +10,8 @@ class HandBlurTest {
     private val kings = cards("Kh", "Ks")
     private val m = HandBlur.MARK
 
-    private fun blur(line: String, hole: List<Card> = kings, faceUp: List<Card> = emptyList(), made: String? = "Pocket Kings") =
-        HandBlur.blur(line, hole, faceUp, made)
+    private fun blur(line: String, hole: List<Card> = kings, faceUp: List<Card> = emptyList(), made: String? = "Pocket Kings", board: List<Card> = emptyList()) =
+        HandBlur.blur(line, hole, faceUp, made, board = board)
 
     /** The words of [line] that survived, censor bars dropped. */
     private fun left(line: String) = line.split(' ').filter { it.isNotEmpty() && m !in it }.joinToString(" ")
@@ -59,6 +59,15 @@ class HandBlurTest {
         assertEquals("I feel lucky", blur("I feel lucky", hole = nothing, made = null))
         assertEquals("These are", left(blur("These are offsuit", hole = cards("Ah", "Kd"), made = "Ace-King offsuit")))
         assertEquals("I've only got", left(blur("I've only got high card", hole = nothing, made = "Nine high")))
+    }
+
+    @Test
+    fun whatTheBoardMakesByItselfIsPublic() {
+        val board = cards("9s", "9d", "4c")
+        // A paired board: "pair" says nothing private; the seat's own ranks still do.
+        assertEquals("That pair on the board!", blur("That pair on the board!", hole = cards("Kh", "2c"), made = "Pair of Nines", board = board))
+        // Two pair with a hole card in it is still the seat's own news.
+        assertEquals("I've got", left(blur("I've got two pair", hole = cards("Kh", "Kc"), made = "Two Pair, Kings and Nines", board = board)))
     }
 
     @Test

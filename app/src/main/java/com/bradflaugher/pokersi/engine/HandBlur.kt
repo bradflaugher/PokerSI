@@ -28,12 +28,25 @@ object HandBlur {
      *
      * A [streaming] line (still being written) also loses a last word or two
      * that may yet become a giveaway ("I hold seven" before "of hearts").
+     *
+     * The words for a kind of hand the [board] and [faceUp] cards make by
+     * themselves (a paired board's "pair") are public and left alone.
      */
-    fun blur(line: String, holeCards: List<Card>, faceUp: Collection<Card> = emptyList(), madeHand: String? = null, streaming: Boolean = false): String {
+    fun blur(
+        line: String,
+        holeCards: List<Card>,
+        faceUp: Collection<Card> = emptyList(),
+        madeHand: String? = null,
+        streaming: Boolean = false,
+        board: List<Card> = emptyList(),
+    ): String {
         var out = clean(line)
         val hidden = holeCards.filter { it !in faceUp }
         if (hidden.isEmpty()) return out
-        for (pattern in patterns(hidden, madeHand)) {
+        val public = board + faceUp
+        // A boardless variant describes any number of cards ("Pair of Kings", "King high").
+        val publicHand = if (public.isEmpty()) null else HandEvaluator.describe(public, emptyList(), GameVariant.FIVE_CARD_DRAW, moreCardsToCome = false)
+        for (pattern in patterns(hidden, madeHand, publicHand)) {
             out = pattern.replace(out) { m ->
                 // Only the group that gives it away, if the pattern marks one.
                 val g = m.groups.takeIf { it.size > 1 }?.get(1)
@@ -63,7 +76,7 @@ object HandBlur {
 
     private fun bar(text: String): String = text.map { if (it.isWhitespace()) it else MARK }.joinToString("")
 
-    private fun patterns(hidden: List<Card>, madeHand: String?): List<Regex> {
+    private fun patterns(hidden: List<Card>, madeHand: String?, publicHand: String?): List<Regex> {
         val words = mutableListOf<String>()
         val ranks = hidden.map { it.rank }.distinct()
         for (card in hidden) {
@@ -75,7 +88,8 @@ object HandBlur {
             if (rank.value >= Rank.JACK.value) words += rank.label.lowercase()
         }
         hidden.groupBy { it.rank }.filterValues { it.size >= 2 }.keys.forEach { rank -> nicknames[rank]?.let(words::add) }
-        madeHand?.lowercase()?.let { made -> categories.filter { (key, _) -> key in made }.forEach { (_, said) -> words += said } }
+        val shown = publicHand?.lowercase().orEmpty()
+        madeHand?.lowercase()?.let { made -> categories.filter { (key, _) -> key in made && key !in shown }.forEach { (_, said) -> words += said } }
         val list = mutableListOf<Regex>()
         if (words.isNotEmpty()) list += Regex("(?<![\\w'])(?:${words.joinToString("|")})(?![\\w'])", RegexOption.IGNORE_CASE)
         // Card codes ("Kh", "10d", "K♥") and plural ranks ("Ks", "7's"). Case-sensitive, and not

@@ -728,7 +728,8 @@ class GameController(
         }
         if (say != null) {
             setChatter(seat, say)
-            talk.record(ctx.seats.firstOrNull { it.seat == seat }?.name ?: "Seat $seat", say)
+            // The unblurred line only for spotting repeats; prompts see what the table heard.
+            talk.record(ctx.seats.firstOrNull { it.seat == seat }?.name ?: "Seat $seat", say, raw?.let(HandBlur::clean)?.let(::tidySay) ?: say)
         } else {
             // A line that streamed and was then dropped (a repeat) must not linger.
             removeChatter(seat)
@@ -747,7 +748,7 @@ class GameController(
         // The seat's own view shows all its cards; the snapshot knows which are face up (stud).
         val mine = h.snapshot(seat).seats[seat]
         val faceUp = mine.cards.filterIndexed { k, _ -> mine.faceUp.getOrElse(k) { false } }.filterNotNull()
-        return { HandBlur.blur(it, ctx.holeCards, faceUp, ctx.madeHand, streaming) }
+        return { HandBlur.blur(it, ctx.holeCards, faceUp, ctx.madeHand, streaming, ctx.board) }
     }
 
     /**
