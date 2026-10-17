@@ -39,8 +39,9 @@ val LocalSoundPlayer = staticCompositionLocalOf { SoundPlayer.None }
  * once per effect (cached), then mixed on one background thread into a
  * streaming [AudioTrack]. The track is only open while something plays.
  * Every failure is caught and logged: sound is never worth a crash.
+ * [volume] (0..1) scales the mix as it is written, so a change applies at once.
  */
-class ChiptuneSound(@Volatile var enabled: Boolean = true) : SoundPlayer, AutoCloseable {
+class ChiptuneSound(@Volatile var enabled: Boolean = true, @Volatile var volume: Float = 1f) : SoundPlayer, AutoCloseable {
     private val cache = ConcurrentHashMap<Sfx, ShortArray>()
     private val queue = LinkedBlockingQueue<ShortArray>()
     @Volatile private var thread: Thread? = null
@@ -104,7 +105,8 @@ class ChiptuneSound(@Volatile var enabled: Boolean = true) : SoundPlayer, AutoCl
                     v.pos += n
                     if (v.pos >= v.data.size) it.remove()
                 }
-                for (i in 0 until CHUNK) chunk[i] = mix[i].coerceIn(-32767, 32767).toShort()
+                val gain = volume.coerceIn(0f, 1f)
+                for (i in 0 until CHUNK) chunk[i] = (mix[i] * gain).toInt().coerceIn(-32767, 32767).toShort()
                 track?.write(chunk, 0, CHUNK)
             }
         } catch (_: InterruptedException) {
@@ -146,9 +148,10 @@ class ChiptuneSound(@Volatile var enabled: Boolean = true) : SoundPlayer, AutoCl
 
 /** Remembers a [ChiptuneSound] for this composition, closed when it leaves. */
 @Composable
-fun rememberChiptuneSound(enabled: Boolean): SoundPlayer {
-    val sound = remember { ChiptuneSound(enabled) }
+fun rememberChiptuneSound(enabled: Boolean, volume: Float = 1f): SoundPlayer {
+    val sound = remember { ChiptuneSound(enabled, volume) }
     sound.enabled = enabled
+    sound.volume = volume
     DisposableEffect(sound) { onDispose { sound.close() } }
     return sound
 }

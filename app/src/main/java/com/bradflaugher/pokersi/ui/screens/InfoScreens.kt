@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -16,12 +18,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bradflaugher.pokersi.engine.Card
 import com.bradflaugher.pokersi.engine.GameVariant
 import com.bradflaugher.pokersi.game.GameSpeed
+import com.bradflaugher.pokersi.game.SoundVolume
+import com.bradflaugher.pokersi.ui.pixel.LocalSoundPlayer
+import com.bradflaugher.pokersi.ui.pixel.Sfx
 import com.bradflaugher.pokersi.ui.pixel.Mood
 import com.bradflaugher.pokersi.ui.pixel.PanelStyle
 import com.bradflaugher.pokersi.ui.pixel.PayRow
@@ -138,6 +147,10 @@ data class SettingsUi(
     val speed: GameSpeed = GameSpeed.NORMAL,
     val fastFold: Boolean = true,
     val tableTalk: Boolean = false,
+    val volume: SoundVolume = SoundVolume.HIGH,
+    val confirmExit: Boolean = true,
+    val largerText: Boolean = false,
+    val highContrast: Boolean = false,
     val hasSavedRun: Boolean = false,
     /** BuildConfig.VERSION_NAME, for the ABOUT panel. */
     val version: String = "dev",
@@ -152,6 +165,10 @@ class SettingsCallbacks(
     val onSpeed: (GameSpeed) -> Unit = {},
     val onFastFold: (Boolean) -> Unit = {},
     val onTableTalk: (Boolean) -> Unit = {},
+    val onVolume: (SoundVolume) -> Unit = {},
+    val onConfirmExit: (Boolean) -> Unit = {},
+    val onLargerText: (Boolean) -> Unit = {},
+    val onHighContrast: (Boolean) -> Unit = {},
     val onResetRun: () -> Unit = {},
     val onShowTips: () -> Unit = {},
     // The links (Links.kt) say whether something could open them.
@@ -163,10 +180,18 @@ class SettingsCallbacks(
     val onBack: () -> Unit = {},
 )
 
+/** The settings, in panels: game, sound and feel, accessibility, the tour, help, the workshop, about. */
 @Composable
 fun SettingsScreen(settings: SettingsUi, callbacks: SettingsCallbacks, modifier: Modifier = Modifier) {
     val p = PixelTheme.palette
-    var confirmReset by remember { mutableStateOf(false) }
+    var confirmReset by rememberSaveable { mutableStateOf(false) }
+    // A new volume plays a chip at that volume (its button stays quiet, so the chip is all you hear).
+    val sound = LocalSoundPlayer.current
+    var heardVolume by remember { mutableStateOf(settings.volume) }
+    LaunchedEffect(settings.volume) {
+        if (settings.volume != heardVolume) sound.play(Sfx.Chip)
+        heardVolume = settings.volume
+    }
     ArcadeScreen(modifier) {
         Column(Modifier.fillMaxSize()) {
             ArcadeTopBar("SETTINGS", callbacks.onBack)
@@ -175,30 +200,38 @@ fun SettingsScreen(settings: SettingsUi, callbacks: SettingsCallbacks, modifier:
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                PixelPanel(Modifier.readable(), title = "CABINET", paddingUnits = 2) {
+                PixelPanel(Modifier.readable(), title = "GAME", paddingUnits = 2) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        ChoiceSetting("GAME SPEED", "How fast the table moves") {
+                            ChoiceRow(GameSpeed.entries, settings.speed, { it.label }, callbacks.onSpeed)
+                        }
+                        ToggleRow("FAST FOLD", "Once you fold, the rest of the hand plays out at once", settings.fastFold, callbacks.onFastFold)
+                        ToggleRow("TABLE TALK", "Opponents chat in speech bubbles (small models may blurt out their cards)", settings.tableTalk, callbacks.onTableTalk)
+                        ToggleRow("CONFIRM EXIT", "Back on the title screen asks before leaving", settings.confirmExit, callbacks.onConfirmExit)
+                    }
+                }
+                PixelPanel(Modifier.readable(), title = "SOUND & FEEL", paddingUnits = 2) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         ToggleRow("SOUND", "Chiptune bleeps", settings.sound, callbacks.onSound)
+                        ChoiceSetting("VOLUME", if (settings.sound) "How loud the bleeps are" else "Switch SOUND on to choose") {
+                            ChoiceRow(SoundVolume.entries, settings.volume, { it.label }, callbacks.onVolume, enabled = settings.sound, sound = null)
+                        }
                         ToggleRow("HAPTICS", "Buzz on buttons", settings.haptics, callbacks.onHaptics)
                         ToggleRow("CRT GLASS", "Scanlines and vignette", settings.crt, callbacks.onCrt)
                         ToggleRow("CARD SWAY", "Cards bob gently", settings.cardSway, callbacks.onCardSway)
-                        SectionHeading("GAME SPEED")
-                        ChoiceRow(GameSpeed.entries, settings.speed, { it.label }, callbacks.onSpeed)
-                        ToggleRow("FAST FOLD", "Once you fold, the rest of the hand plays out at once", settings.fastFold, callbacks.onFastFold)
-                        ToggleRow("TABLE TALK", "Opponents chat in speech bubbles (small models may blurt out their cards)", settings.tableTalk, callbacks.onTableTalk)
+                    }
+                }
+                PixelPanel(Modifier.readable(), title = "ACCESSIBILITY", paddingUnits = 2) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        ToggleRow("LARGER TEXT", "All text a size up, on top of your phone's font size", settings.largerText, callbacks.onLargerText)
+                        ToggleRow("HIGH CONTRAST", "Brighter text and outlines, quieter felt and glass", settings.highContrast, callbacks.onHighContrast)
                     }
                 }
                 PixelPanel(Modifier.readable(), title = "POKER TOUR", style = PanelStyle.Dark, paddingUnits = 2) {
                     if (!settings.hasSavedRun) {
                         BodyText("No tour in progress.", color = p.cardCream, small = true)
-                    } else if (!confirmReset) {
-                        PixelButton("ABANDON TOUR", { confirmReset = true }, Modifier.fillMaxWidth(), variant = PixelButtonVariant.Deal, textStyle = PixelType.Small)
                     } else {
-                        BodyText("Really throw away your tour? Chips and all?", color = p.yellow, small = true)
-                        VGap(8.dp)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            SmallButton("KEEP IT", { confirmReset = false }, Modifier.weight(1f))
-                            SmallButton("YES, RESET", { confirmReset = false; callbacks.onResetRun() }, Modifier.weight(1f), variant = PixelButtonVariant.Deal)
-                        }
+                        PixelButton("ABANDON TOUR", { confirmReset = true }, Modifier.fillMaxWidth(), variant = PixelButtonVariant.Deal, textStyle = PixelType.Small)
                     }
                 }
                 PixelPanel(Modifier.readable(), title = "HELP", style = PanelStyle.Dark, paddingUnits = 2) {
@@ -215,6 +248,17 @@ fun SettingsScreen(settings: SettingsUi, callbacks: SettingsCallbacks, modifier:
                 VGap(12.dp)
             }
         }
+    }
+    if (confirmReset && settings.hasSavedRun) {
+        ConfirmDialog(
+            question = "ABANDON YOUR TOUR?",
+            message = "Your saved tour and today's daily tour are thrown away, chips and all. Your records stay.",
+            confirmLabel = "ABANDON",
+            stayLabel = "KEEP IT",
+            onConfirm = { confirmReset = false; callbacks.onResetRun() },
+            onStay = { confirmReset = false },
+            mood = Mood.Sad,
+        )
     }
 }
 
@@ -249,6 +293,18 @@ private fun AboutPanel(version: String, callbacks: SettingsCallbacks) {
     }
 }
 
+/** A setting with a few choices: a title and subtitle like [ToggleRow]'s, the choices under them. */
+@Composable
+private fun ChoiceSetting(title: String, subtitle: String, choices: @Composable () -> Unit) {
+    val p = PixelTheme.palette
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        PixelText(title, Modifier.semantics { heading() }, style = PixelType.Small, color = p.yellow)
+        PixelText(subtitle, style = PixelType.BodySmall, color = p.cardCream, shadowUnits = 0)
+        VGap(4.dp)
+        choices()
+    }
+}
+
 @Composable
 private fun ToggleRow(title: String, subtitle: String, on: Boolean, onChange: (Boolean) -> Unit) {
     val p = PixelTheme.palette
@@ -259,7 +315,11 @@ private fun ToggleRow(title: String, subtitle: String, on: Boolean, onChange: (B
         }
         PixelButton(
             if (on) "ON" else "OFF", { onChange(!on) },
-            Modifier.padding(0.dp),
+            // TalkBack: "Sound, on, button" rather than a bare "on".
+            Modifier.semantics {
+                contentDescription = title.lowercase().replaceFirstChar(Char::uppercase)
+                stateDescription = if (on) "On" else "Off"
+            },
             variant = if (on) PixelButtonVariant.Call else PixelButtonVariant.Gray,
             textStyle = PixelType.Small,
         )

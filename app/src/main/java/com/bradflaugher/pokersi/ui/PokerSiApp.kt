@@ -37,12 +37,17 @@ import com.bradflaugher.pokersi.game.RunUiState
 import com.bradflaugher.pokersi.ui.pixel.PixelButton
 import com.bradflaugher.pokersi.ui.pixel.PixelButtonVariant
 import com.bradflaugher.pokersi.ui.pixel.PixelPanel
+import com.bradflaugher.pokersi.ui.pixel.PixelPalette
+import com.bradflaugher.pokersi.ui.pixel.LARGER_TEXT_SCALE
+import com.bradflaugher.pokersi.ui.pixel.Mood
+import com.bradflaugher.pokersi.ui.pixel.formatChips
 import com.bradflaugher.pokersi.ui.pixel.PixelTheme
 import com.bradflaugher.pokersi.ui.pixel.PixelType
 import com.bradflaugher.pokersi.ui.pixel.rememberChiptuneSound
 import com.bradflaugher.pokersi.ui.screens.BodyText
 import com.bradflaugher.pokersi.ui.screens.ChoiceRow
 import com.bradflaugher.pokersi.ui.screens.ChooseTableScreen
+import com.bradflaugher.pokersi.ui.screens.ConfirmDialog
 import com.bradflaugher.pokersi.ui.screens.DebugConsole
 import com.bradflaugher.pokersi.debug.AiLog
 import com.bradflaugher.pokersi.ui.screens.HowToPlayScreen
@@ -70,6 +75,8 @@ import com.bradflaugher.pokersi.rateApp
 import com.bradflaugher.pokersi.sendFeedback
 import com.bradflaugher.pokersi.shareApp
 import androidx.compose.ui.platform.LocalContext
+import androidx.activity.compose.LocalActivity
+import com.bradflaugher.pokersi.game.TablePhase
 
 private object NoHaptics : HapticFeedback {
     override fun performHapticFeedback(hapticFeedbackType: HapticFeedbackType) = Unit
@@ -80,19 +87,27 @@ private object NoHaptics : HapticFeedback {
 fun PokerSiApp(vm: PokerViewModel) {
     val s = vm.settings
     val sound by s.sound.collectAsStateWithLifecycle()
+    val volume by s.volume.collectAsStateWithLifecycle()
+    val largerText by s.largerText.collectAsStateWithLifecycle()
+    val highContrast by s.highContrast.collectAsStateWithLifecycle()
     val haptics by s.haptics.collectAsStateWithLifecycle()
     val crt by s.crt.collectAsStateWithLifecycle()
     val sway by s.cardSway.collectAsStateWithLifecycle()
     val debug by s.debugConsole.collectAsStateWithLifecycle()
     val console by vm.console.collectAsStateWithLifecycle()
-    val player = rememberChiptuneSound(sound)
+    val player = rememberChiptuneSound(sound, volume.gain)
     val haptic = LocalHapticFeedback.current
     // Bots (and their model) don't play on while nobody is looking.
     LifecycleStartEffect(vm.controller) {
         vm.controller.setPaused(PauseReason.Background, false)
         onStopOrDispose { vm.controller.setPaused(PauseReason.Background, true) }
     }
-    PixelTheme(crtEnabled = crt, sound = player) {
+    PixelTheme(
+        palette = if (highContrast) PixelPalette.HighContrast else PixelPalette.Default,
+        crtEnabled = crt,
+        sound = player,
+        textScale = if (largerText) LARGER_TEXT_SCALE else 1f,
+    ) {
         CompositionLocalProvider(
             LocalHapticFeedback provides if (haptics) haptic else NoHaptics,
             LocalCardSway provides sway,
@@ -143,6 +158,10 @@ private fun TitleRoute(vm: PokerViewModel) {
     // The saved tour is read once per visit (and when one is saved or cleared).
     val tour = remember(saved) { if (saved) vm.runSaver.load() else null }
     val attract = remember(tour, daily, stats, label) { AttractLines.lines(TitleFacts(tour, daily, stats, label)) }
+    val confirmExit by vm.settings.confirmExit.collectAsStateWithLifecycle()
+    var exiting by rememberSaveable { mutableStateOf(false) }
+    var replacingTour by rememberSaveable { mutableStateOf(false) }
+    val activity = LocalActivity.current
     TitleScreen(
         brainLabel = label,
         hasSavedRun = saved,
@@ -150,7 +169,8 @@ private fun TitleRoute(vm: PokerViewModel) {
         attract = attract,
         callbacks = TitleCallbacks(
             onQuickGame = { vm.go(Screen.Picker) },
-            onRunMode = vm::newRun,
+            // NEW TOUR over a saved one would throw it away: ask first.
+            onRunMode = { if (saved) replacingTour = true else vm.newRun() },
             onContinue = vm::continueRun,
             onDaily = vm::dailyRun,
             onModels = { vm.go(Screen.Models) },
@@ -159,6 +179,31 @@ private fun TitleRoute(vm: PokerViewModel) {
             onStats = { vm.go(Screen.Stats) },
         ),
     )
+    // Back at the bottom of the stack leaves the app: SETTINGS > CONFIRM EXIT asks first.
+    BackHandler(enabled = confirmExit) { exiting = true }
+    if (exiting) {
+        ConfirmDialog(
+            question = "LEAVE THE CABINET?",
+            message = "The cards will miss you. Your tour and records are saved for next time.",
+            confirmLabel = "EXIT",
+            stayLabel = "STAY",
+            onConfirm = { exiting = false; activity?.finish() },
+            onStay = { exiting = false },
+            mood = Mood.Sad,
+        )
+    }
+    if (replacingTour && saved) {
+        ConfirmDialog(
+            question = "START A NEW TOUR?",
+            message = tour?.let { "Your saved tour (table ${it.level}, ${formatChips(it.bankroll)} chips) is thrown away." }
+                ?: "Your saved tour is thrown away.",
+            confirmLabel = "NEW TOUR",
+            stayLabel = "KEEP MY TOUR",
+            onConfirm = { replacingTour = false; vm.newRun() },
+            onStay = { replacingTour = false },
+        )
+    }
+    // Composed last, so Back dismisses the tips before anything under them.
     if (tips) TipsOverlay(onDismiss = vm::dismissTips)
 }
 
@@ -190,6 +235,10 @@ private fun SettingsRoute(vm: PokerViewModel) {
         speed = s.speed.collectAsStateWithLifecycle().value,
         fastFold = s.fastFold.collectAsStateWithLifecycle().value,
         tableTalk = s.tableTalk.collectAsStateWithLifecycle().value,
+        volume = s.volume.collectAsStateWithLifecycle().value,
+        confirmExit = s.confirmExit.collectAsStateWithLifecycle().value,
+        largerText = s.largerText.collectAsStateWithLifecycle().value,
+        highContrast = s.highContrast.collectAsStateWithLifecycle().value,
         hasSavedRun = vm.runSaver.saved.collectAsStateWithLifecycle().value,
         version = BuildConfig.VERSION_NAME,
     )
@@ -205,6 +254,10 @@ private fun SettingsRoute(vm: PokerViewModel) {
             onSpeed = s::setSpeed,
             onFastFold = s::setFastFold,
             onTableTalk = s::setTableTalk,
+            onVolume = s::setVolume,
+            onConfirmExit = s::setConfirmExit,
+            onLargerText = s::setLargerText,
+            onHighContrast = s::setHighContrast,
             onResetRun = vm::resetRun,
             onShowTips = vm::showTips,
             onShare = context::shareApp,
@@ -253,6 +306,7 @@ private fun TableRoute(vm: PokerViewModel, run: RunUiState?) {
     val table by c.table.collectAsStateWithLifecycle()
     val speed by vm.settings.speed.collectAsStateWithLifecycle()
     var menu by rememberSaveable { mutableStateOf(false) }
+    var quitting by rememberSaveable { mutableStateOf(false) }
     // The menu really pauses the table: no bot acts behind it.
     DisposableEffect(c, menu) {
         c.setPaused(PauseReason.Menu, menu)
@@ -275,13 +329,27 @@ private fun TableRoute(vm: PokerViewModel, run: RunUiState?) {
             ),
             run = run,
         )
-        if (menu) {
+        // A tour is saved as it goes; a quick table's chips are not, so quitting one asks first
+        // (unless it is already over: busted, or every opponent broke).
+        val losesChips = run == null && table.phase != TablePhase.Busted && table.phase != TablePhase.TableWon
+        if (menu && !quitting) {
             TableMenu(
                 speed = speed,
                 onSpeed = vm.settings::setSpeed,
                 onResume = { menu = false },
-                onQuit = { menu = false; vm.toTitle() },
+                onQuit = { if (losesChips) quitting = true else { menu = false; vm.toTitle() } },
                 inRun = run != null,
+            )
+        }
+        if (menu && quitting) {
+            // Still paused (the menu is open underneath): KEEP PLAYING goes back to it.
+            ConfirmDialog(
+                question = "QUIT THIS TABLE?",
+                message = "Your chips at this table are lost.",
+                confirmLabel = "QUIT",
+                stayLabel = "KEEP PLAYING",
+                onConfirm = { quitting = false; menu = false; vm.toTitle() },
+                onStay = { quitting = false },
             )
         }
     }

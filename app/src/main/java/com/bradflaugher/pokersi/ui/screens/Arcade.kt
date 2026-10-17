@@ -182,6 +182,8 @@ fun <T> ChoiceRow(
     label: (T) -> String,
     onSelect: (T) -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    sound: Sfx? = Sfx.Blip,
 ) {
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         options.forEach { o ->
@@ -190,7 +192,9 @@ fun <T> ChoiceRow(
                 { onSelect(o) },
                 Modifier.weight(1f).height(48.dp),
                 variant = if (o == selected) PixelButtonVariant.Bet else PixelButtonVariant.Gray,
+                enabled = enabled,
                 textStyle = PixelType.Small,
+                sound = sound,
             )
         }
     }

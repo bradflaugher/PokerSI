@@ -143,6 +143,8 @@ fun PayTable(
                         .drawBehind { if (hot) notchedRect(0, 0, size.width.toInt(), size.height.toInt(), unit, 1, if (on) p.suitRed else p.redDark) }
                         .padding(horizontal = with(density) { (unit * 2).toDp() }, vertical = with(density) { unit.toDp() }),
                     verticalAlignment = Alignment.CenterVertically,
+                    // Never touching, even with LARGER TEXT: a long name wraps instead.
+                    horizontalArrangement = Arrangement.spacedBy(with(density) { (unit * 4).toDp() }),
                 ) {
                     val color = if (hot) p.white else p.yellow
                     PixelText(row.name, Modifier.weight(1f), style = PixelType.LabelBold, color = color)

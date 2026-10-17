@@ -42,6 +42,19 @@ data class FeltColors(val deep: Color, val dark: Color, val mid: Color, val ligh
             lamp = Color(0xFF136346),
         )
     }
+
+    /**
+     * High contrast felt: every tone pulled most of the way to [dark], so
+     * the cloth reads as one deep green behind text, with only a hint of
+     * lamp and nap.
+     */
+    fun quiet(): FeltColors = FeltColors(
+        deep = lerp(deep, dark, 0.5f),
+        dark = dark,
+        mid = lerp(mid, dark, 0.7f),
+        light = lerp(light, dark, 0.7f),
+        lamp = lerp(lamp, dark, 0.7f),
+    )
 }
 
 /**
@@ -51,6 +64,8 @@ data class FeltColors(val deep: Color, val dark: Color, val mid: Color, val ligh
  * gradient shows the cloth's diagonal nap) and drawn at chrome-pixel resolution with
  * no smoothing. It's rendered once per size and cached, so it costs nothing
  * per frame.
+ *
+ * With a high contrast palette the felt is [FeltColors.quiet].
  *
  * @param pixelSize size of one felt pixel; defaults to 2 chrome pixels.
  */
@@ -62,12 +77,13 @@ fun FeltBackground(
     content: @Composable () -> Unit = {},
 ) {
     val unit = LocalPixelUnit.current
+    val felt = if (LocalPixelPalette.current.highContrast) colors.quiet() else colors
     Box(
         modifier.drawWithCache {
             val block = max(1f, pixelSize?.toPx()?.let { floor(it) } ?: (unit * 2f))
             val w = ceil(size.width / block).toInt().coerceAtLeast(1)
             val h = ceil(size.height / block).toInt().coerceAtLeast(1)
-            val image = FeltArt.render(w, h, colors)
+            val image = FeltArt.render(w, h, felt)
             onDrawBehind { drawPixelArt(image, IntOffset.Zero, block.toInt()) }
         },
     ) { content() }

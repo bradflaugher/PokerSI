@@ -9,6 +9,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+/** SETTINGS > VOLUME: how loud the chiptune plays, as a gain on the synth. HIGH is full volume. */
+enum class SoundVolume(val gain: Float, val label: String) {
+    LOW(0.3f, "LOW"),
+    MED(0.6f, "MED"),
+    HIGH(1f, "HIGH"),
+}
+
 /** Player preferences, persisted in [prefs] and observable as StateFlows. */
 class Settings(private val prefs: SharedPreferences) {
     private val _sound = MutableStateFlow(prefs.getBoolean(KEY_SOUND, true))
@@ -18,8 +25,14 @@ class Settings(private val prefs: SharedPreferences) {
     private val _debugConsole = MutableStateFlow(prefs.getBoolean(KEY_DEBUG_CONSOLE, false))
     private val _fastFold = MutableStateFlow(prefs.getBoolean(KEY_FAST_FOLD, true))
     private val _tableTalk = MutableStateFlow(prefs.getBoolean(KEY_TABLE_TALK, false))
+    private val _confirmExit = MutableStateFlow(prefs.getBoolean(KEY_CONFIRM_EXIT, true))
+    private val _largerText = MutableStateFlow(prefs.getBoolean(KEY_LARGER_TEXT, false))
+    private val _highContrast = MutableStateFlow(prefs.getBoolean(KEY_HIGH_CONTRAST, false))
     private val _speed = MutableStateFlow(
         prefs.getString(KEY_SPEED, null)?.let { s -> GameSpeed.entries.firstOrNull { it.name == s } } ?: GameSpeed.NORMAL,
+    )
+    private val _volume = MutableStateFlow(
+        prefs.getString(KEY_VOLUME, null)?.let { s -> SoundVolume.entries.firstOrNull { it.name == s } } ?: SoundVolume.HIGH,
     )
 
     val sound: StateFlow<Boolean> = _sound.asStateFlow()
@@ -40,6 +53,18 @@ class Settings(private val prefs: SharedPreferences) {
      */
     val tableTalk: StateFlow<Boolean> = _tableTalk.asStateFlow()
 
+    /** SETTINGS > VOLUME: LOW, MED or HIGH (full, the default). SOUND switches it all off. */
+    val volume: StateFlow<SoundVolume> = _volume.asStateFlow()
+
+    /** SETTINGS > CONFIRM EXIT: Back on the title screen asks before leaving the app. On by default. */
+    val confirmExit: StateFlow<Boolean> = _confirmExit.asStateFlow()
+
+    /** SETTINGS > LARGER TEXT: every screen's text a size up, on top of the system font size. Off by default. */
+    val largerText: StateFlow<Boolean> = _largerText.asStateFlow()
+
+    /** SETTINGS > HIGH CONTRAST: brighter secondary text and outlines, quieter felt and glass. Off by default. */
+    val highContrast: StateFlow<Boolean> = _highContrast.asStateFlow()
+
     fun setSound(on: Boolean) = put(KEY_SOUND, on, _sound)
     fun setHaptics(on: Boolean) = put(KEY_HAPTICS, on, _haptics)
     fun setCrt(on: Boolean) = put(KEY_CRT, on, _crt)
@@ -47,6 +72,14 @@ class Settings(private val prefs: SharedPreferences) {
     fun setDebugConsole(on: Boolean) = put(KEY_DEBUG_CONSOLE, on, _debugConsole)
     fun setFastFold(on: Boolean) = put(KEY_FAST_FOLD, on, _fastFold)
     fun setTableTalk(on: Boolean) = put(KEY_TABLE_TALK, on, _tableTalk)
+    fun setConfirmExit(on: Boolean) = put(KEY_CONFIRM_EXIT, on, _confirmExit)
+    fun setLargerText(on: Boolean) = put(KEY_LARGER_TEXT, on, _largerText)
+    fun setHighContrast(on: Boolean) = put(KEY_HIGH_CONTRAST, on, _highContrast)
+
+    fun setVolume(volume: SoundVolume) {
+        _volume.value = volume
+        prefs.edit { putString(KEY_VOLUME, volume.name) }
+    }
 
     fun setSpeed(speed: GameSpeed) {
         _speed.value = speed
@@ -67,6 +100,10 @@ class Settings(private val prefs: SharedPreferences) {
         const val KEY_SPEED = "speed"
         const val KEY_FAST_FOLD = "fast_fold"
         const val KEY_TABLE_TALK = "table_talk"
+        const val KEY_VOLUME = "volume"
+        const val KEY_CONFIRM_EXIT = "confirm_exit"
+        const val KEY_LARGER_TEXT = "larger_text"
+        const val KEY_HIGH_CONTRAST = "high_contrast"
     }
 }
 

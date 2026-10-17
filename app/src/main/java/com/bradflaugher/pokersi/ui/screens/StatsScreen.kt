@@ -57,7 +57,7 @@ import com.bradflaugher.pokersi.ui.pixel.PixelType
  * The cabinet's records: lifetime hands, wins and win rate on LED counters,
  * the best hand ever as pixel cards, the pay-table of records, the Hold'em
  * starting-hand chart ([HandChart]) and the Poker Tour bests. RESET STATS
- * asks first.
+ * asks first ([ConfirmDialog]).
  */
 @Composable
 fun StatsScreen(stats: LifetimeStats, onReset: () -> Unit, onBack: () -> Unit, modifier: Modifier = Modifier) {
@@ -99,16 +99,7 @@ fun StatsScreen(stats: LifetimeStats, onReset: () -> Unit, onBack: () -> Unit, m
                     title = "POKER TOUR",
                 )
                 PixelPanel(Modifier.readable(), title = "RESET", style = PanelStyle.Dark, paddingUnits = 2) {
-                    if (!confirmReset) {
-                        SmallButton("RESET STATS", { confirmReset = true }, Modifier.fillMaxWidth(), variant = PixelButtonVariant.Deal)
-                    } else {
-                        BodyText("Wipe every record? Your best hand too?", color = p.yellow, small = true)
-                        VGap(8.dp)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            SmallButton("KEEP THEM", { confirmReset = false }, Modifier.weight(1f))
-                            SmallButton("YES, RESET", { confirmReset = false; onReset() }, Modifier.weight(1f), variant = PixelButtonVariant.Deal)
-                        }
-                    }
+                    SmallButton("RESET STATS", { confirmReset = true }, Modifier.fillMaxWidth(), variant = PixelButtonVariant.Deal)
                 }
                 PixelText(
                     "RECORDS STAY ON THIS PHONE.",
@@ -117,6 +108,16 @@ fun StatsScreen(stats: LifetimeStats, onReset: () -> Unit, onBack: () -> Unit, m
                 VGap(12.dp)
             }
         }
+    }
+    if (confirmReset) {
+        ConfirmDialog(
+            question = "RESET YOUR STATS?",
+            message = "Every record is wiped: hands, wins, biggest pot, the hand chart and your best hand ever.",
+            confirmLabel = "RESET",
+            stayLabel = "KEEP THEM",
+            onConfirm = { confirmReset = false; onReset() },
+            onStay = { confirmReset = false },
+        )
     }
 }
 

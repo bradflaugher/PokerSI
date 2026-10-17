@@ -24,7 +24,9 @@ import kotlin.math.max
  * per size (a 1 x period scanline tile repeated by an image shader, and two
  * gradients), so drawing it costs three rect fills per frame.
  *
- * Off when [enabled] is false or [LocalCrtEnabled] is false.
+ * Off when [enabled] is false or [LocalCrtEnabled] is false. A high
+ * contrast palette ([PixelPalette.highContrast]) keeps the glass but
+ * thins it: faint scanlines, a light vignette, no fringe.
  */
 @Composable
 fun CrtOverlay(
@@ -35,6 +37,9 @@ fun CrtOverlay(
     content: @Composable BoxScope.() -> Unit,
 ) {
     val unit = LocalPixelUnit.current
+    val quiet = LocalPixelPalette.current.highContrast
+    val scanlineAlpha = if (quiet) scanlineAlpha * 0.4f else scanlineAlpha
+    val vignetteAlpha = if (quiet) vignetteAlpha * 0.5f else vignetteAlpha
     Box(
         modifier.drawWithCache {
             if (!enabled) return@drawWithCache onDrawWithContent { drawContent() }
@@ -65,7 +70,7 @@ fun CrtOverlay(
             )
             onDrawWithContent {
                 drawContent()
-                drawRect(fringe, blendMode = BlendMode.Screen)
+                if (!quiet) drawRect(fringe, blendMode = BlendMode.Screen)
                 drawRect(scan)
                 drawRect(vignette)
             }
