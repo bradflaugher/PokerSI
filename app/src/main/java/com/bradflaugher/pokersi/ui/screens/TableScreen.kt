@@ -17,11 +17,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,6 +76,7 @@ import com.bradflaugher.pokersi.engine.Decision
 import com.bradflaugher.pokersi.engine.hasBoard
 import com.bradflaugher.pokersi.engine.isDraw
 import com.bradflaugher.pokersi.game.CardUi
+import com.bradflaugher.pokersi.game.Coach
 import com.bradflaugher.pokersi.game.RunUiState
 import com.bradflaugher.pokersi.game.SeatUi
 import com.bradflaugher.pokersi.game.TablePhase
@@ -108,6 +111,8 @@ class TableCallbacks(
     val onPlayAgain: () -> Unit = {},
     val onMenu: () -> Unit = {},
     val onPause: () -> Unit = {},
+    /** The raise panel opened (true) or closed: for the one-time raise hint. */
+    val onRaising: (Boolean) -> Unit = {},
     /** Keep the header's top right free for the debug console's "~" ([ConsoleToggle]); the setting is on. */
     val consoleSlot: Boolean = false,
 )
@@ -165,6 +170,8 @@ fun TableScreen(
     callbacks: TableCallbacks,
     modifier: Modifier = Modifier,
     run: RunUiState? = null,
+    /** The one-time hint to show ([CoachLayer]), if any. */
+    coach: Coach? = null,
 ) {
     ArcadeScreen(modifier, felt = FeltColors.Table) {
         BoxWithConstraints(Modifier.fillMaxSize().shake(state.celebrate.takeIf { it > 0 }, strength = 10.dp)) {
@@ -182,9 +189,9 @@ fun TableScreen(
                 if (m.wide) {
                     Row(Modifier.fillMaxSize().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Column(Modifier.weight(1.4f).fillMaxHeight()) {
-                            TableHeader(state, callbacks, consoleSlot = false)
+                            TableHeader(state, callbacks, consoleSlot = false, track)
                             if (run != null) RunHud(run, Modifier.padding(bottom = 6.dp))
-                            OpponentsArea(state, m, track)
+                            OpponentsArea(state, m, track, track(SPOT_OPPONENTS))
                             Spacer(Modifier.weight(1f))
                             BoardArea(state, m, roomForOdds, track(SPOT_BOARD))
                             Spacer(Modifier.weight(1f))
@@ -199,9 +206,9 @@ fun TableScreen(
                     }
                 } else {
                     Column(Modifier.fillMaxSize().padding(horizontal = 8.dp).padding(bottom = 6.dp)) {
-                        TableHeader(state, callbacks, consoleSlot = callbacks.consoleSlot)
+                        TableHeader(state, callbacks, consoleSlot = callbacks.consoleSlot, track)
                         if (run != null) RunHud(run, Modifier.padding(bottom = 6.dp))
-                        OpponentsArea(state, m, track)
+                        OpponentsArea(state, m, track, track(SPOT_OPPONENTS))
                         Spacer(Modifier.weight(1f))
                         BoardArea(state, m, roomForOdds, track(SPOT_BOARD))
                         Spacer(Modifier.weight(1.3f))
@@ -212,22 +219,25 @@ fun TableScreen(
                 TableAnnouncer(state)
                 BubbleLayer(state, spots, compact = !m.big, wide = m.wide)
                 BannerLayer(state, screenWidth, spots, m.wide)
+                CoachLayer(coach, spots, m.wide)
                 ConfettiBurst(state.celebrate.takeIf { it > 0 && state.banner?.humanWon == true }, Modifier.fillMaxSize().zIndex(5f))
             }
         }
     }
 }
 
-private const val SPOT_BOARD = -1
-private const val SPOT_HUMAN = -2
+internal const val SPOT_BOARD = -1
+internal const val SPOT_HUMAN = -2
+internal const val SPOT_PAUSE = -3
+internal const val SPOT_OPPONENTS = -4
 
 // ---------------------------------------------------------------- header
 
 @Composable
-private fun TableHeader(state: TableUiState, callbacks: TableCallbacks, consoleSlot: Boolean) {
+private fun TableHeader(state: TableUiState, callbacks: TableCallbacks, consoleSlot: Boolean, track: (Int) -> Modifier = { Modifier }) {
     val p = PixelTheme.palette
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        PixelButton("PAUSE", callbacks.onPause, Modifier.size(48.dp, 48.dp).semantics { contentDescription = "Pause" }, variant = PixelButtonVariant.Gray, icon = PixelGlyph.Pause)
+        PixelButton("PAUSE", callbacks.onPause, track(SPOT_PAUSE).size(48.dp, 48.dp).semantics { contentDescription = "Pause" }, variant = PixelButtonVariant.Gray, icon = PixelGlyph.Pause)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             PixelText(state.variant.displayName.uppercase(), style = PixelType.Small, color = p.yellow, maxLines = 1)
             val blinds = state.blinds
@@ -246,9 +256,9 @@ private fun TableHeader(state: TableUiState, callbacks: TableCallbacks, consoleS
 // ---------------------------------------------------------------- opponents
 
 @Composable
-private fun OpponentsArea(state: TableUiState, m: TableMetrics, track: (Int) -> Modifier) {
+private fun OpponentsArea(state: TableUiState, m: TableMetrics, track: (Int) -> Modifier, modifier: Modifier = Modifier) {
     val opponents = state.opponents
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         opponents.chunked(m.seatsPerRow).forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally)) {
                 row.forEach { seat ->
@@ -722,6 +732,11 @@ private fun BettingBar(state: TableUiState, callbacks: TableCallbacks) {
     val min = legal.minRaiseTo
     val max = legal.maxRaiseTo
     var amount by remember(state.handNumber, state.street, legal) { mutableStateOf(min ?: 0) }
+    val onRaising by rememberUpdatedState(callbacks.onRaising)
+    DisposableEffect(raising) {
+        onRaising(raising)
+        onDispose { if (raising) onRaising(false) }
+    }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (raising && min != null && max != null) {
             RaisePanel(turn, amount, { amount = it.coerceIn(min, max) }, onCancel = { raising = false }, onConfirm = {

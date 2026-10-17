@@ -62,7 +62,10 @@ import com.bradflaugher.pokersi.ui.screens.TableScreen
 import com.bradflaugher.pokersi.ui.screens.TitleCallbacks
 import com.bradflaugher.pokersi.ui.screens.TitleScreen
 import com.bradflaugher.pokersi.ui.screens.StatsScreen
-import com.bradflaugher.pokersi.ui.screens.TipsOverlay
+import com.bradflaugher.pokersi.ui.screens.TourOverlay
+import com.bradflaugher.pokersi.ui.screens.onAnyTouch
+import com.bradflaugher.pokersi.ui.screens.rememberCoach
+import com.bradflaugher.pokersi.game.CoachMarks
 import com.bradflaugher.pokersi.BuildConfig
 import com.bradflaugher.pokersi.Links
 import com.bradflaugher.pokersi.openWeb
@@ -104,7 +107,7 @@ fun PokerSiApp(vm: PokerViewModel) {
                     Screen.Table -> TableRoute(vm, run = null)
                     Screen.Run -> RunRoute(vm)
                     Screen.Models -> ModelsScreen(onBack = { vm.back() }, consoleSlot = debug)
-                    Screen.HowTo -> HowToPlayScreen(onBack = { vm.back() })
+                    Screen.HowTo -> HowToPlayScreen(onBack = { vm.back() }, onTour = vm::openTour)
                     Screen.Settings -> SettingsRoute(vm)
                     Screen.Stats -> StatsScreen(
                         vm.stats.stats.collectAsStateWithLifecycle().value,
@@ -113,6 +116,8 @@ fun PokerSiApp(vm: PokerViewModel) {
                     )
                 }
                 BackHandler(enabled = vm.backStack.size > 1 && vm.backStack.last() !in setOf(Screen.Table, Screen.Run)) { vm.back() }
+                // The tour, over the title on first launch (or wherever TAKE THE TOUR was tapped).
+                if (vm.guide.tour.collectAsStateWithLifecycle().value) TourOverlay(onDismiss = vm::dismissTips)
                 if (debug) {
                     val entries by AiLog.entries.collectAsStateWithLifecycle()
                     DebugConsole(entries, console, onClose = vm::closeConsole, onClear = AiLog::clear)
@@ -138,7 +143,6 @@ private fun TitleRoute(vm: PokerViewModel) {
     val label by vm.brains.label.collectAsStateWithLifecycle()
     val saved by vm.runSaver.saved.collectAsStateWithLifecycle()
     val daily by vm.daily.result.collectAsStateWithLifecycle()
-    val tips by vm.tips.collectAsStateWithLifecycle()
     val stats by vm.stats.stats.collectAsStateWithLifecycle()
     // The saved tour is read once per visit (and when one is saved or cleared).
     val tour = remember(saved) { if (saved) vm.runSaver.load() else null }
@@ -159,7 +163,6 @@ private fun TitleRoute(vm: PokerViewModel) {
             onStats = { vm.go(Screen.Stats) },
         ),
     )
-    if (tips) TipsOverlay(onDismiss = vm::dismissTips)
 }
 
 @Composable
@@ -234,7 +237,13 @@ private fun RunRoute(vm: PokerViewModel) {
         }
         RunScreen.Choose -> {
             BackHandler { vm.toTitle() }
-            ChooseTableScreen(ui, onChoose = { c.chooseTable(it) }, onBack = vm::toTitle)
+            val coach = rememberCoach(
+                CoachMarks.forRun(ui.screen),
+                vm.guide.coachSeen.collectAsStateWithLifecycle().value,
+                enabled = vm.guide.coaching.collectAsStateWithLifecycle().value,
+                onShown = vm.guide::markCoachSeen,
+            )
+            ChooseTableScreen(ui, onChoose = { c.chooseTable(it) }, onBack = vm::toTitle, modifier = Modifier.onAnyTouch(coach::dismiss), coach = coach.showing)
         }
         RunScreen.Victory -> {
             BackHandler { c.continueEndless() }
@@ -253,6 +262,14 @@ private fun TableRoute(vm: PokerViewModel, run: RunUiState?) {
     val table by c.table.collectAsStateWithLifecycle()
     val speed by vm.settings.speed.collectAsStateWithLifecycle()
     var menu by rememberSaveable { mutableStateOf(false) }
+    var raising by remember { mutableStateOf(false) }
+    // One-time hints: one at a time, never while paused, gone at the next touch.
+    val coach = rememberCoach(
+        CoachMarks.forTable(table, raising),
+        vm.guide.coachSeen.collectAsStateWithLifecycle().value,
+        enabled = !menu && vm.guide.coaching.collectAsStateWithLifecycle().value,
+        onShown = vm.guide::markCoachSeen,
+    )
     // The menu really pauses the table: no bot acts behind it.
     DisposableEffect(c, menu) {
         c.setPaused(PauseReason.Menu, menu)
@@ -260,7 +277,7 @@ private fun TableRoute(vm: PokerViewModel, run: RunUiState?) {
     }
     KeepScreenOn()
     BackHandler { menu = !menu }
-    Box(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize().onAnyTouch(coach::dismiss)) {
         TableScreen(
             table,
             TableCallbacks(
@@ -271,9 +288,11 @@ private fun TableRoute(vm: PokerViewModel, run: RunUiState?) {
                 onPlayAgain = vm::newQuickTable,
                 onMenu = vm::toTitle,
                 onPause = { menu = true },
+                onRaising = { raising = it },
                 consoleSlot = vm.settings.debugConsole.collectAsStateWithLifecycle().value,
             ),
             run = run,
+            coach = coach.showing,
         )
         if (menu) {
             TableMenu(

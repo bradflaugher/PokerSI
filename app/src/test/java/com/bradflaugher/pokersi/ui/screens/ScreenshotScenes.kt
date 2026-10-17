@@ -16,6 +16,7 @@ import com.bradflaugher.pokersi.engine.SeatSetup
 import com.bradflaugher.pokersi.engine.Stakes
 import com.bradflaugher.pokersi.engine.hasBoard
 import com.bradflaugher.pokersi.engine.usesShortDeck
+import com.bradflaugher.pokersi.game.Coach
 import com.bradflaugher.pokersi.game.GameController
 import com.bradflaugher.pokersi.game.HumanTurn
 import com.bradflaugher.pokersi.game.OpponentProfile
@@ -344,14 +345,23 @@ object ScreenshotScenes {
                 }
             }
         },
-        Scene("tips") {
+    ) + TourSteps.indices.map { i ->
+        // The first-run tour, page by page, over the title screen.
+        Scene("tour_${i + 1}_" + listOf("table", "cards", "move", "game", "brains")[i]) {
             PixelTheme {
                 androidx.compose.foundation.layout.Box {
                     TitleScreen("HOUSE BOT", hasSavedRun = false, callbacks = TitleCallbacks())
-                    TipsOverlay(onDismiss = {})
+                    TourOverlay(onDismiss = {}, startStep = i)
                 }
             }
-        },
+        }
+    } + listOf(
+        Scene("table_coach") { PixelTheme { TableScreen(holdemMidHand(), TableCallbacks(), coach = Coach.YourTurn) } },
+        Scene("table_coach_hold") { PixelTheme { TableScreen(drawWithHolds(), TableCallbacks(), coach = Coach.Hold) } },
+        Scene("table_coach_pause") { PixelTheme { TableScreen(holdemMidHand().copy(humanTurn = null), TableCallbacks(), coach = Coach.Pause) } },
+        Scene("table_coach_showdown") { PixelTheme { TableScreen(showdownWin().copy(celebrate = 0), TableCallbacks(), coach = Coach.HandOver) } },
+        Scene("run_choose_coach") { PixelTheme { ChooseTableScreen(chooseTable(), {}, {}, coach = Coach.ChooseTable) } },
+        Scene("how_to_play_faq") { PixelTheme { HowToPlayScreen({}, openFaq = 1) } },
         Scene("settings") { PixelTheme { SettingsScreen(SettingsUi(hasSavedRun = true), SettingsCallbacks()) } },
         Scene("models") { PixelTheme { ModelsContent(ModelsScenes.scene(), ModelsScenes.noActions) } },
         Scene("table_console_closed") {

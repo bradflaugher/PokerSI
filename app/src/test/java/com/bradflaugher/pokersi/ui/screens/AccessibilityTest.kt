@@ -7,6 +7,8 @@ import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -57,6 +59,40 @@ class AccessibilityTest {
             }
             onNodeWithContentDescription("Queen of spades, held").assertExists()
             onNodeWithContentDescription("Four of clubs").assertExists()
+        }
+    }
+
+    @Test
+    fun tourIsReadableAndItsButtonsAreTall() {
+        registerComponentActivity()
+        runComposeUiTest {
+            setContent {
+                CompositionLocalProvider(LocalPixelRenderMode provides PixelRenderMode.Static) {
+                    PixelTheme { TourOverlay(onDismiss = {}) }
+                }
+            }
+            // The page is read in full (the bubble types out, so the header carries the words).
+            onNodeWithContentDescription("Step 1 of 5", substring = true).assertExists()
+            for (label in listOf("SKIP", "BACK", "NEXT")) {
+                onNode(hasText(label).and(hasClickAction())).assertHeightIsAtLeast(48.dp)
+            }
+            onNode(hasText("NEXT").and(hasClickAction())).performClick()
+            onNodeWithContentDescription("Step 2 of 5", substring = true).assertExists()
+        }
+    }
+
+    @Test
+    fun faqQuestionsAreTallButtons() {
+        registerComponentActivity()
+        runComposeUiTest {
+            setContent {
+                CompositionLocalProvider(LocalPixelRenderMode provides PixelRenderMode.Static) {
+                    PixelTheme { HowToPlayScreen({}, openFaq = 0) }
+                }
+            }
+            onNode(hasText(Faqs[0].question, substring = true).and(hasClickAction()), useUnmergedTree = false).assertHeightIsAtLeast(48.dp)
+            onNodeWithText(Faqs[0].answer).assertExists()
+            onNode(hasText("TAKE THE TOUR").and(hasClickAction())).assertHeightIsAtLeast(48.dp)
         }
     }
 
