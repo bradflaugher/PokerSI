@@ -37,7 +37,7 @@ class PokerViewModel(app: Application) : AndroidViewModel(app) {
     val daily = DailyRecord(prefs)
     val stats = Stats(prefs)
     val brains = AppServices.brains(app)
-    val controller = GameController(viewModelScope, brains, Pacing(), settings.speed, settings.fastFold, settings.tableTalk, runSaver = runSaver, recorder = stats)
+    val controller = GameController(viewModelScope, brains, Pacing(), settings.speed, settings.fastFold, settings.tableTalk, settings.handBlur, runSaver = runSaver, recorder = stats)
 
 
     /** The first-run tour and the one-time table hints. */

@@ -9,6 +9,7 @@ import com.bradflaugher.pokersi.engine.Decision
 import com.bradflaugher.pokersi.engine.DecisionContext
 import com.bradflaugher.pokersi.engine.GameVariant
 import com.bradflaugher.pokersi.engine.Hand
+import com.bradflaugher.pokersi.engine.HandBlur
 import com.bradflaugher.pokersi.engine.HouseBot
 import com.bradflaugher.pokersi.engine.Match
 import com.bradflaugher.pokersi.engine.PlayerAgent
@@ -151,6 +152,8 @@ class GameController(
     private val fastFold: StateFlow<Boolean> = MutableStateFlow(false),
     /** SETTINGS > TABLE TALK: when off, opponents say nothing (no bubbles, no catchphrases). */
     private val tableTalk: StateFlow<Boolean> = MutableStateFlow(true),
+    /** SETTINGS > HAND BLUR: words of table talk that give the speaker's hand away are blurred ([HandBlur]). */
+    private val handBlur: StateFlow<Boolean> = MutableStateFlow(false),
     private val compute: CoroutineDispatcher = Dispatchers.Default,
     private val runSaver: RunSaver? = null,
     /** Plays the human seat and skips every wait (tests, attract mode). */
@@ -705,8 +708,9 @@ class GameController(
         // hop back to the table's thread, as a child of this game so leaving cancels it.
         val game = currentCoroutineContext()[Job]
         val talks = tableTalk.value
+        val blur = blurFor(ctx)
         val onChatter: (String) -> Unit = { text ->
-            if (talks) scope.launch(game ?: Job()) { streamChatter(id, seat, text) }
+            if (talks) scope.launch(game ?: Job()) { streamChatter(id, seat, blur(text)) }
         }
         val reply = decideSafely(agents[seat], fallbacks[seat], ctx, onChatter)
         val elapsed = (System.nanoTime() - started) / 1_000_000
@@ -715,7 +719,12 @@ class GameController(
         val decision = reply.decision
         thinkingSeat = null
         streamingSeat = null
-        val say = reply.say?.takeIf { talks }?.let(::tidySay)
+        val raw = reply.say?.takeIf { talks }
+        val say = raw?.let(blur)?.let(::tidySay)
+        if (say != null && raw != null && HandBlur.blurred(say)) {
+            val name = ctx.seats.firstOrNull { it.seat == seat }?.name ?: "Seat $seat"
+            AiLog.add(AiLogKind.TABLE, name, { "hand blur: \"$say\"" }) { "said: \"$raw\"" }
+        }
         if (say != null) {
             setChatter(seat, say)
             talk.record(ctx.seats.firstOrNull { it.seat == seat }?.name ?: "Seat $seat", say)
@@ -724,6 +733,17 @@ class GameController(
             removeChatter(seat)
         }
         h.apply(seat, decision, say)
+    }
+
+    /**
+     * What [ctx]'s seat says, as the table hears it: with HAND BLUR on, the
+     * words that give its hand away blurred ([HandBlur]); always without a
+     * model's own censor marks.
+     */
+    private fun blurFor(ctx: DecisionContext): (String) -> String {
+        if (!handBlur.value) return HandBlur::clean
+        val faceUp = ctx.seats.firstOrNull { it.seat == ctx.seat }?.cards?.filterNotNull().orEmpty()
+        return { HandBlur.blur(it, ctx.holeCards, faceUp, ctx.madeHand) }
     }
 
     /**

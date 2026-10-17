@@ -59,6 +59,7 @@ import com.bradflaugher.pokersi.ui.pixel.cardDescription
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.toSize
+import com.bradflaugher.pokersi.engine.HandBlur
 import com.bradflaugher.pokersi.engine.HandCategory
 import com.bradflaugher.pokersi.ui.pixel.FeltColors
 import com.bradflaugher.pokersi.ui.pixel.PayRow
@@ -362,7 +363,7 @@ internal fun seatDescription(seat: SeatUi): String = buildList {
     if (shown.isNotEmpty()) add("shows " + shown.joinToString(", ") { cardDescription(it, faceUp = true) })
     seat.shownHand?.let { add(it) }
     if (seat.isWinner) add("winner")
-    seat.chatter?.takeIf { it.isNotBlank() && !seat.chatterStreaming }?.let { add("says: $it") }
+    seat.chatter?.takeIf { it.isNotBlank() && !seat.chatterStreaming }?.let { add("says: ${HandBlur.spoken(it)}") }
 }.joinToString(", ")
 
 /**

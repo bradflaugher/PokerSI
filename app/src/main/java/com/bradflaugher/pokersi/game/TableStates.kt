@@ -3,6 +3,7 @@ package com.bradflaugher.pokersi.game
 import com.bradflaugher.pokersi.engine.BlindLevel
 import com.bradflaugher.pokersi.engine.Card
 import com.bradflaugher.pokersi.engine.Hand
+import com.bradflaugher.pokersi.engine.HandBlur
 import com.bradflaugher.pokersi.engine.HandEvaluator
 
 /** Everything the table shows besides the hand itself: profiles, table talk, who is thinking. */
@@ -87,7 +88,8 @@ object TableStates {
             blinds = BlindLevel(hand.stakes.smallBlind, hand.stakes.bigBlind, hand.stakes.ante),
             madeHand = made,
             madeCategory = category,
-            log = hand.history.takeLast(4).map(::secondPerson),
+            // A blurred line reads "bleep" in plain text (the log, TalkBack); only bubbles draw bars.
+            log = hand.history.takeLast(4).map { HandBlur.spoken(secondPerson(it)) },
             celebrate = celebrate,
             brainLabel = extras.brainLabel,
         )
