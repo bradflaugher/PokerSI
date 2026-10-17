@@ -44,9 +44,11 @@ object HandBlur {
         /** False for Omaha, where every hand uses two hole cards: the board is nobody's hand by itself. */
         boardPlays: Boolean = true,
     ): String {
-        var out = clean(line)
+        val original = clean(line)
         val hidden = holeCards.filter { it !in faceUp }
-        if (hidden.isEmpty()) return out
+        if (hidden.isEmpty()) return original
+        // Matched with curly apostrophes as straight ones ("I’m holding"), shown as written.
+        var out = original.replace('’', '\'')
         val public = (if (boardPlays) board else emptyList()) + faceUp
         // Five or more public cards are a hand; fewer, a boardless variant still names them ("Pair of Kings").
         val publicHand = when {
@@ -64,7 +66,8 @@ object HandBlur {
             }
         }
         if (streaming) out = unfinished(hidden).replace(out, "").trimEnd()
-        return out
+        // Every blur keeps the length, so the original apostrophes go back where they were.
+        return String(CharArray(out.length) { i -> if (out[i] == '\'' && original[i] == '’') '’' else out[i] })
     }
 
     /** The start of a giveaway at the end of a line still being written: "seven", "seven of", "three of a". */
@@ -98,6 +101,8 @@ object HandBlur {
             // Pointing at the public card is fair: "that king on the board", "kings showing".
             val guard = if (rank in publicRanks) "(?! on (?:the )?board| showing| up)" else ""
             said.forEach { words += "$it$guard" }
+            // "Nine high", "K-high": the seat's high card.
+            words += "(?:${rank.label.lowercase()}|${Regex.escape(rank.face)}|${rank.letter})[- ]high$guard"
         }
         val pocketPairs = hidden.groupBy { it.rank }.filterValues { it.size >= 2 }.keys
         pocketPairs.forEach { rank -> nicknames[rank]?.let(words::add) }
@@ -147,6 +152,11 @@ object HandBlur {
 
     /** The words for a made hand, by what its description contains (longest first wins nothing: all are added). */
     private val categories = listOf(
+        // Draws first, so the whole phrase goes, not just "straight" or "flush" in it.
+        "open-ended" to "open-ended straight draws?|open-ended|open-ender|oesd",
+        "straight draw" to "straight draws?|gut-?shot",
+        "flush draw" to "flush draws?",
+        "three to a flush" to "three to a flush",
         "pair" to "pairs?|pocket pairs?|pockets?",
         "pocket" to "pockets?|pocket pairs?",
         "two pair" to "two pairs?",
