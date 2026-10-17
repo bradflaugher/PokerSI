@@ -1,6 +1,7 @@
 package com.bradflaugher.pokersi.ui.pixel
 
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -77,6 +78,9 @@ fun TextStyle.hardShadow(color: Color = LocalPixelPalette.current.ink, units: In
 
 /**
  * Pixel text with a hard drop shadow. [shadowUnits] 0 disables the shadow.
+ * One-line text ([maxLines] 1) shrinks to fit its width rather than clip, so
+ * a name or label sized for its slot survives a big system font or
+ * SETTINGS > LARGER TEXT.
  */
 @Composable
 fun PixelText(
@@ -95,5 +99,9 @@ fun PixelText(
     if (fontSize != TextUnit.Unspecified) s = s.copy(fontSize = fontSize)
     if (textAlign != null) s = s.copy(textAlign = textAlign)
     if (shadowUnits > 0) s = s.hardShadow(shadowColor, shadowUnits)
-    BasicText(text, modifier, style = s, maxLines = maxLines, overflow = overflow)
+    val size = s.fontSize
+    val fit = if (maxLines == 1 && size.isSp) {
+        TextAutoSize.StepBased(minFontSize = (size.value * 0.6f).coerceAtLeast(5f).sp, maxFontSize = size, stepSize = 0.5.sp)
+    } else null
+    BasicText(text, modifier, style = s, maxLines = maxLines, overflow = overflow, autoSize = fit)
 }

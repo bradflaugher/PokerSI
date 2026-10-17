@@ -1,6 +1,9 @@
 package com.bradflaugher.pokersi.ui.pixel
 
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -45,5 +48,21 @@ class PixelDesignTest {
         "A23456789TJQK".forEach { PixelFont.Rank.glyph(it) }
         com.bradflaugher.pokersi.engine.Suit.entries.forEach { SuitArt.small(it); SuitArt.pip(it); SuitArt.big(it) }
         assertEquals(PixelFont.Regular.measure("HELD"), 4 * 5 + 3)
+    }
+
+    @Test
+    fun highContrastLiftsSecondaryTextOnTheFelt() {
+        // WCAG contrast ratio of gray text on the lobby felt and on a quiet (high contrast) felt.
+        fun ratio(a: Color, b: Color): Float {
+            val (hi, lo) = listOf(a.luminance(), b.luminance()).sortedDescending()
+            return (hi + 0.05f) / (lo + 0.05f)
+        }
+        val felt = FeltColors.Lobby
+        val normal = ratio(PixelPalette.Default.gray, felt.lamp)
+        val high = ratio(PixelPalette.HighContrast.gray, felt.quiet().lamp)
+        assertTrue("high contrast gray reads at $high:1", high >= 7f)
+        assertTrue(high > normal)
+        assertTrue(PixelPalette.HighContrast.highContrast)
+        assertFalse(PixelPalette.Default.highContrast)
     }
 }
