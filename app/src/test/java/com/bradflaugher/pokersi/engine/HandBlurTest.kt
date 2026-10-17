@@ -23,6 +23,12 @@ class HandBlurTest {
         assertEquals("Howdy, holding the of", left(blur("Howdy, holding the K♥ of")).trim())
         assertEquals("The are coming home", left(blur("The cowboys are coming home")))
         assertEquals("I have", left(blur("I have T♥", hole = cards("Th", "2c"), made = null)))
+        assertEquals("I have", left(blur("I have kh")))
+        assertEquals("Look:", left(blur("Look: k♥ ks", made = null)))
+        // A number rank is only blurred when owned.
+        assertEquals("I have a", left(blur("I have a seven", hole = cards("7h", "2c"), made = null)))
+        assertEquals("Holding partner", left(blur("Holding 7, partner", hole = cards("7h", "2c"), made = null)))
+        assertEquals("Seven chips? I raise.", blur("Seven chips? I raise.", hole = cards("7h", "2c"), made = null))
         assertEquals("I have the", left(blur("I have the king of hearts")))
         assertEquals("Two partner", left(blur("Two Ks, partner", made = null)))
     }
@@ -70,6 +76,9 @@ class HandBlurTest {
         // Short Deck: A-6-7-8-9 on the board is a straight there, and public.
         val shortBoard = cards("As", "6d", "7c", "8h", "9s")
         assertEquals("Straight on the board!", HandBlur.blur("Straight on the board!", cards("Kh", "2c"), madeHand = "Straight, Nine high", board = shortBoard, shortDeck = true))
+        // Omaha: a five-heart board is nobody's flush; claiming one is private.
+        val hearts = cards("2h", "5h", "8h", "Jh", "Kh")
+        assertEquals("I have a", left(HandBlur.blur("I have a flush", cards("Ah", "Qh", "3c", "4d"), madeHand = "Flush, Ace high", board = hearts, boardPlays = false)))
         // Two pair with a hole card in it is still the seat's own news.
         assertEquals("I've got", left(blur("I've got two pair", hole = cards("Kh", "Kc"), made = "Two Pair, Kings and Nines", board = board)))
     }
@@ -78,8 +87,9 @@ class HandBlurTest {
     fun aStreamingLineHoldsBackWhatMayYetGiveTheHandAway() {
         val sevens = cards("7h", "2c")
         fun stream(line: String) = HandBlur.blur(line, sevens, emptyList(), "Seven high", streaming = true)
-        assertEquals("I hold", stream("I hold seven"))
-        assertEquals("I hold", stream("I hold seven of"))
+        assertEquals("Lucky", stream("Lucky seven"))
+        assertEquals("Lucky", stream("Lucky seven of"))
+        assertEquals("I hold", left(stream("I hold seven")))
         assertEquals("I hold", left(stream("I hold seven of hearts")))
         assertEquals("Lucky seven, partner", stream("Lucky seven, partner"))
         assertEquals("I have", stream("I have three of a"))

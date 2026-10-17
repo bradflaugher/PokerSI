@@ -17,6 +17,7 @@ import com.bradflaugher.pokersi.engine.TableTalk
 import com.bradflaugher.pokersi.debug.AiLog
 import com.bradflaugher.pokersi.debug.AiLogKind
 import com.bradflaugher.pokersi.engine.isDraw
+import com.bradflaugher.pokersi.engine.mustUseTwoHoleCards
 import com.bradflaugher.pokersi.engine.usesShortDeck
 import com.bradflaugher.pokersi.run.HandOutcome
 import com.bradflaugher.pokersi.run.RunPhase
@@ -749,7 +750,7 @@ class GameController(
         // The seat's own view shows all its cards; the snapshot knows which are face up (stud).
         val mine = h.snapshot(seat).seats[seat]
         val faceUp = mine.cards.filterIndexed { k, _ -> mine.faceUp.getOrElse(k) { false } }.filterNotNull()
-        return { HandBlur.blur(it, ctx.holeCards, faceUp, ctx.madeHand, streaming, ctx.board, ctx.variant.usesShortDeck) }
+        return { HandBlur.blur(it, ctx.holeCards, faceUp, ctx.madeHand, streaming, ctx.board, ctx.variant.usesShortDeck, !ctx.variant.mustUseTwoHoleCards) }
     }
 
     /**

@@ -41,11 +41,13 @@ object HandBlur {
         board: List<Card> = emptyList(),
         /** Short Deck: [board]'s own hand ranks as that variant does (A-6-7-8-9 is a straight). */
         shortDeck: Boolean = false,
+        /** False for Omaha, where every hand uses two hole cards: the board is nobody's hand by itself. */
+        boardPlays: Boolean = true,
     ): String {
         var out = clean(line)
         val hidden = holeCards.filter { it !in faceUp }
         if (hidden.isEmpty()) return out
-        val public = board + faceUp
+        val public = (if (boardPlays) board else emptyList()) + faceUp
         // Five or more public cards are a hand; fewer, a boardless variant still names them ("Pair of Kings").
         val publicHand = when {
             public.isEmpty() -> null
@@ -98,7 +100,7 @@ object HandBlur {
         madeHand?.lowercase()?.let { made -> categories.filter { (key, _) -> key in made && key !in shown }.forEach { (_, said) -> words += said } }
         val list = mutableListOf<Regex>()
         if (words.isNotEmpty()) list += Regex("(?<![\\w'])(?:${words.joinToString("|")})(?![\\w'])", RegexOption.IGNORE_CASE)
-        // Card codes ("Kh", "10d", "K♥") and plural ranks ("Ks", "7's"). Case-sensitive, and not
+        // Card codes ("Kh", "kh", "10d", "K♥") and plural ranks ("Ks", "7's"), in any case, but not
         // "As"/"Ah"/"Ad", which are words too.
         val plurals = ranks.flatMap { listOf("${it.face}'s", "${it.face}s") }.filter { it !in wordLike }
         val codes = plurals + hidden.flatMap { c ->
@@ -107,7 +109,15 @@ object HandBlur {
                 .filter { it !in wordLike }
             pretty + letters
         }
-        list += Regex("(?<![\\w'])(?:${codes.joinToString("|")})(?![\\w'])")
+        list += Regex("(?<![\\w'])(?:${codes.joinToString("|")})(?![\\w'])", RegexOption.IGNORE_CASE)
+        // A number rank on its own only when it is owned: "I have a seven", "holding 7".
+        val numbers = ranks.filter { it.value <= Rank.TEN.value }.flatMap { listOf(it.label.lowercase(), it.face) }
+        if (numbers.isNotEmpty()) {
+            list += Regex(
+                "(?<![\\w'])(?:i have|i've got|ive got|i got|i hold|i'm holding|im holding|holding) (?:a |an |the |one |my |this )?(${numbers.joinToString("|")})(?![\\w'])",
+                RegexOption.IGNORE_CASE,
+            )
+        }
         list += strengthClaim
         list += feelClaim
         return list
