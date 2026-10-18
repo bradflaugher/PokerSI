@@ -3,7 +3,7 @@ Offline poker against AI opponents that run right on your phone. Play Texas Hold
 AI OPPONENTS WITH PERSONALITY
 • Every rival is a freshly rolled character with a name, a pixel face and a personality, from timid to reckless. A small language model plays each one and decides every check, bet, raise, bluff and fold.
 • The AI runs entirely on your device with llama.cpp. Nothing you play is sent anywhere.
-• Switch on TABLE TALK in the settings and they chat and trash-talk in speech bubbles, reacting to the bets, the board and each other. It's off by default, for a quieter, quicker table.
+• They chat and trash-talk in speech bubbles, reacting to the bets, the board and each other. HAND BLUR censors any slip that gives a hand away; switch it off to see how leaky your model really is.
 • Each opponent only ever sees what its seat can see. The deck is shuffled fairly and nobody peeks.
 • No model yet? House Bot, a built-in poker bot, plays every seat with no download at all, and steps in for any AI player that stalls.
 

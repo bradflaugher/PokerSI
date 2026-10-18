@@ -105,8 +105,8 @@ internal val Faqs = listOf(
         "Yes. With no model loaded, House Bot plays every seat: every game and the whole tour work without a download. It also steps in whenever a model fumbles or takes too long, so a hand never stalls.",
     ),
     Faq(
-        "WHY ARE OPPONENTS SO QUIET?",
-        "TABLE TALK starts off: small models like to blurt out their own cards, and quiet turns are faster. Switch it on in SETUP and they chat in speech bubbles.",
+        "WHY IS SOME TABLE TALK BLURRED?",
+        "Small models love to blurt out their own cards. HAND BLUR (in SETUP, on by default) hides the words that give a hand away, so you see that they blabbed but not what. Switch it off to test how leaky your model is, or switch TABLE TALK off for quiet, quicker turns.",
     ),
     Faq(
         "WHAT IS THE POKER TOUR?",
@@ -268,7 +268,8 @@ data class SettingsUi(
     val debugConsole: Boolean = false,
     val speed: GameSpeed = GameSpeed.NORMAL,
     val fastFold: Boolean = true,
-    val tableTalk: Boolean = false,
+    val tableTalk: Boolean = true,
+    val handBlur: Boolean = true,
     val volume: SoundVolume = SoundVolume.HIGH,
     val confirmExit: Boolean = true,
     val largerText: Boolean = false,
@@ -287,6 +288,7 @@ class SettingsCallbacks(
     val onSpeed: (GameSpeed) -> Unit = {},
     val onFastFold: (Boolean) -> Unit = {},
     val onTableTalk: (Boolean) -> Unit = {},
+    val onHandBlur: (Boolean) -> Unit = {},
     val onVolume: (SoundVolume) -> Unit = {},
     val onConfirmExit: (Boolean) -> Unit = {},
     val onLargerText: (Boolean) -> Unit = {},
@@ -328,7 +330,10 @@ fun SettingsScreen(settings: SettingsUi, callbacks: SettingsCallbacks, modifier:
                             ChoiceRow(GameSpeed.entries, settings.speed, { it.label }, callbacks.onSpeed)
                         }
                         ToggleRow("FAST FOLD", "Once you fold, the rest of the hand plays out at once", settings.fastFold, callbacks.onFastFold)
-                        ToggleRow("TABLE TALK", "Opponents chat in speech bubbles (small models may blurt out their cards)", settings.tableTalk, callbacks.onTableTalk)
+                        ToggleRow("TABLE TALK", "Opponents chat in speech bubbles", settings.tableTalk, callbacks.onTableTalk)
+                        if (settings.tableTalk) {
+                            ToggleRow("HAND BLUR", "Blurs the words that give an opponent's hand away. Off: watch small models blurt their cards", settings.handBlur, callbacks.onHandBlur)
+                        }
                         ToggleRow("CONFIRM EXIT", "Back on the title screen asks before leaving", settings.confirmExit, callbacks.onConfirmExit)
                     }
                 }

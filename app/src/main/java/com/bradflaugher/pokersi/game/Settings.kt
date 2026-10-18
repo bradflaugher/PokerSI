@@ -24,7 +24,8 @@ class Settings(private val prefs: SharedPreferences) {
     private val _cardSway = MutableStateFlow(prefs.getBoolean(KEY_SWAY, true))
     private val _debugConsole = MutableStateFlow(prefs.getBoolean(KEY_DEBUG_CONSOLE, false))
     private val _fastFold = MutableStateFlow(prefs.getBoolean(KEY_FAST_FOLD, true))
-    private val _tableTalk = MutableStateFlow(prefs.getBoolean(KEY_TABLE_TALK, false))
+    private val _tableTalk = MutableStateFlow(prefs.getBoolean(KEY_TABLE_TALK, true))
+    private val _handBlur = MutableStateFlow(prefs.getBoolean(KEY_HAND_BLUR, true))
     private val _confirmExit = MutableStateFlow(prefs.getBoolean(KEY_CONFIRM_EXIT, true))
     private val _largerText = MutableStateFlow(prefs.getBoolean(KEY_LARGER_TEXT, false))
     private val _highContrast = MutableStateFlow(prefs.getBoolean(KEY_HIGH_CONTRAST, false))
@@ -47,11 +48,14 @@ class Settings(private val prefs: SharedPreferences) {
     /** SETTINGS > FAST FOLD: once you fold, the rest of the hand plays out at once. On by default. */
     val fastFold: StateFlow<Boolean> = _fastFold.asStateFlow()
 
-    /**
-     * SETTINGS > TABLE TALK: opponents chat in speech bubbles. Off by default:
-     * small models like to give their hands away, and quiet turns are faster.
-     */
+    /** SETTINGS > TABLE TALK: opponents chat in speech bubbles. On by default. */
     val tableTalk: StateFlow<Boolean> = _tableTalk.asStateFlow()
+
+    /**
+     * SETTINGS > HAND BLUR: words of table talk that give the speaker's own hand
+     * away are blurred. On by default; off lets small models blurt their cards.
+     */
+    val handBlur: StateFlow<Boolean> = _handBlur.asStateFlow()
 
     /** SETTINGS > VOLUME: LOW, MED or HIGH (full, the default). SOUND switches it all off. */
     val volume: StateFlow<SoundVolume> = _volume.asStateFlow()
@@ -72,6 +76,7 @@ class Settings(private val prefs: SharedPreferences) {
     fun setDebugConsole(on: Boolean) = put(KEY_DEBUG_CONSOLE, on, _debugConsole)
     fun setFastFold(on: Boolean) = put(KEY_FAST_FOLD, on, _fastFold)
     fun setTableTalk(on: Boolean) = put(KEY_TABLE_TALK, on, _tableTalk)
+    fun setHandBlur(on: Boolean) = put(KEY_HAND_BLUR, on, _handBlur)
     fun setConfirmExit(on: Boolean) = put(KEY_CONFIRM_EXIT, on, _confirmExit)
     fun setLargerText(on: Boolean) = put(KEY_LARGER_TEXT, on, _largerText)
     fun setHighContrast(on: Boolean) = put(KEY_HIGH_CONTRAST, on, _highContrast)
@@ -100,6 +105,7 @@ class Settings(private val prefs: SharedPreferences) {
         const val KEY_SPEED = "speed"
         const val KEY_FAST_FOLD = "fast_fold"
         const val KEY_TABLE_TALK = "table_talk"
+        const val KEY_HAND_BLUR = "hand_blur"
         const val KEY_VOLUME = "volume"
         const val KEY_CONFIRM_EXIT = "confirm_exit"
         const val KEY_LARGER_TEXT = "larger_text"

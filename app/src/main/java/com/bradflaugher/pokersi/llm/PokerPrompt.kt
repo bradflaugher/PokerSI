@@ -49,7 +49,9 @@ object PokerPrompt {
         } else {
             appendLine("""{"action": "<one legal action>", "amount": <chips>, "say": "<table talk>"}""")
         }
-        appendLine("\"say\" is one short, funny sentence in your voice, under 12 words, different every time. Family friendly. Never mention your cards or say what hand you have.")
+        appendLine("\"say\" is your table talk: one short, funny sentence in your voice, under 12 words, different every time. Family friendly.")
+        // Small models blurt their cards; give them something better to do than describe their hand.
+        appendLine("Talk like a sly card player: tease, boast, joke, or bluff about how you feel. Your cards are a secret: never name a card or your hand.")
         // The same on every turn (talking or quiet), so the system prompt never changes mid-table.
         append("Leave \"say\" out on turns when you are told to stay quiet.")
     }
@@ -159,7 +161,7 @@ object PokerPrompt {
         if (plan.mine.isNotEmpty()) {
             appendLine("You already said ${plan.mine.joinToString(", ") { "\"$it\"" }}. Don't repeat yourself.")
         }
-        appendLine("For \"say\", as ${voiceShort(persona)}: ${plan.hint} Never mention your cards or say what hand you have.")
+        appendLine("For \"say\", as ${voiceShort(persona)}: ${plan.hint} Keep your cards secret.")
     }
 
     /** "an old-west cowboy" from "an old-west cowboy: says howdy...". */

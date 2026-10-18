@@ -49,9 +49,8 @@ download a model. Website: <https://bradflaugher.github.io/PokerSI/>.
   plain words. The reply is held to a tiny JSON shape by a grammar
   (`{"action": "raise", "amount": 120, "say": "..."}`, the decision first), the line it says
   shows up in a speech bubble, and the action is clamped to something legal.
-- **Table talk, if you want it.** SETTINGS > TABLE TALK (off by default:
-  small models like to blurt out their cards, and quiet turns are faster)
-  lets the characters chat in speech bubbles. Each turn a character gets a
+- **Table talk.** The characters chat in speech bubbles (SETTINGS > TABLE
+  TALK, on by default; off makes every turn a quiet, quicker one). Each turn a character gets a
   different nudge (react to the last bet, answer whoever spoke, tease
   someone, the pot, the board, something in character) plus what was just
   said at the table, so they banter with each other. The table remembers
@@ -59,6 +58,12 @@ download a model. Website: <https://bradflaugher.github.io/PokerSI/>.
   cut off before the line shows. Characters talk on some turns, not every
   one, which also keeps the game quick: a quiet turn is a shorter prompt and
   a shorter reply.
+- **Hand blur, or watch them leak.** Small models love to blurt out their
+  own cards. SETTINGS > HAND BLUR (on by default) blacks out the words that
+  give a speaker's hand away (its face-down cards and ranks, "pocket
+  rockets", the made hand, "my hand is strong") with a censor bar, so you
+  see that a model blabbed but not what. Switch it off to test how leaky a
+  model really is; the debug console always shows the raw reply.
 - **No waiting on hands you're out of.** With FAST FOLD (on by default),
   once you fold the rest of the hand plays out at once.
 - **House Bot when there's no model.** With nothing loaded, a built-in
