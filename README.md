@@ -182,7 +182,7 @@ Full policy in [`AGENTS.md`](AGENTS.md).
 
 PokerSI isn't publicly listed on Google Play yet. Until it is, grab
 `pokersi.apk` from the [latest release](../../releases/latest) and
-sideload it. Every push to `main` publishes a single date-labeled release
+sideload it. Every push to `main` that changes the app publishes a single date-labeled release
 (`vYYYY.MM.DD.N`) and deletes the previous one. The release also includes
 `pokersi.aab` and `mapping.txt` for Google Play. Verify the APK with the
 attached `pokersi.apk.sha256` (see [`SECURITY.md`](SECURITY.md)).
@@ -244,7 +244,7 @@ Signed release builds need all four of `POKERSI_KEYSTORE_PATH`,
 `POKERSI_STORE_PASSWORD`, `POKERSI_KEY_ALIAS`, `POKERSI_KEY_PASSWORD` (or
 none, for an unsigned build). CI restores the keystore from the
 `POKERSI_KEYSTORE_BASE64` secret. Keeping the toolchain, llama.cpp and CI
-current is covered in [`MAINTAINING.md`](MAINTAINING.md). Every merge to `main` also goes to Google Play's closed testing, with the store listing; how to ship an update, change the listing or go to production is in [MAINTAINING.md › Releasing](MAINTAINING.md#releasing).
+current is covered in [`MAINTAINING.md`](MAINTAINING.md). Every merge to `main` that changes the app also goes to Google Play's closed testing, with the store listing (a listing-only change just syncs the listing); how to ship an update, change the listing or go to production is in [MAINTAINING.md › Releasing](MAINTAINING.md#releasing).
 
 ## Privacy
 
