@@ -17,7 +17,9 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
   the `POST_NOTIFICATIONS` permission). No `Build.VERSION.SDK_INT` checks, no compat shims.
 - AGP, Kotlin, Compose BOM, libraries (`gradle/libs.versions.toml`) and the
   Gradle wrapper (checksum-pinned) track the latest stable releases.
-  Dependabot keeps them current. Do not copy version numbers into docs.
+  Dependabot moves them in one combined PR per quarter; "latest" means never
+  holding a version back, not chasing every release the week it lands. Do not
+  copy version numbers into docs.
 
 ## Layout
 
