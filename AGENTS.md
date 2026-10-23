@@ -188,7 +188,7 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
 Use it for unit tests, lint and screenshot work.
 
 `.github/workflows/ci.yml` runs the unit tests and lint on every pull
-request and push to `main`. Every push to `main` builds a signed APK and
+request and push to `main`. Every push to `main` that changes the app builds a signed APK and
 Play bundle and publishes them as the single date-labeled GitHub release
 `vYYYY.MM.DD.<run>`, deleting all older releases. The same run uploads the
 bundle to Google Play's Closed testing - Alpha track and syncs the store
