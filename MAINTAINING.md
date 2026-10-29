@@ -189,8 +189,12 @@ hand-written HTML and CSS, no build step, no scripts and nothing loaded
 from another origin (the fonts are the app's own, as WOFF2). Preview it
 with `python3 -m http.server -d site`. `.github/workflows/pages.yml` checks
 it on pull requests (`.github/scripts/check-site.py`: links resolve,
-nothing external) and deploys it on every push to `main` that touches it;
-Pages is set to "GitHub Actions" in Settings › Pages. Its screenshots are
+nothing external, and every stylesheet link carries the stylesheet's
+content hash) and deploys it on every push to `main` that touches it;
+Pages is set to "GitHub Actions" in Settings › Pages. After editing
+`site/style.css`, run `python3 .github/scripts/check-site.py site --fix`
+to stamp the new hash into the pages (`style.css?v=…`), so no browser
+pairs a new page with a stale cached stylesheet. Its screenshots are
 smaller WebP copies of `docs/screenshots/`; after `shoot.py`, refresh them
 with
 
