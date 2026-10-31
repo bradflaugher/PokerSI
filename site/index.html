@@ -12,7 +12,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="preload" href="fonts/press_start_2p.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="fonts/vt323.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="style.css?v=9f25d5f19a">
+  <link rel="stylesheet" href="style.css?v=1b65875fac">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="PokerSI">
   <meta property="og:title" content="PokerSI — offline pixel poker against AI opponents">
@@ -56,9 +56,10 @@
             <p class="bubble">I'm all in, meatbag.</p>
           </div>
           <div class="ctas">
-            <a class="btn btn--green" href="#get">Deal me in</a>
+            <a class="play" href="https://play.google.com/store/apps/details?id=com.bradflaugher.pokersi"><img src="img/google-play-badge.png" width="564" height="168" alt="Get it on Google Play"></a>
             <a class="btn btn--gold" href="https://github.com/bradflaugher/PokerSI">Source code</a>
           </div>
+          <p class="fine">Free · no ads · Android 13 or newer</p>
         </div>
         <figure class="phone">
           <img src="img/table-holdem.webp" width="540" height="960" alt="A Texas Hold'em table against three AI opponents, one of them talking trash: “Big bet. Huge. You don't have the chips for my bluffs, meatbag.”">
@@ -196,16 +197,17 @@
       <div class="wrap">
         <p class="kicker">Deal me in</p>
         <h2>Get PokerSI</h2>
-        <p class="intro">Free, for Android 13 and newer.</p>
+        <p class="intro">Free on Google Play for Android 13 and newer: no ads, no in-app purchases, no account.</p>
         <div class="panels">
           <div class="panel">
-            <h3>Download the APK</h3>
-            <p>Every update to the game is published as a signed APK on GitHub. Grab <code>pokersi.apk</code> from the latest release and sideload it, and check it against the <code>pokersi.apk.sha256</code> next to it (<a href="https://github.com/bradflaugher/PokerSI/blob/main/SECURITY.md#verifying-a-release">how</a>).</p>
-            <a class="btn btn--green" href="https://github.com/bradflaugher/PokerSI/releases/latest">Latest release</a>
+            <h3>Google Play</h3>
+            <p>Open the <a href="https://play.google.com/store/apps/details?id=com.bradflaugher.pokersi">PokerSI listing</a> and tap Install. It runs on phones, tablets, foldables and Chromebooks, and Play keeps it up to date.</p>
+            <a class="play" href="https://play.google.com/store/apps/details?id=com.bradflaugher.pokersi"><img src="img/google-play-badge.png" width="564" height="168" alt="Get it on Google Play"></a>
           </div>
           <div class="panel">
-            <h3>Google Play <span class="led">SOON</span></h3>
-            <p>PokerSI is in closed testing on Google Play and isn't publicly listed yet. Until it is, the APK above is the same game, built by the same CI run.</p>
+            <h3>Or sideload the APK</h3>
+            <p>Prefer no store? Every update to the game is also published as a signed APK on GitHub, built by the same CI run. Grab <code>pokersi.apk</code> from the latest release and check it against the <code>pokersi.apk.sha256</code> next to it (<a href="https://github.com/bradflaugher/PokerSI/blob/main/SECURITY.md#verifying-a-release">how</a>).</p>
+            <a class="btn btn--green" href="https://github.com/bradflaugher/PokerSI/releases/latest">Latest release</a>
           </div>
           <div class="panel">
             <h3>Build it yourself</h3>
@@ -223,6 +225,7 @@ cd PokerSI
   <footer class="footer">
     <div class="wrap">
       <nav aria-label="Footer">
+        <a href="https://play.google.com/store/apps/details?id=com.bradflaugher.pokersi">Google Play</a>
         <a href="privacy/">Privacy</a>
         <a href="https://github.com/bradflaugher/PokerSI">Source</a>
         <a href="https://github.com/bradflaugher/PokerSI/issues/new">Feedback</a>

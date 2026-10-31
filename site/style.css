@@ -310,6 +310,17 @@ a:hover { color: var(--cream); }
 .btn--blue { background: var(--cabinet-light); }
 .btn--pink { background: var(--hot-pink); }
 
+/* The official Google Play badge, untouched. Google's guidelines forbid
+   recoloring it and keep a clear space of a quarter of its height (15px)
+   around it, so it gets no shadow and its margins plus the 14px .ctas gap
+   hold neighbors at 15px. */
+.play { display: inline-flex; margin: 0 1px 1px 0; transition: transform 0.06s; }
+.play img { display: block; width: auto; height: 60px; }
+.play:hover { transform: translateY(-1px); }
+.play:active { transform: translateY(1px); }
+.panel .play { margin-top: 15px; }
+.fine { margin: 16px 0 0; color: var(--card-shade); font-size: 1.25rem; }
+
 /* A phone in the gold-trimmed frame of the Play screenshots. */
 .phone {
   margin: 0;
@@ -489,15 +500,6 @@ p { margin: 0 0 14px; }
 }
 .panel h3 { color: var(--gold); margin-bottom: 14px; }
 .panel .btn { margin-top: 8px; }
-.led {
-  display: inline-block;
-  padding: 2px 8px;
-  background: #0a0306;
-  color: var(--led-red);
-  font: 0.65rem/1.8 var(--pixel);
-  text-shadow: 0 0 6px rgb(255 43 43 / 0.7);
-  vertical-align: middle;
-}
 
 pre,
 code { font-family: var(--text); }

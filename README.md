@@ -10,7 +10,18 @@ video poker cabinet on a green card table: chunky 8-bit cards, lamp-lit
 pixel felt, CRT scanlines, marquee lights, LED pot counters, HOLD
 buttons, and a table of quirky characters who bet, bluff and talk trash.
 Six variants, a Poker Tour mode, and no network at all unless you
-download a model. Website: <https://bradflaugher.github.io/PokerSI/>.
+download a model.
+
+<p align="center">
+  <a href="https://play.google.com/store/apps/details?id=com.bradflaugher.pokersi"><img src="docs/google-play-badge.png" alt="Get it on Google Play" height="64"></a>
+</p>
+
+<p align="center">
+  <b>Free on <a href="https://play.google.com/store/apps/details?id=com.bradflaugher.pokersi">Google Play</a></b> · no ads · no account · Android 13+<br>
+  <a href="https://bradflaugher.github.io/PokerSI/">Website</a> ·
+  <a href="https://bradflaugher.github.io/PokerSI/privacy/">Privacy policy</a> ·
+  <a href="../../releases/latest">Latest APK</a>
+</p>
 
 <div align="center">
   <img src="docs/screenshots/table-holdem.png" alt="A Texas Hold'em table against three AI opponents, one of them talking trash" width="49%">
@@ -180,14 +191,16 @@ Full policy in [`AGENTS.md`](AGENTS.md).
 
 ## Install
 
-PokerSI isn't publicly listed on Google Play yet. Until it is, grab
-`pokersi.apk` from the [latest release](../../releases/latest) and
-sideload it. Every push to `main` that changes the app publishes a single date-labeled release
+<a href="https://play.google.com/store/apps/details?id=com.bradflaugher.pokersi"><img src="docs/google-play-badge.png" alt="Get it on Google Play" height="56"></a>
+
+PokerSI is free on [Google Play](https://play.google.com/store/apps/details?id=com.bradflaugher.pokersi),
+which keeps it up to date. Requires Android 13 or newer.
+
+Prefer to sideload? Grab `pokersi.apk` from the
+[latest release](../../releases/latest). Every push to `main` that changes the app publishes a single date-labeled release
 (`vYYYY.MM.DD.N`) and deletes the previous one. The release also includes
 `pokersi.aab` and `mapping.txt` for Google Play. Verify the APK with the
 attached `pokersi.apk.sha256` (see [`SECURITY.md`](SECURITY.md)).
-
-Requires Android 13 or newer.
 
 ## Building from source
 
