@@ -98,7 +98,7 @@ internal val Faqs = listOf(
     ),
     Faq(
         "WHICH MODEL SHOULD I PICK?",
-        "Start with ${ModelCatalog.recommended.name}: built for phones, quick and sensible. Bigger models play sharper but need more memory and think slower. MODELS can also load GGUF files you already have.",
+        "Start with ${ModelCatalog.recommended.name}: small, quick, and trained on this game, so it plays sensibly and keeps its cards secret. Bigger models play sharper but need more memory and think slower. MODELS can also load GGUF files you already have.",
     ),
     Faq(
         "MY PHONE IS OLD. WILL IT WORK?",

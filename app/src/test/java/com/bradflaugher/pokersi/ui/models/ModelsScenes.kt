@@ -18,7 +18,7 @@ object ModelsScenes {
             }
             val loaded = catalog.first { it.catalog!!.recommended }
             return ModelsUiState(
-                engine = EngineState.Ready(loaded.id, loaded.name, "lfm2 1.2B Q4_K_M"),
+                engine = EngineState.Ready(loaded.id, loaded.name, "qwen3 0.6B Q4_K_M"),
                 models = catalog,
                 folders = listOf(Uri.parse("content://com.android.externalstorage.documents/tree/primary%3AModels")),
             )

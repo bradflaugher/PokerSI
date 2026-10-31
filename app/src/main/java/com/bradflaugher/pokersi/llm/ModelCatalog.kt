@@ -15,15 +15,22 @@ data class CatalogModel(
 
 /**
  * Small instruct GGUFs that run on a phone and follow a JSON format well
- * enough to play: the newest of each family LM Playground carries, Q4_K_M
- * (Gemma 4 is Google's own quantization-aware Q4_0). Sizes were checked
- * with HTTP HEAD requests (Hugging Face's x-linked-size); the URLs are the
- * repos LM Playground uses.
+ * enough to play. First, Genaro: a Qwen3 fine-tune trained on this game's
+ * own prompts and grammar (github.com/bradflaugher/genaro-poker). Then the
+ * newest of each family LM Playground carries, Q4_K_M (Gemma 4 is Google's
+ * own quantization-aware Q4_0), from the repos LM Playground uses. Sizes
+ * were checked with HTTP HEAD requests (Hugging Face's x-linked-size).
  */
 object ModelCatalog {
     private const val HF = "https://huggingface.co"
 
     val models: List<CatalogModel> = listOf(
+        CatalogModel(
+            "genaro-poker-0.6b", "Genaro Poker 0.6B", "PokerSI", "genaro-poker-0.6b-Q4_K_M.gguf",
+            "$HF/predbrad/Genaro-poker/resolve/main/genaro-poker-0.6b-Q4_K_M.gguf", 396_705_312,
+            "Trained at this very table. Plays the odds, stays in character, never shows its cards.",
+            recommended = true,
+        ),
         CatalogModel(
             "qwen3.5-0.8b", "Qwen 3.5 0.8B", "Alibaba", "Qwen_Qwen3.5-0.8B-Q4_K_M.gguf",
             "$HF/bartowski/Qwen_Qwen3.5-0.8B-GGUF/resolve/main/Qwen_Qwen3.5-0.8B-Q4_K_M.gguf", 579_615_840,
@@ -42,8 +49,7 @@ object ModelCatalog {
         CatalogModel(
             "lfm2.5-1.2b", "LFM2.5 1.2B Instruct", "Liquid AI", "LFM2.5-1.2B-Instruct-Q4_K_M.gguf",
             "$HF/LiquidAI/LFM2.5-1.2B-Instruct-GGUF/resolve/main/LFM2.5-1.2B-Instruct-Q4_K_M.gguf", 730_895_168,
-            "The best starter: built for phones, quick, sensible and short-spoken.",
-            recommended = true,
+            "Built for phones: quick, sensible and short-spoken.",
         ),
         CatalogModel(
             "granite4-h-1b", "Granite 4.0 H 1B", "IBM", "granite-4.0-h-1b-Q4_K_M.gguf",

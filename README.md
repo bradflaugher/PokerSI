@@ -164,7 +164,11 @@ Open **Models** from the title screen.
 
 - **Download a curated model.** A short list of small GGUF models, picked
   to play well and fit on phones, in the spirit of
-  [LM Playground](https://github.com/andriydruk/LMPlayground). Downloads
+  [LM Playground](https://github.com/andriydruk/LMPlayground). At the top is
+  **Genaro Poker 0.6B** (397 MB), a Qwen3 fine-tune trained on this game's
+  own prompts and grammar
+  ([genaro-poker](https://github.com/bradflaugher/genaro-poker)): it plays
+  the odds, stays in character and keeps its cards secret. Downloads
   come straight from Hugging Face, run in the background with a progress
   notification, and land in the app's own storage. Tap one to load it.
 - **Load your own GGUF files.** Pick a folder with the system file picker
