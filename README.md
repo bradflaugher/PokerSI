@@ -168,7 +168,8 @@ Open **Models** from the title screen.
   **Genaro Poker 0.6B** (397 MB), a Qwen3 fine-tune trained on this game's
   own prompts and grammar
   ([genaro-poker](https://github.com/bradflaugher/genaro-poker)): it plays
-  the odds, stays in character and keeps its cards secret. Downloads
+  the odds, stays in character and keeps its cards secret. Its big sibling,
+  Genaro Poker 1.7B (1.1 GB), plays sharper on roomier phones. Downloads
   come straight from Hugging Face, run in the background with a progress
   notification, and land in the app's own storage. Tap one to load it.
 - **Load your own GGUF files.** Pick a folder with the system file picker
