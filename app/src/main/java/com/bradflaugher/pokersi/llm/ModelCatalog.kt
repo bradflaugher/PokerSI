@@ -15,11 +15,12 @@ data class CatalogModel(
 
 /**
  * Small instruct GGUFs that run on a phone and follow a JSON format well
- * enough to play. First, Genaro: a Qwen3 fine-tune trained on this game's
- * own prompts and grammar (github.com/bradflaugher/genaro-poker). Then the
- * newest of each family LM Playground carries, Q4_K_M (Gemma 4 is Google's
- * own quantization-aware Q4_0), from the repos LM Playground uses. Sizes
- * were checked with HTTP HEAD requests (Hugging Face's x-linked-size).
+ * enough to play. First, Genaro 0.6B and 1.7B: Qwen3 fine-tunes trained
+ * on this game's own prompts and grammar
+ * (github.com/bradflaugher/genaro-poker). Then the newest of each family
+ * LM Playground carries, Q4_K_M (Gemma 4 is Google's own
+ * quantization-aware Q4_0), from the repos LM Playground uses. Sizes were
+ * checked with HTTP HEAD requests (Hugging Face's x-linked-size).
  */
 object ModelCatalog {
     private const val HF = "https://huggingface.co"
@@ -30,6 +31,11 @@ object ModelCatalog {
             "$HF/predbrad/Genaro-poker/resolve/main/genaro-poker-0.6b-Q4_K_M.gguf", 396_705_312,
             "Trained at this very table. Plays the odds, stays in character, never shows its cards.",
             recommended = true,
+        ),
+        CatalogModel(
+            "genaro-poker-1.7b", "Genaro Poker 1.7B", "PokerSI", "genaro-poker-1.7b-Q4_K_M.gguf",
+            "$HF/predbrad/Genaro-poker-1.7B/resolve/main/genaro-poker-1.7b-Q4_K_M.gguf", 1_107_409_440,
+            "Genaro's big sibling: the sharpest player here for its size. For roomier phones.",
         ),
         CatalogModel(
             "qwen3.5-0.8b", "Qwen 3.5 0.8B", "Alibaba", "Qwen_Qwen3.5-0.8B-Q4_K_M.gguf",
