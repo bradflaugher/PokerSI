@@ -161,6 +161,14 @@ tasks.withType<Test>().configureEach {
     if (providers.gradleProperty("store").isPresent || providers.environmentVariable("POKERSI_STORE_SHOTS").isPresent) {
         systemProperty("pokersi.storeShotsDir", rootProject.layout.buildDirectory.dir("screenshots").get().asFile.absolutePath)
     }
+    // Robolectric fetches its Android runtime jars itself, with no retry, and
+    // repo1.maven.org answers bulk downloads from CI with HTTP 429. Google's
+    // mirror of Maven Central serves the same artifacts without that limit.
+    // Override with the ROBOLECTRIC_REPO_URL environment variable.
+    systemProperty(
+        "robolectric.dependency.repo.url",
+        System.getenv("ROBOLECTRIC_REPO_URL") ?: "https://maven-central.storage-download.googleapis.com/maven2",
+    )
     maxHeapSize = "4g"
     // Robolectric reaches into FileDescriptor internals (fonts, bitmaps) on JDK 17+.
     jvmArgs(

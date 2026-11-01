@@ -49,6 +49,19 @@ jobs:
         with:
           validate-wrappers: true
 
+      # Robolectric downloads its Android runtime jars (~200 MB) itself, at test
+      # time, into ~/.m2 (not covered by the Gradle cache). Keep them between
+      # runs: repo1.maven.org rate-limits those downloads (HTTP 429), which
+      # failed release builds. See robolectric.dependency.repo.url in
+      # app/build.gradle.kts for the mirror they come from.
+      - name: Cache Robolectric runtime jars
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.m2/repository/org/robolectric
+          key: ${{ runner.os }}-robolectric-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-robolectric-
+
       - name: Run unit tests
         run: ./gradlew -PskipNative test
 
