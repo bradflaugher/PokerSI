@@ -41,6 +41,12 @@ class ModelDownloadWorker(context: Context, params: WorkerParameters) : Coroutin
     private var foreground = false
 
     override suspend fun doWork(): Result {
+        // A job queued by an older app version for a model since replaced in the catalog (a new
+        // version gets a new id): don't finish a download nothing lists; drop its partial file.
+        if (ModelCatalog.byId(id) == null) {
+            inputData.getString(KEY_FILE)?.let { withContext(Dispatchers.IO) { ModelStore.partFile(applicationContext, it).delete() } }
+            return fail("No longer in the catalog")
+        }
         // A retry that starts while the app is in the background may not start a foreground
         // service (ForegroundServiceStartNotAllowedException on Android 12+); download anyway.
         foreground = try {
