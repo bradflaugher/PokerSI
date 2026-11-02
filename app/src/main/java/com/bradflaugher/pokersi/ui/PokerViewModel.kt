@@ -16,6 +16,7 @@ import com.bradflaugher.pokersi.game.PrefsRunSaver
 import com.bradflaugher.pokersi.game.QuickGameSetup
 import com.bradflaugher.pokersi.game.Settings
 import com.bradflaugher.pokersi.game.Stats
+import com.bradflaugher.pokersi.llm.ModelStore
 import com.bradflaugher.pokersi.run.RunPhase
 import com.bradflaugher.pokersi.run.RunState
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -55,6 +56,8 @@ class PokerViewModel(app: Application) : AndroidViewModel(app) {
     val picker: StateFlow<QuickGameSetup> = _picker.asStateFlow()
 
     init {
+        // Before an old download job can finish: drop leftovers of models replaced in the catalog.
+        viewModelScope.launch { ModelStore.retireLeftovers(app) }
         // The console records nothing unless it is switched on (and forgets everything when switched off).
         viewModelScope.launch {
             settings.debugConsole.collect { on ->
