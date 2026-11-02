@@ -33,7 +33,7 @@ object ModelCatalog {
         CatalogModel(
             "genaro-poker-0.6b-v3", "Genaro Poker 0.6B", "PokerSI", "genaro-poker-0.6b-v3-Q4_K_M.gguf",
             "$HF/predbrad/Genaro-poker/resolve/main/genaro-poker-0.6b-v3-Q4_K_M.gguf", 396_705_312,
-            "Trained at this very table. Plays the odds, stays in character, never shows its cards.",
+            "Trained at this very table. Plays the odds, stays in character, keeps its cards close.",
             recommended = true,
         ),
         CatalogModel(

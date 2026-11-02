@@ -97,6 +97,14 @@ class ModelStore private constructor(context: Context) {
     }.stateIn(scope, SharingStarted.Eagerly, merge(emptyList(), emptyMap()))
 
     init {
+        // Leftovers of models that left the catalog (a new version has a new id and file
+        // name): their download jobs and partial files would otherwise stay forever.
+        scope.launch {
+            downloads.retireUnknown()
+            val dir = downloadDir(app)
+            orphanParts(dir.list()?.toList().orEmpty(), ModelCatalog.models.map { it.fileName }.toSet())
+                .forEach { File(dir, it).delete() }
+        }
         refresh()
         // A finished (or cancelled) download changes what is on disk.
         scope.launch { downloads.progress.map { it.keys }.distinctUntilChanged().collect { refresh() } }
@@ -249,6 +257,12 @@ class ModelStore private constructor(context: Context) {
 
         fun partFile(context: Context, fileName: String): File =
             File(downloadDir(context), fileName + ModelDownloadWorker.PART_SUFFIX)
+
+        /** Partial downloads (in [downloadDir]) of files no catalog entry has any more. */
+        fun orphanParts(names: Collection<String>, catalogFileNames: Set<String>): List<String> =
+            names.filter {
+                it.endsWith(ModelDownloadWorker.PART_SUFFIX) && it.removeSuffix(ModelDownloadWorker.PART_SUFFIX) !in catalogFileNames
+            }
 
         /** A loadable GGUF: not a vision projector, not a partial download. */
         fun isModelFile(name: String): Boolean =
