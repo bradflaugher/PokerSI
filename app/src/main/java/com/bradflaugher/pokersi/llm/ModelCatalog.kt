@@ -25,16 +25,20 @@ data class CatalogModel(
 object ModelCatalog {
     private const val HF = "https://huggingface.co"
 
+    // A new version of a model gets a new id and file name, never the old ones: the app
+    // matches downloads by file name and remembers the loaded model by id, so reusing either
+    // would show an old file as the new version. (An id that leaves the catalog is listed
+    // as the player's own file.)
     val models: List<CatalogModel> = listOf(
         CatalogModel(
-            "genaro-poker-0.6b", "Genaro Poker 0.6B", "PokerSI", "genaro-poker-0.6b-Q4_K_M.gguf",
-            "$HF/predbrad/Genaro-poker/resolve/main/genaro-poker-0.6b-Q4_K_M.gguf", 396_705_312,
-            "Trained at this very table. Plays the odds, stays in character, never shows its cards.",
+            "genaro-poker-0.6b-v3", "Genaro Poker 0.6B", "PokerSI", "genaro-poker-0.6b-v3-Q4_K_M.gguf",
+            "$HF/predbrad/Genaro-poker/resolve/main/genaro-poker-0.6b-v3-Q4_K_M.gguf", 396_705_312,
+            "Trained at this very table. Plays the odds, stays in character, keeps its cards close.",
             recommended = true,
         ),
         CatalogModel(
-            "genaro-poker-1.7b", "Genaro Poker 1.7B", "PokerSI", "genaro-poker-1.7b-Q4_K_M.gguf",
-            "$HF/predbrad/Genaro-poker-1.7B/resolve/main/genaro-poker-1.7b-Q4_K_M.gguf", 1_107_409_440,
+            "genaro-poker-1.7b-v3", "Genaro Poker 1.7B", "PokerSI", "genaro-poker-1.7b-v3-Q4_K_M.gguf",
+            "$HF/predbrad/Genaro-poker-1.7B/resolve/main/genaro-poker-1.7b-v3-Q4_K_M.gguf", 1_107_409_440,
             "Genaro's big sibling: the sharpest player here for its size. For roomier phones.",
         ),
         CatalogModel(

@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 
 /** A model download in flight (or stuck). */
@@ -71,6 +72,16 @@ class ModelDownloads(context: Context) {
     fun cancel(modelId: String) {
         workManager.cancelUniqueWork(workName(modelId))
         ModelCatalog.byId(modelId)?.let { ModelStore.partFile(app, it.fileName).delete() }
+    }
+
+    /**
+     * Stops download jobs for ids no longer in the catalog (a model replaced by a new
+     * version): nothing would show, resume or cancel them otherwise.
+     */
+    suspend fun retireUnknown() = withContext(Dispatchers.IO) {
+        val known = ModelCatalog.models.map { it.id }.toSet()
+        workManager.getWorkInfosByTag(TAG).get().mapNotNull(::idOf).filter { it !in known }.distinct()
+            .forEach { workManager.cancelUniqueWork(workName(it)) }
     }
 
     /** Downloads that are queued, running or failed, by catalog id. */

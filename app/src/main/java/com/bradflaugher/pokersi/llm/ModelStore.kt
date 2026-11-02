@@ -250,6 +250,32 @@ class ModelStore private constructor(context: Context) {
         fun partFile(context: Context, fileName: String): File =
             File(downloadDir(context), fileName + ModelDownloadWorker.PART_SUFFIX)
 
+        /**
+         * Clears leftovers of models that left the catalog (a new version gets a new id and
+         * file name): their download jobs and partial files, which nothing would otherwise
+         * show, resume or delete. Run once at app start, before an old job can finish.
+         */
+        suspend fun retireLeftovers(context: Context) {
+            val app = context.applicationContext
+            // Housekeeping only: a failure here (say, WorkManager unavailable) must not stop the app.
+            try {
+                ModelDownloads(app).retireUnknown()
+            } catch (e: Exception) {
+                Log.w(TAG, "can't retire old download jobs", e)
+            }
+            withContext(Dispatchers.IO) {
+                val dir = downloadDir(app)
+                orphanParts(dir.list()?.toList().orEmpty(), ModelCatalog.models.map { it.fileName }.toSet())
+                    .forEach { File(dir, it).delete() }
+            }
+        }
+
+        /** Partial downloads (in [downloadDir]) of files no catalog entry has any more. */
+        fun orphanParts(names: Collection<String>, catalogFileNames: Set<String>): List<String> =
+            names.filter {
+                it.endsWith(ModelDownloadWorker.PART_SUFFIX) && it.removeSuffix(ModelDownloadWorker.PART_SUFFIX) !in catalogFileNames
+            }
+
         /** A loadable GGUF: not a vision projector, not a partial download. */
         fun isModelFile(name: String): Boolean =
             name.endsWith(".gguf", ignoreCase = true) && !name.contains("mmproj", ignoreCase = true)
