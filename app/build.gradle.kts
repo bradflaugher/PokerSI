@@ -178,6 +178,11 @@ tasks.withType<Test>().configureEach {
 }
 
 dependencies {
+    constraints {
+        // Robolectric brings an older Guava into the unit tests (see the security floors
+        // in gradle/libs.versions.toml).
+        testImplementation(libs.floor.guava)
+    }
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
     implementation(libs.compose.foundation)
