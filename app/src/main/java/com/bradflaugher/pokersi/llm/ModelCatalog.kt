@@ -27,14 +27,14 @@ object ModelCatalog {
 
     val models: List<CatalogModel> = listOf(
         CatalogModel(
-            "genaro-poker-0.6b", "Genaro Poker 0.6B", "PokerSI", "genaro-poker-0.6b-Q4_K_M.gguf",
-            "$HF/predbrad/Genaro-poker/resolve/main/genaro-poker-0.6b-Q4_K_M.gguf", 396_705_312,
+            "genaro-poker-0.6b", "Genaro Poker 0.6B", "PokerSI", "genaro-poker-0.6b-v3-Q4_K_M.gguf",
+            "$HF/predbrad/Genaro-poker/resolve/main/genaro-poker-0.6b-v3-Q4_K_M.gguf", 396_705_312,
             "Trained at this very table. Plays the odds, stays in character, never shows its cards.",
             recommended = true,
         ),
         CatalogModel(
-            "genaro-poker-1.7b", "Genaro Poker 1.7B", "PokerSI", "genaro-poker-1.7b-Q4_K_M.gguf",
-            "$HF/predbrad/Genaro-poker-1.7B/resolve/main/genaro-poker-1.7b-Q4_K_M.gguf", 1_107_409_440,
+            "genaro-poker-1.7b", "Genaro Poker 1.7B", "PokerSI", "genaro-poker-1.7b-v3-Q4_K_M.gguf",
+            "$HF/predbrad/Genaro-poker-1.7B/resolve/main/genaro-poker-1.7b-v3-Q4_K_M.gguf", 1_107_409_440,
             "Genaro's big sibling: the sharpest player here for its size. For roomier phones.",
         ),
         CatalogModel(
