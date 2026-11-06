@@ -221,6 +221,11 @@ class GameController(
     private var decisionId = 0
     private var phase = TablePhase.Idle
     private var humanTurn: HumanTurn? = null
+    /** The advance action picked while waiting ([togglePreAction]); cleared when it plays, is cancelled, or the street ends. */
+    private var preAction: PreAction? = null
+    private var preActionNote: String? = null
+    /** Counts the human's decisions (by hand or advance action), so the waiting row knows it is a new one. */
+    private var humanActs = 0
     private var selected: Set<Int> = emptySet()
     private var boardLimit: Int? = null
     private var celebrate = 0
@@ -506,7 +511,62 @@ class GameController(
         if (humanTurn?.isDiscard == true && decision !is Decision.Discard) return
         humanDecision = null
         humanTurn = null
+        preActionNote = null
         d.complete(decision)
+    }
+
+    /**
+     * Picks [choice] as the advance action to play when the turn comes round,
+     * or un-picks it if it is already picked. Ignored unless the toggles are on
+     * offer ([TableUiState.preAction]) and [choice] is one of them.
+     */
+    fun togglePreAction(choice: PreAction) {
+        val h = hand ?: return
+        val ui = preActionUi(h) ?: return
+        if (choice !in ui.options) return
+        preAction = if (preAction == choice) null else choice
+        preActionNote = null
+        publish()
+    }
+
+    /**
+     * What the advance-action toggles show, or null when there are none: the
+     * player is to act (or folded, all in, out), the hand is over, it's a
+     * discard round, or autopilot plays the seat.
+     */
+    private fun preActionUi(h: Hand): PreActionUi? {
+        if (autopilot != null || phase != TablePhase.Playing || h.isFinished || humanTurn != null) return null
+        val toAct = h.toAct ?: return null
+        if (toAct == 0) return null
+        val me = h.snapshot(0).seats.firstOrNull { it.seat == 0 } ?: return null
+        if (me.folded || me.allIn || me.sittingOut || me.chips <= 0) return null
+        val legal = h.legalActions(0)
+        if (legal.discard != null) return null
+        // Whether a raise will be allowed can't be known while waiting (a bet that comes round reopens it),
+        // so ALL IN stays on offer; if raising is closed when the turn comes, it is cancelled, never a call.
+        return PreActionUi(legal.toCall, me.chips, preAction, topBet(h), revision = humanActs)
+    }
+
+    /** After someone else acts: a CHECK or CALL picked for a bet that has since changed is cancelled. */
+    private fun revalidatePreAction(h: Hand) {
+        val picked = preAction ?: return
+        if (h.isFinished) return
+        val legal = h.legalActions(0)
+        if (picked.stillValid(legal.toCall, topBet(h))) return
+        preAction = null
+        preActionNote = when (picked) {
+            PreAction.Check -> "A BET CAME IN: CHECK CANCELLED"
+            else -> "RAISED: CALL CANCELLED"
+        }
+        AiLog.add(AiLogKind.TABLE, TABLE, { "advance action cancelled: $picked, now ${legal.toCall} to call" })
+    }
+
+    /** The biggest bet in front of any seat this betting round. */
+    private fun topBet(h: Hand): Int = h.snapshot(0).seats.maxOfOrNull { it.bet } ?: 0
+
+    private fun clearPreAction() {
+        preAction = null
+        preActionNote = null
     }
 
     /** Draw games: HOLD / un-HOLD a card. Pineapple: pick the card to toss. */
@@ -559,6 +619,7 @@ class GameController(
         clearChatter()
         humanDecision = null
         humanTurn = null
+        clearPreAction()
         proceed = null
         thinkingSeat = null
         streamingSeat = null
@@ -595,6 +656,7 @@ class GameController(
         streamingSeat = null
         thinkingSeat = null
         humanTurn = null
+        clearPreAction()
         selected = emptySet()
         boardLimit = null
         phase = TablePhase.Playing
@@ -618,11 +680,16 @@ class GameController(
             if (h.street != street) {
                 street = h.street
                 shownBoard = h.board.size
+                // Advance actions last one betting round.
+                clearPreAction()
                 clearChatter()
                 publish()
                 if (!outOfIt(h)) pause(pacing.streetMs)
             }
-            if (seat == 0) humanAct(h) else botAct(h, seat)
+            if (seat == 0) humanAct(h) else {
+                botAct(h, seat)
+                revalidatePreAction(h)
+            }
             if (AiLog.enabled) {
                 h.history.drop(logged).forEach { AiLog.note(AiLogKind.TABLE, TABLE, it) }
             }
@@ -661,6 +728,22 @@ class GameController(
             h.apply(0, reply.decision)
             return
         }
+        // An advance action picked while waiting plays at once (if it still applies).
+        val picked = preAction
+        preAction = null
+        val early = picked?.decide(legal, snap.bet + snap.chips)
+        if (early != null) {
+            preActionNote = null
+            AiLog.add(AiLogKind.TABLE, TABLE, { "advance action: $picked -> $early" })
+            h.apply(0, early)
+            humanActs++
+            selected = emptySet()
+            if (runState != null) saveForfeit(h)
+            return
+        }
+        if (picked != null && preActionNote == null) {
+            preActionNote = if (picked == PreAction.AllIn) "NO RAISE LEFT: YOUR CALL" else "BET CHANGED: YOUR CALL"
+        }
         val deferred = CompletableDeferred<Decision>()
         humanDecision = deferred
         humanTurn = HumanTurn(
@@ -669,14 +752,19 @@ class GameController(
             bigBlind = h.stakes.bigBlind,
             betThisRound = snap.bet,
             stack = snap.chips,
+            winnable = winnablePot(h),
         )
         publish()
         val decision = deferred.await()
         humanTurn = null
         h.apply(0, decision)
+        humanActs++
         selected = emptySet()
         if (runState != null) saveForfeit(h)
     }
+
+    /** The chips a call by the human could win now ([HumanTurn.winnable]). */
+    private fun winnablePot(h: Hand): Int = winnablePot(h.snapshot(0).seats.map { it.committed }, me = 0, toCall = h.legalActions(0).toCall)
 
     /**
      * Fast fold: the player has folded this hand (and the setting is on), so
@@ -842,7 +930,7 @@ class GameController(
         _table.value = TableStates.fromHand(
             h, extras, phase, humanTurn, selected, boardLimit, celebrate,
             showBanner = showBanner && phase != TablePhase.Playing,
-        ).let { ui ->
+        ).copy(preAction = preActionUi(h), preActionNote = preActionNote).let { ui ->
             // The match's stacks are the truth between hands (rebuys, newcomers).
             val m = match
             val seated = if (m != null && h.isFinished) {
@@ -883,6 +971,16 @@ class GameController(
             val line = text.replace(Regex("\\s+"), " ").trim()
             if (line.isEmpty()) return null
             return if (line.length <= SAY_MAX) line else line.take(SAY_MAX - 1).trimEnd() + "…"
+        }
+
+        /**
+         * What a call of [toCall] by seat [me] could win, given every seat's
+         * [committed] chips this hand: the others' chips only up to what [me]
+         * will have in after calling, plus [me]'s own (not counting the call).
+         */
+        fun winnablePot(committed: List<Int>, me: Int, toCall: Int): Int {
+            val cap = committed[me] + toCall
+            return committed.indices.sumOf { if (it == me) committed[it] else minOf(committed[it], cap) }
         }
 
         /** Video poker courtesy: pre-HOLD pairs and better, else the two highest cards. */

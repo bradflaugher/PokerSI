@@ -55,8 +55,27 @@ data class HumanTurn(
     /** Chips already in front of the human this round (raise totals include them). */
     val betThisRound: Int,
     val stack: Int,
+    /**
+     * The part of [pot] a call could win: each seat's chips only up to what the
+     * human will have in after calling (a short stack can't win the unmatched
+     * part of an overbet, which goes back or to a side pot).
+     */
+    val winnable: Int = pot,
 ) {
     val isDiscard: Boolean get() = legal.discard != null
+
+    /** Calling's share of the pot it would win: the equity a call needs to break even (0 when checking is free). */
+    val callShare: Float get() = if (legal.toCall <= 0) 0f else legal.toCall.toFloat() / (winnable + legal.toCall)
+
+    /**
+     * [callShare] as a whole percent, rounded up (41.7% needed must not read
+     * as 41%), 1 to 99. Integer math, so an exact 30% stays 30%.
+     */
+    val needPercent: Int get() {
+        if (legal.toCall <= 0) return 1
+        val whole = (winnable + legal.toCall).toLong()
+        return ((100L * legal.toCall + whole - 1) / whole).toInt().coerceIn(1, 99)
+    }
 }
 
 /** The big announcement at the end of a hand. */
@@ -93,6 +112,10 @@ data class TableUiState(
     val pot: Int = 0,
     val seats: List<SeatUi> = emptyList(),
     val humanTurn: HumanTurn? = null,
+    /** While an opponent acts and you are still in: the advance-action toggles (null: none on offer). */
+    val preAction: PreActionUi? = null,
+    /** Why a picked advance action did not play ("RAISED: CALL CANCELLED"), until you act or the street ends. */
+    val preActionNote: String? = null,
     /** Draw games: the HELD cards. Pineapple: the card picked to toss. */
     val selected: Set<Int> = emptySet(),
     val banner: BannerUi? = null,

@@ -48,6 +48,16 @@ class CoachMarksTest {
     }
 
     @Test
+    fun advanceActionsGetAHintWhileWaiting() {
+        val waiting = ScreenshotScenes.holdemWaiting()
+        assertEquals(listOf(Coach.PreAction, Coach.Pause), CoachMarks.forTable(waiting, raising = false))
+        assertEquals(Coach.Pause, CoachMarks.next(CoachMarks.forTable(waiting, raising = false), setOf(Coach.PreAction)))
+        assertEquals(listOf(Coach.Pause), CoachMarks.forTable(waiting.copy(preAction = null), raising = false))
+        // From the very first hand, unlike PAUSE.
+        assertEquals(listOf(Coach.PreAction), CoachMarks.forTable(waiting.copy(handNumber = 1), raising = false))
+    }
+
+    @Test
     fun tourChoiceOnlyOnTheChooseScreen() {
         assertEquals(listOf(Coach.ChooseTable), CoachMarks.forRun(RunScreen.Choose))
         RunScreen.entries.filter { it != RunScreen.Choose }.forEach { assertTrue(CoachMarks.forRun(it).isEmpty()) }

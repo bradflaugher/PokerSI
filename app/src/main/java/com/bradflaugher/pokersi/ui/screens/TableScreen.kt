@@ -19,7 +19,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -47,6 +50,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -73,6 +80,12 @@ import com.bradflaugher.pokersi.ui.pixel.cardScaleFor
 import com.bradflaugher.pokersi.ui.pixel.PixelPanel
 import com.bradflaugher.pokersi.ui.pixel.PanelStyle
 import com.bradflaugher.pokersi.game.HumanTurn
+import com.bradflaugher.pokersi.game.PreAction
+import com.bradflaugher.pokersi.game.PreActionUi
+import com.bradflaugher.pokersi.engine.BettingStructure
+import com.bradflaugher.pokersi.ui.pixel.LocalSoundPlayer
+import android.os.SystemClock
+import kotlinx.coroutines.delay
 import com.bradflaugher.pokersi.run.RunPhase
 import com.bradflaugher.pokersi.engine.Decision
 import com.bradflaugher.pokersi.engine.hasBoard
@@ -117,9 +130,41 @@ class TableCallbacks(
     val onPause: () -> Unit = {},
     /** The raise panel opened (true) or closed: for the one-time raise hint. */
     val onRaising: (Boolean) -> Unit = {},
+    /** An advance-action toggle was tapped while waiting ([PreAction]). */
+    val onPreAction: (PreAction) -> Unit = {},
+    /** False while the action bar's tap guard is up ([guarded]): for taps that only change the screen, like opening the raise panel. */
+    val isArmed: () -> Boolean = { true },
     /** Keep the header's top right free for the debug console's "~" ([ConsoleToggle]); the setting is on. */
     val consoleSlot: Boolean = false,
-)
+) {
+    /**
+     * These callbacks with the action bar's taps dropped while [armed] says no:
+     * the tap guard that keeps a tap meant for one bar from landing on the next.
+     */
+    fun guarded(armed: () -> Boolean) = TableCallbacks(
+        onAct = { if (armed()) onAct(it) },
+        onToggle = onToggle,
+        onConfirmDiscard = { if (armed()) onConfirmDiscard() },
+        onNext = { if (armed()) onNext() },
+        onPlayAgain = { if (armed()) onPlayAgain() },
+        onMenu = { if (armed()) onMenu() },
+        onPause = onPause,
+        onRaising = onRaising,
+        onPreAction = { if (armed()) onPreAction(it) },
+        isArmed = armed,
+        consoleSlot = consoleSlot,
+    )
+}
+
+/**
+ * How long the action bar ignores taps after it changes (your turn arrives,
+ * the hand ends): a thumb already on its way to an advance-action toggle
+ * must not land on FOLD or CALL instead.
+ */
+internal const val TAP_GUARD_MS = 400L
+
+/** A turn that comes after at least this long waiting on opponents gets a buzz: you may have looked away. */
+internal const val TURN_BUZZ_AFTER_MS = 2500L
 
 /** Sizes for one table layout, from the window size. */
 data class TableMetrics(
@@ -691,21 +736,59 @@ private fun HumanArea(state: TableUiState, m: TableMetrics, callbacks: TableCall
 
 // ---------------------------------------------------------------- actions
 
+private enum class Bar { Discard, Betting, Waiting, Over }
+
 @Composable
 private fun ActionArea(state: TableUiState, callbacks: TableCallbacks, run: RunUiState?) {
     val turn = state.humanTurn
+    val bar = when {
+        turn != null && turn.isDiscard -> Bar.Discard
+        turn != null -> Bar.Betting
+        state.phase == TablePhase.Playing || state.phase == TablePhase.Idle -> Bar.Waiting
+        else -> Bar.Over
+    }
+    // A new waiting row (you just acted, or the options changed) re-arms the guard too.
+    val armed = rememberArmed(bar, turn, state.handNumber, state.street, state.preAction?.revision, state.preAction?.options)
+    val guarded = remember(callbacks) { callbacks.guarded { armed.value } }
+    YourTurnBuzz(turn != null, state.phase == TablePhase.Playing)
     Box(Modifier.fillMaxWidth().heightIn(min = 60.dp), contentAlignment = Alignment.BottomCenter) {
+        when (bar) {
+            Bar.Discard -> DiscardBar(state, guarded)
+            Bar.Betting -> BettingBar(state, guarded)
+            Bar.Waiting -> WaitingBar(state, guarded)
+            Bar.Over -> HandOverBar(state, guarded, run)
+        }
+    }
+}
+
+/** False for [TAP_GUARD_MS] each time [keys] change, then true. */
+@Composable
+private fun rememberArmed(vararg keys: Any?): State<Boolean> {
+    val armed = remember(*keys) { mutableStateOf(false) }
+    LaunchedEffect(*keys) {
+        delay(TAP_GUARD_MS)
+        armed.value = true
+    }
+    return armed
+}
+
+/** A buzz when your turn comes after a long wait on the opponents (a slow model), so you can look away. */
+@Composable
+private fun YourTurnBuzz(myTurn: Boolean, playing: Boolean) {
+    val haptic = LocalHapticFeedback.current
+    val since = remember { mutableLongStateOf(0L) }
+    LaunchedEffect(myTurn, playing) {
+        val now = SystemClock.uptimeMillis()
         when {
-            turn != null && turn.isDiscard -> DiscardBar(state, callbacks)
-            turn != null -> BettingBar(state, callbacks)
-            state.phase == TablePhase.Playing || state.phase == TablePhase.Idle -> WaitingBar(state)
-            else -> HandOverBar(state, callbacks, run)
+            !playing -> since.longValue = 0L
+            !myTurn -> since.longValue = now
+            since.longValue > 0L && now - since.longValue >= TURN_BUZZ_AFTER_MS -> haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         }
     }
 }
 
 @Composable
-private fun WaitingBar(state: TableUiState) {
+private fun WaitingBar(state: TableUiState, callbacks: TableCallbacks) {
     val p = PixelTheme.palette
     val who = state.seats.firstOrNull { it.thinking || it.isToAct }
     val text = when {
@@ -714,9 +797,107 @@ private fun WaitingBar(state: TableUiState) {
         who != null && who.seat != 0 -> "${who.name.uppercase()} IS THINKING..."
         else -> "DEALING..."
     }
-    Blinking(1400) {
-        PixelText(text, Modifier.padding(bottom = 18.dp), style = PixelType.Small, color = p.cardCream, textAlign = TextAlign.Center)
+    val pre = state.preAction
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(PixelSpacing.XS)) {
+        val note = state.preActionNote
+        if (note != null) {
+            PixelText(note, style = PixelType.Small.copy(fontSize = 9.sp), color = p.yellow, textAlign = TextAlign.Center, maxLines = 1)
+        } else {
+            Blinking(1400) {
+                PixelText(
+                    text,
+                    Modifier.padding(bottom = if (pre == null) 18.dp else 0.dp),
+                    style = PixelType.Small.copy(fontSize = if (pre == null) 10.sp else 9.sp), color = p.cardCream, textAlign = TextAlign.Center, maxLines = 1,
+                )
+            }
+        }
+        if (pre != null) PreActionRow(pre, state.variant.structure, callbacks.onPreAction)
     }
+}
+
+/**
+ * The advance-action toggles while an opponent thinks: CHECK/FOLD (or FOLD)
+ * behind FOLD's moat, then CHECK or CALL n, CALL ANY and ALL IN. One at a
+ * time; tap the lit one again to clear it. They look like checkboxes, not
+ * cabinet buttons, so nobody mistakes them for acting now.
+ */
+@Composable
+private fun PreActionRow(pre: PreActionUi, structure: BettingStructure, onPick: (PreAction) -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        pre.options.forEachIndexed { i, option ->
+            when (i) {
+                0 -> Unit
+                1 -> FoldMoat()
+                else -> Spacer(Modifier.width(PixelSpacing.Tap))
+            }
+            PreActionToggle(
+                option.label(pre.toCall, pre.stack, structure),
+                selected = option == pre.selected,
+                spoken = option.spoken(pre.toCall, structure),
+                onClick = { onPick(option) },
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun PreActionToggle(label: String, selected: Boolean, spoken: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val p = PixelTheme.palette
+    val unit = LocalPixelUnit.current
+    val haptic = LocalHapticFeedback.current
+    val player = LocalSoundPlayer.current
+    val face = if (selected) p.yellow else p.ink.copy(alpha = 0.6f)
+    val edge = if (selected) p.ink else p.feltLight
+    val ink = if (selected) p.ink else p.cardCream
+    Box(
+        modifier
+            .heightIn(min = 48.dp)
+            .toggleable(value = selected, interactionSource = null, indication = null, role = Role.Checkbox) {
+                haptic.performHapticFeedback(if (it) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff)
+                player.play(Sfx.Blip)
+                onClick()
+            }
+            .semantics { contentDescription = "When it's your turn: $spoken" }
+            .drawBehind {
+                val w = size.width.toInt(); val h = size.height.toInt()
+                pxBox(0, 0, w, h, unit, edge, face)
+                // A pixel checkbox in the corner: hollow, or ticked when picked.
+                val b = unit * 7
+                val x = unit * 3; val y = unit * 3
+                pxBox(x, y, b, b, unit, if (selected) p.ink else p.feltLight, if (selected) p.yellow else p.ink)
+                if (selected) {
+                    // A five-pixel tick inside the box's 5x5 interior.
+                    listOf(0 to 2, 1 to 3, 2 to 2, 3 to 1, 4 to 0).forEach { (cx, cy) ->
+                        pxRect(x + unit * (1 + cx), y + unit * (1 + cy), unit, unit, p.ink)
+                    }
+                }
+            }
+            .padding(horizontal = 4.dp, vertical = 6.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            label.split('\n').forEach { line ->
+                PixelText(line, style = PixelType.Small.copy(fontSize = 9.sp), color = ink, shadowUnits = if (selected) 0 else 1, maxLines = 1, textAlign = TextAlign.Center)
+            }
+        }
+    }
+}
+
+/** The line over the betting buttons: why an advance action didn't play, or what a call costs against the pot. */
+@Composable
+private fun TurnLine(state: TableUiState, turn: HumanTurn) {
+    val p = PixelTheme.palette
+    val note = state.preActionNote
+    val legal = turn.legal
+    val (text, color) = when {
+        note != null -> note to p.yellow
+        legal.canCheck -> "YOUR MOVE. CHECKING IS FREE." to p.cardCream
+        else -> {
+            "CALL ${formatChips(legal.toCall)} TO WIN ${formatChips(turn.winnable)}: NEED ${turn.needPercent}%" to p.cardCream
+        }
+    }
+    PixelText(text, Modifier.fillMaxWidth(), style = PixelType.Small.copy(fontSize = 9.sp), color = color, textAlign = TextAlign.Center, maxLines = 1)
 }
 
 /** How much a quick-size button raises to: a fraction of the pot after calling. */
@@ -742,6 +923,7 @@ private fun BettingBar(state: TableUiState, callbacks: TableCallbacks) {
         onDispose { if (raising) onRaising(false) }
     }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(PixelSpacing.S)) {
+        if (!raising) TurnLine(state, turn)
         if (raising && min != null && max != null) {
             RaisePanel(turn, amount, { amount = it.coerceIn(min, max) }, onCancel = { raising = false }, onConfirm = {
                 raising = false
@@ -767,7 +949,7 @@ private fun BettingBar(state: TableUiState, callbacks: TableCallbacks) {
                 if (min == max) {
                     PixelButton("$word\n${formatChips(min)}", { callbacks.onAct(Decision.RaiseTo(min)) }, Modifier.weight(1.2f), variant = PixelButtonVariant.Bet, textStyle = PixelType.Small, sound = Sfx.Chip)
                 } else {
-                    PixelButton(if (raising) "$word..." else word, { raising = !raising }, Modifier.weight(1.2f), variant = PixelButtonVariant.Bet, textStyle = PixelType.Small)
+                    PixelButton(if (raising) "$word..." else word, { if (callbacks.isArmed()) raising = !raising }, Modifier.weight(1.2f), variant = PixelButtonVariant.Bet, textStyle = PixelType.Small)
                 }
             }
         }

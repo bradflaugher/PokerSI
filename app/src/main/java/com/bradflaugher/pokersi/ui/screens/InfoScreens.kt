@@ -94,7 +94,7 @@ internal val Faqs = listOf(
     ),
     Faq(
         "WHY ARE OPPONENTS SLOW TO ACT?",
-        "Each one really thinks, on your phone's own chip. A smaller model answers quicker, and GAME SPEED: FAST (in SETUP or the pause menu) cuts the waits. With FAST FOLD on, once you fold the rest of the hand plays out at once.",
+        "Each one really thinks, on your phone's own chip. A smaller model answers quicker, and GAME SPEED: FAST (in SETUP or the pause menu) cuts the waits. While you wait, tick your move ahead (CHECK/FOLD, CHECK or CALL, CALL ANY, ALL IN) and it plays the moment your turn comes. With FAST FOLD on, once you fold the rest of the hand plays out at once.",
     ),
     Faq(
         "WHICH MODEL SHOULD I PICK?",

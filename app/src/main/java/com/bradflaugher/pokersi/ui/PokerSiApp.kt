@@ -369,6 +369,7 @@ private fun TableRoute(vm: PokerViewModel, run: RunUiState?) {
                 onMenu = vm::toTitle,
                 onPause = { menu = true },
                 onRaising = { raising = it },
+                onPreAction = c::togglePreAction,
                 consoleSlot = vm.settings.debugConsole.collectAsStateWithLifecycle().value,
             ),
             run = run,
