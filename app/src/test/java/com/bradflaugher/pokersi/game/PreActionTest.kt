@@ -35,6 +35,11 @@ class PreActionTest {
         assertTrue(PreAction.Call(60).stillValid(60))
         assertFalse(PreAction.Call(60).stillValid(200))
         listOf(PreAction.CheckFold, PreAction.CallAny, PreAction.AllIn).forEach { assertTrue(it.stillValid(500)) }
+        // A short stack's CALL ALL IN: the capped call stays 400, but a raise over the 600 bet still cancels it.
+        val allInCall = PreAction.options(400, 400, topBet = 600)[1]
+        assertEquals(PreAction.Call(400, 600), allInCall)
+        assertTrue(allInCall.stillValid(400, 600))
+        assertFalse(allInCall.stillValid(400, 1200))
     }
 
     @Test
@@ -89,5 +94,7 @@ class PreActionTest {
         assertEquals(30, GameController.winnablePot(listOf(10, 20), me = 0, toCall = 10))
         val turn = HumanTurn(LegalActions(true, false, 50, null, null), pot = 120, bigBlind = 10, betThisRound = 0, stack = 50, winnable = 70)
         assertEquals(50f / 120f, turn.callShare, 1e-6f)
+        assertEquals("41.7% rounds up", 42, turn.needPercent)
+        assertEquals("exact stays", 25, turn.copy(winnable = 150).needPercent)
     }
 }

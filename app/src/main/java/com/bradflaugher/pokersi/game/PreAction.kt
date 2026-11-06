@@ -23,8 +23,13 @@ sealed interface PreAction {
     /** Check, only if nobody bets first. */
     data object Check : PreAction
 
-    /** Call exactly [amount] (what you faced when you picked it). */
-    data class Call(val amount: Int) : PreAction
+    /**
+     * Call exactly [amount] (what you faced when you picked it) against a top
+     * bet of [topBet]. The top bet counts too: a short stack's call is capped
+     * at its chips, so a raise can leave [amount] unchanged and still has to
+     * cancel the pick.
+     */
+    data class Call(val amount: Int, val topBet: Int = amount) : PreAction
 
     /** Call whatever it costs (or check if it's free). */
     data object CallAny : PreAction
@@ -32,10 +37,10 @@ sealed interface PreAction {
     /** As much as the game allows: all in (no limit), a pot-size raise (pot limit), a raise (fixed limit). */
     data object AllIn : PreAction
 
-    /** Whether this still means what the player picked, now that calling costs [toCall]. */
-    fun stillValid(toCall: Int): Boolean = when (this) {
+    /** Whether this still means what the player picked, now that calling costs [toCall] against a top bet of [topBet]. */
+    fun stillValid(toCall: Int, topBet: Int = toCall): Boolean = when (this) {
         Check -> toCall == 0
-        is Call -> toCall == amount
+        is Call -> toCall == amount && topBet == this.topBet
         CheckFold, CallAny, AllIn -> true
     }
 
@@ -95,9 +100,9 @@ sealed interface PreAction {
          * the matching check or call, call any, and all in. A call that would
          * already put the player all in has no separate ALL IN.
          */
-        fun options(toCall: Int, stack: Int): List<PreAction> = buildList {
+        fun options(toCall: Int, stack: Int, topBet: Int = toCall): List<PreAction> = buildList {
             add(CheckFold)
-            if (toCall == 0) add(Check) else add(Call(toCall))
+            if (toCall == 0) add(Check) else add(Call(toCall, topBet))
             if (toCall < stack) {
                 add(CallAny)
                 add(AllIn)
@@ -114,6 +119,8 @@ data class PreActionUi(
     val toCall: Int,
     val stack: Int,
     val selected: PreAction?,
+    /** The biggest bet in front of anyone this round (a CALL is for this exact bet). */
+    val topBet: Int = toCall,
 ) {
-    val options: List<PreAction> get() = PreAction.options(toCall, stack)
+    val options: List<PreAction> get() = PreAction.options(toCall, stack, topBet)
 }

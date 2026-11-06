@@ -893,8 +893,7 @@ private fun TurnLine(state: TableUiState, turn: HumanTurn) {
         note != null -> note to p.yellow
         legal.canCheck -> "YOUR MOVE. CHECKING IS FREE." to p.cardCream
         else -> {
-            val need = (turn.callShare * 100).toInt().coerceIn(1, 99)
-            "CALL ${formatChips(legal.toCall)} TO WIN ${formatChips(turn.winnable)}: NEED $need%" to p.cardCream
+            "CALL ${formatChips(legal.toCall)} TO WIN ${formatChips(turn.winnable)}: NEED ${turn.needPercent}%" to p.cardCream
         }
     }
     PixelText(text, Modifier.fillMaxWidth(), style = PixelType.Small.copy(fontSize = 9.sp), color = color, textAlign = TextAlign.Center, maxLines = 1)

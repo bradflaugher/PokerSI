@@ -82,7 +82,7 @@ download a model.
   ALL IN (RAISE POT or RAISE in limit games). It plays the moment your turn
   comes. A bet or raise first cancels a ticked CHECK or CALL, and the bar
   says so; every pick lasts one betting round. Your turn shows what a call
-  costs against the pot ("CALL 160 TO WIN 410: NEED 28%"), the buttons
+  costs against the pot ("CALL 160 TO WIN 410: NEED 29%"), the buttons
   ignore taps for a moment after they change so a thumb meant for a toggle
   can't land on FOLD, and a turn that comes after a long wait gives a buzz.
 - **No waiting on hands you're out of.** With FAST FOLD (on by default),

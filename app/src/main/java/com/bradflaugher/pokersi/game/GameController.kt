@@ -540,7 +540,7 @@ class GameController(
         if (me.folded || me.allIn || me.sittingOut || me.chips <= 0) return null
         val legal = h.legalActions(0)
         if (legal.discard != null) return null
-        return PreActionUi(legal.toCall, me.chips, preAction)
+        return PreActionUi(legal.toCall, me.chips, preAction, topBet(h))
     }
 
     /** After someone else acts: a CHECK or CALL picked for a bet that has since changed is cancelled. */
@@ -548,7 +548,7 @@ class GameController(
         val picked = preAction ?: return
         if (h.isFinished) return
         val legal = h.legalActions(0)
-        if (picked.stillValid(legal.toCall)) return
+        if (picked.stillValid(legal.toCall, topBet(h))) return
         preAction = null
         preActionNote = when (picked) {
             PreAction.Check -> "A BET CAME IN: CHECK CANCELLED"
@@ -556,6 +556,9 @@ class GameController(
         }
         AiLog.add(AiLogKind.TABLE, TABLE, { "advance action cancelled: $picked, now ${legal.toCall} to call" })
     }
+
+    /** The biggest bet in front of any seat this betting round. */
+    private fun topBet(h: Hand): Int = h.snapshot(0).seats.maxOfOrNull { it.bet } ?: 0
 
     private fun clearPreAction() {
         preAction = null
