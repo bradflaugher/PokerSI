@@ -211,7 +211,8 @@ object CardArt {
         }
         val big = SuitArt.big(suit)
         val art = PixelCanvas(big.width + 2, big.height + 2)
-        stampBeveled(art, big, 1, 1, color, lerp(color, p.white, 0.5f), lerp(color, p.ink, 0.45f))
+        // Each part gets its own bevel, so a club's three lobes show as three balls, not one blob.
+        for (part in SuitArt.bigParts(suit)) stampBeveled(art, part, 1, 1, color, lerp(color, p.white, 0.5f), lerp(color, p.ink, 0.45f))
         art.outline(p.ink)
         c.blit(art, CX - art.width / 2, cy - art.height / 2)
         for ((sx, sy) in listOf(CX + 12 to 18, CX - 12 to 44)) sparkle(c, sx, sy, p)
@@ -330,6 +331,7 @@ object CardArt {
         "..oo.........oo..",
     )
 
+    /** The one-eyed jacks (spades and hearts, as in a real deck) wink; the other two look straight on. */
     private val JackHead = PixelPattern.of(
         "...........aa....",
         "..........aAa....",
@@ -344,6 +346,29 @@ object CardArt {
         "..ohshhssshhsSo..",
         "..ohsosssssssSo..",
         "..ohsossssoosSo..",
+        "..ohssssSsssSHo..",
+        "..ohsbssssbsSHo..",
+        "..ohssssssoSSHo..",
+        "...ohssoooSSSo...",
+        "....osssssSSo....",
+        ".....ossssSo.....",
+        "......ooooo......",
+    )
+
+    private val JackHeadTwoEyed = PixelPattern.of(
+        "...........aa....",
+        "..........aAa....",
+        ".........aAa.....",
+        "....ooooaAaoo....",
+        "...orrrrqarRRo...",
+        "..orqrrrrrrrRRo..",
+        ".orqrrrrrrrrrRRo.",
+        "oRRRRRRRRRRRRRRRo",
+        "..ohhssssssshHo..",
+        "..ohssssssssSHo..",
+        "..ohshhssshhsSo..",
+        "..ohsosssssosSo..",
+        "..ohsosssssosSo..",
         "..ohssssSsssSHo..",
         "..ohsbssssbsSHo..",
         "..ohssssssoSSHo..",
@@ -521,7 +546,8 @@ object CardArt {
         fig.hline(bx - 2, top + 6, 6, p.gold)
         fig.set(bx + 3, top + 6, p.goldDark)
         hand(fig, bx, top + 8, cc)
-        fig.stamp(JackHead, CX - 8, FY + 1, headColors(cc, p))
+        val oneEyed = suit == Suit.SPADES || suit == Suit.HEARTS
+        fig.stamp(if (oneEyed) JackHead else JackHeadTwoEyed, CX - 8, FY + 1, headColors(cc, p))
     }
 
     // ---- Back ------------------------------------------------------------
@@ -638,6 +664,26 @@ internal object RobotChip {
 object SuitArt {
     private fun g(vararg rows: String) = PixelPattern(rows.toList())
 
+    /**
+     * The big club's parts, drawn in this order: a thin flared stem, the two
+     * side lobes, then the top lobe. Three round balls that only just touch,
+     * stamped one by one so each keeps its own bevel (unlike a spade's single
+     * pointed body).
+     */
+    private val clubParts: List<PixelPattern> = run {
+        val w = 15; val h = 15
+        fun raster(on: (Double, Double) -> Boolean) = PixelPattern(
+            (0 until h).map { y -> buildString { for (x in 0 until w) append(if (on(x + 0.5, y + 0.5)) 'X' else '.') } },
+        )
+        fun circ(cx: Double, cy: Double, r: Double) = raster { px, py -> hypot(px - cx, py - cy) <= r }
+        listOf(
+            raster { px, py -> (abs(px - 7.5) <= 0.6 && py in 7.0..13.0) || (py >= 12.0 && abs(px - 7.5) <= (py - 11.2) * 1.4) },
+            circ(3.6, 8.9, 3.5),
+            circ(11.4, 8.9, 3.5),
+            circ(7.5, 3.8, 3.6),
+        )
+    }
+
     private val small = mapOf(
         Suit.HEARTS to g("XX.XX", "XXXXX", "XXXXX", ".XXX.", "..X.."),
         Suit.DIAMONDS to g("..X..", ".XXX.", "XXXXX", ".XXX.", "..X.."),
@@ -709,21 +755,10 @@ object SuitArt {
         Suit.CLUBS to clubShape(),
     )
 
-    /** Club rasterised from three circles and a flared stem. */
     private fun clubShape(): PixelPattern {
-        val w = 15; val h = 15
-        val rows = (0 until h).map { y ->
-            buildString {
-                for (x in 0 until w) {
-                    val px = x + 0.5; val py = y + 0.5
-                    fun circ(cx: Double, cy: Double, r: Double) = hypot(px - cx, py - cy) <= r
-                    val on = circ(7.5, 3.9, 3.7) || circ(3.7, 8.4, 3.7) || circ(11.3, 8.4, 3.7) ||
-                        (abs(px - 7.5) <= 0.6 && py in 6.0..13.0) ||
-                        (py >= 12.0 && abs(px - 7.5) <= (py - 11.0) * 1.1) ||
-                        circ(7.5, 7.6, 2.0)
-                    append(if (on) 'X' else '.')
-                }
-            }
+        val parts = clubParts
+        val rows = (0 until parts[0].height).map { y ->
+            buildString { for (x in 0 until parts[0].width) append(if (parts.any { it[x, y] != '.' }) 'X' else '.') }
         }
         return PixelPattern(rows)
     }
@@ -731,4 +766,7 @@ object SuitArt {
     fun small(s: Suit): PixelPattern = small.getValue(s)
     fun pip(s: Suit): PixelPattern = pip.getValue(s)
     fun big(s: Suit): PixelPattern = big.getValue(s)
+
+    /** [big] as the parts to stamp (and bevel) one by one: just the one for every suit but clubs. */
+    fun bigParts(s: Suit): List<PixelPattern> = if (s == Suit.CLUBS) clubParts else listOf(big(s))
 }
