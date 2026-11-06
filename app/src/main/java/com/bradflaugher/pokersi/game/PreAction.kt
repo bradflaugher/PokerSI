@@ -37,7 +37,11 @@ sealed interface PreAction {
     /** As much as the game allows: all in (no limit), a pot-size raise (pot limit), a raise (fixed limit). */
     data object AllIn : PreAction
 
-    /** Whether this still means what the player picked, now that calling costs [toCall] against a top bet of [topBet]. */
+    /**
+     * Whether this still means what the player picked, now that calling costs
+     * [toCall] against a top bet of [topBet]. ALL IN always stands while
+     * waiting; if no raise is left when the turn comes, [decide] cancels it.
+     */
     fun stillValid(toCall: Int, topBet: Int = toCall): Boolean = when (this) {
         Check -> toCall == 0
         is Call -> toCall == amount && topBet == this.topBet
@@ -61,9 +65,8 @@ sealed interface PreAction {
                 when {
                     max != null && max >= allInTotal -> Decision.AllIn
                     max != null -> Decision.RaiseTo(max)
-                    // No raise left (capped, or not reopened): calling is the most there is.
-                    legal.canCheck -> Decision.Check
-                    else -> Decision.Call
+                    // No raise left (capped, or not reopened): never quietly a call; the player decides.
+                    else -> null
                 }
             }
         }
@@ -121,6 +124,8 @@ data class PreActionUi(
     val selected: PreAction?,
     /** The biggest bet in front of anyone this round (a CALL is for this exact bet). */
     val topBet: Int = toCall,
+    /** Bumps each time the player acts (by hand or by an advance action): the row is a new one. */
+    val revision: Int = 0,
 ) {
     val options: List<PreAction> get() = PreAction.options(toCall, stack, topBet)
 }

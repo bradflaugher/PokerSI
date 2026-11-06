@@ -747,7 +747,8 @@ private fun ActionArea(state: TableUiState, callbacks: TableCallbacks, run: RunU
         state.phase == TablePhase.Playing || state.phase == TablePhase.Idle -> Bar.Waiting
         else -> Bar.Over
     }
-    val armed = rememberArmed(bar, turn, state.handNumber)
+    // A new waiting row (you just acted, or the options changed) re-arms the guard too.
+    val armed = rememberArmed(bar, turn, state.handNumber, state.street, state.preAction?.revision, state.preAction?.options)
     val guarded = remember(callbacks) { callbacks.guarded { armed.value } }
     YourTurnBuzz(turn != null, state.phase == TablePhase.Playing)
     Box(Modifier.fillMaxWidth().heightIn(min = 60.dp), contentAlignment = Alignment.BottomCenter) {

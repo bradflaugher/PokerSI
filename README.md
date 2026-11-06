@@ -80,8 +80,9 @@ download a model.
   advance-action boxes of online poker: CHECK/FOLD (checks if it's free,
   folds to a bet), CHECK or CALL n (for the bet as it stands), CALL ANY and
   ALL IN (RAISE POT or RAISE in limit games). It plays the moment your turn
-  comes. A bet or raise first cancels a ticked CHECK or CALL, and the bar
-  says so; every pick lasts one betting round. Your turn shows what a call
+  comes. A bet or raise first cancels a ticked CHECK or CALL (and ALL IN,
+  if no raise is left by your turn), and the bar says so; every pick lasts
+  one betting round. Your turn shows what a call
   costs against the pot ("CALL 160 TO WIN 410: NEED 29%"), the buttons
   ignore taps for a moment after they change so a thumb meant for a toggle
   can't land on FOLD, and a turn that comes after a long wait gives a buzz.

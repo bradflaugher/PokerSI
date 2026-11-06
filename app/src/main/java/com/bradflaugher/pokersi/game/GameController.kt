@@ -224,6 +224,8 @@ class GameController(
     /** The advance action picked while waiting ([togglePreAction]); cleared when it plays, is cancelled, or the street ends. */
     private var preAction: PreAction? = null
     private var preActionNote: String? = null
+    /** Counts the human's decisions (by hand or advance action), so the waiting row knows it is a new one. */
+    private var humanActs = 0
     private var selected: Set<Int> = emptySet()
     private var boardLimit: Int? = null
     private var celebrate = 0
@@ -540,7 +542,9 @@ class GameController(
         if (me.folded || me.allIn || me.sittingOut || me.chips <= 0) return null
         val legal = h.legalActions(0)
         if (legal.discard != null) return null
-        return PreActionUi(legal.toCall, me.chips, preAction, topBet(h))
+        // Whether a raise will be allowed can't be known while waiting (a bet that comes round reopens it),
+        // so ALL IN stays on offer; if raising is closed when the turn comes, it is cancelled, never a call.
+        return PreActionUi(legal.toCall, me.chips, preAction, topBet(h), revision = humanActs)
     }
 
     /** After someone else acts: a CHECK or CALL picked for a bet that has since changed is cancelled. */
@@ -732,11 +736,14 @@ class GameController(
             preActionNote = null
             AiLog.add(AiLogKind.TABLE, TABLE, { "advance action: $picked -> $early" })
             h.apply(0, early)
+            humanActs++
             selected = emptySet()
             if (runState != null) saveForfeit(h)
             return
         }
-        if (picked != null && preActionNote == null) preActionNote = "BET CHANGED: YOUR CALL"
+        if (picked != null && preActionNote == null) {
+            preActionNote = if (picked == PreAction.AllIn) "NO RAISE LEFT: YOUR CALL" else "BET CHANGED: YOUR CALL"
+        }
         val deferred = CompletableDeferred<Decision>()
         humanDecision = deferred
         humanTurn = HumanTurn(
@@ -751,6 +758,7 @@ class GameController(
         val decision = deferred.await()
         humanTurn = null
         h.apply(0, decision)
+        humanActs++
         selected = emptySet()
         if (runState != null) saveForfeit(h)
     }

@@ -53,9 +53,10 @@ class PreActionTest {
         assertEquals(Decision.AllIn, PreAction.AllIn.decide(facing, 1000))
         // Pot or fixed limit: the biggest raise allowed.
         assertEquals(Decision.RaiseTo(300), PreAction.AllIn.decide(facing.copy(maxRaiseTo = 300), 1000))
-        // No raise left: call (or check).
-        assertEquals(Decision.Call, PreAction.AllIn.decide(facing.copy(minRaiseTo = null, maxRaiseTo = null), 1000))
-        assertEquals(Decision.Check, PreAction.AllIn.decide(free.copy(minRaiseTo = null, maxRaiseTo = null), 1000))
+        // No raise left: never quietly a call; the player decides.
+        assertNull(PreAction.AllIn.decide(facing.copy(minRaiseTo = null, maxRaiseTo = null), 1000))
+        assertNull(PreAction.AllIn.decide(free.copy(minRaiseTo = null, maxRaiseTo = null), 1000))
+
     }
 
     @Test
