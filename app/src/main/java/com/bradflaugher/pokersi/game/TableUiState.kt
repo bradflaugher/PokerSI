@@ -57,6 +57,9 @@ data class HumanTurn(
     val stack: Int,
 ) {
     val isDiscard: Boolean get() = legal.discard != null
+
+    /** Calling's share of the pot it would win: the equity a call needs to break even (0 when checking is free). */
+    val callShare: Float get() = if (legal.toCall <= 0) 0f else legal.toCall.toFloat() / (pot + legal.toCall)
 }
 
 /** The big announcement at the end of a hand. */
@@ -93,6 +96,10 @@ data class TableUiState(
     val pot: Int = 0,
     val seats: List<SeatUi> = emptyList(),
     val humanTurn: HumanTurn? = null,
+    /** While an opponent acts and you are still in: the advance-action toggles (null: none on offer). */
+    val preAction: PreActionUi? = null,
+    /** Why a picked advance action did not play ("RAISED: CALL CANCELLED"), until you act or the street ends. */
+    val preActionNote: String? = null,
     /** Draw games: the HELD cards. Pineapple: the card picked to toss. */
     val selected: Set<Int> = emptySet(),
     val banner: BannerUi? = null,

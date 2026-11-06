@@ -22,6 +22,9 @@ enum class Coach(val text: String) {
     /** A hand just ended. */
     HandOver("Hand over! The winning cards glow, and every seat shows what it won or lost."),
 
+    /** Waiting on an opponent with the advance-action toggles up. */
+    PreAction("Waiting? Tick a move now and it plays when your turn comes. A bet or raise first cancels CHECK and CALL."),
+
     /** The pause button, once there's a quiet moment. */
     Pause("PAUSE (or Back) stops the table: change the speed or quit."),
 
@@ -51,7 +54,10 @@ object CoachMarks {
                 add(Coach.YourTurn)
             }
             table.phase == TablePhase.HandOver && table.banner != null -> add(Coach.HandOver)
-            table.phase == TablePhase.Playing && table.handNumber >= 2 && table.human?.folded != true -> add(Coach.Pause)
+            table.phase == TablePhase.Playing && table.handNumber >= 2 && table.human?.folded != true -> {
+                if (table.preAction != null) add(Coach.PreAction)
+                add(Coach.Pause)
+            }
         }
     }
 

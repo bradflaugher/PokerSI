@@ -13,6 +13,7 @@ import com.bradflaugher.pokersi.engine.isDraw
 import com.bradflaugher.pokersi.run.Risk
 import com.bradflaugher.pokersi.run.RunPhase
 import com.bradflaugher.pokersi.run.RunState
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.test.advanceTimeBy
@@ -706,6 +707,117 @@ class GameControllerTest {
         assertTrue(c.isRunning)
         c.stop()
     }
+
+    // ---------------------------------------------------------------- advance actions
+
+    /** Opponents that think until the test answers: each decision waits on a deferred in [gate]. */
+    private fun gatedBrains(gate: MutableList<CompletableDeferred<Decision>>) = brainsOf { _, _ ->
+        agentOf { _, _ ->
+            val d = CompletableDeferred<Decision>()
+            gate += d
+            AgentReply(d.await())
+        }
+    }
+
+    /** Heads-up: checks/calls until an opponent is thinking and the advance-action toggles are up (preflop, nothing to call). */
+    private fun TestScope.untilWaiting(c: GameController, gate: List<CompletableDeferred<Decision>>) {
+        var guard = 0
+        while (guard++ < 50) {
+            runCurrent()
+            val state = c.table.value
+            val turn = state.humanTurn
+            if (turn != null) c.act(if (turn.legal.canCheck) Decision.Check else Decision.Call)
+            else if (state.preAction != null && gate.lastOrNull()?.isActive == true) return
+        }
+        error("never waited on an opponent")
+    }
+
+    private fun TestScope.waitingTable(): Pair<GameController, MutableList<CompletableDeferred<Decision>>> {
+        val gate = mutableListOf<CompletableDeferred<Decision>>()
+        val c = controller(brains = gatedBrains(gate))
+        c.startQuick(config(opponents = 1, seed = 21L))
+        untilWaiting(c, gate)
+        return c to gate
+    }
+
+    private fun GameController.calledAtLeast(min: Int) = table.value.log.any { line ->
+        Regex("^You call (\\d+)").find(line)?.groupValues?.get(1)?.toInt()?.let { it >= min } == true
+    }
+
+    @Test
+    fun advanceActionsAreOfferedOnlyWhileWaiting() = runTest {
+        val (c, _) = waitingTable()
+        val pre = c.table.value.preAction
+        assertNotNull(pre)
+        assertEquals(0, pre!!.toCall)
+        assertEquals(listOf(PreAction.CheckFold, PreAction.Check, PreAction.CallAny, PreAction.AllIn), pre.options)
+        assertNull(pre.selected)
+        c.togglePreAction(PreAction.CallAny)
+        assertEquals(PreAction.CallAny, c.table.value.preAction?.selected)
+        c.togglePreAction(PreAction.CallAny)
+        assertNull("tapping the lit one clears it", c.table.value.preAction?.selected)
+        // Not on offer: ignored.
+        c.togglePreAction(PreAction.Call(40))
+        assertNull(c.table.value.preAction?.selected)
+        c.stop()
+    }
+
+    @Test
+    fun callAnyCallsARaiseWithoutAsking() = runTest {
+        val (c, gate) = waitingTable()
+        c.togglePreAction(PreAction.CallAny)
+        gate.last().complete(Decision.RaiseTo(200))
+        runCurrent()
+        val state = c.table.value
+        assertFalse("you were never asked about the raise", state.humanTurn != null && state.street == "Preflop")
+        assertFalse(state.human!!.folded)
+        assertTrue("you called the raise: ${state.log}", c.calledAtLeast(100))
+        c.stop()
+    }
+
+    @Test
+    fun aBetCancelsAPickedCheck() = runTest {
+        val (c, gate) = waitingTable()
+        c.togglePreAction(PreAction.Check)
+        gate.last().complete(Decision.RaiseTo(200))
+        runCurrent()
+        val state = c.table.value
+        assertNotNull("you decide yourself", state.humanTurn)
+        assertEquals("A BET CAME IN: CHECK CANCELLED", state.preActionNote)
+        assertNull(state.preAction)
+        c.act(Decision.Call)
+        runCurrent()
+        assertNull("the note goes once you act", c.table.value.preActionNote)
+        c.stop()
+    }
+
+    @Test
+    fun checkFoldChecksForFreeAndFoldsToABet() = runTest {
+        val (c, gate) = waitingTable()
+        c.togglePreAction(PreAction.CheckFold)
+        gate.last().complete(Decision.Check)
+        runCurrent()
+        assertFalse("never folds for free", c.table.value.human!!.folded)
+        // A new street clears the pick: tick it again, and this time the opponent bets.
+        untilWaiting(c, gate)
+        assertNull(c.table.value.preAction?.selected)
+        c.togglePreAction(PreAction.CheckFold)
+        gate.last().complete(Decision.RaiseTo(300))
+        runCurrent()
+        assertTrue("folded to the bet", c.table.value.human!!.folded)
+        c.stop()
+    }
+
+    @Test
+    fun allInShoves() = runTest {
+        val (c, gate) = waitingTable()
+        c.togglePreAction(PreAction.AllIn)
+        gate.last().complete(Decision.RaiseTo(200))
+        runCurrent()
+        val me = c.table.value.human!!
+        assertTrue("all in: $me", me.allIn)
+        c.stop()
+    }
 }
 
 class SecondPersonTest {
@@ -716,4 +828,5 @@ class SecondPersonTest {
         org.junit.Assert.assertEquals("Mo calls 105", secondPerson("Mo calls 105"))
         org.junit.Assert.assertEquals("Youngblood calls 5", secondPerson("Youngblood calls 5"))
     }
+
 }

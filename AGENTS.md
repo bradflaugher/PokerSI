@@ -100,6 +100,11 @@ Same as the author's other Android apps (bf-12c, CozyGrams):
   model reads and writes less. The system prompt is the same either way.
   SETTINGS > FAST FOLD (on by default): once the player has folded, the
   rest of the hand plays out at once, each opponent's `HouseBot` deciding.
+  While an opponent thinks, the player can tick an advance action
+  (`PreAction`: CHECK/FOLD, CHECK or CALL n, CALL ANY, ALL IN), played by
+  `GameController` the moment their turn comes; a bet or raise first
+  cancels a CHECK or CALL, and every pick lasts one betting round. The
+  action bar ignores taps for `TAP_GUARD_MS` after it changes.
 - **Table talk is on, with a hand blur.** SETTINGS > TABLE TALK is on by
   default. SETTINGS > HAND BLUR (on by default) has `GameController` pass
   every line through `HandBlur` before it shows, is recorded or reaches the

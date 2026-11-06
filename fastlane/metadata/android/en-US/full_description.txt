@@ -32,7 +32,7 @@ PICK YOUR AI MODEL
 
 RETRO, AND EASY TO PLAY
 • Pixel cards, LED counters, chiptune sound effects and an optional CRT scanline glow.
-• Big buttons, FAST FOLD to skip hands you've folded, a faster game speed and a pause button.
+• Big buttons, act-ahead toggles (CHECK/FOLD, CALL ANY, ALL IN) for while a model thinks, FAST FOLD to skip hands you've folded, a faster game speed and a pause button.
 • TalkBack reads your cards, the opponents and the pot, with larger text and high-contrast options.
 
 NO ADS, NO REAL MONEY

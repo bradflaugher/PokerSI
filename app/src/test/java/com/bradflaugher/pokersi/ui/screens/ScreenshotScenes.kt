@@ -19,6 +19,8 @@ import com.bradflaugher.pokersi.engine.usesShortDeck
 import com.bradflaugher.pokersi.game.Coach
 import com.bradflaugher.pokersi.game.GameController
 import com.bradflaugher.pokersi.game.HumanTurn
+import com.bradflaugher.pokersi.game.PreAction
+import com.bradflaugher.pokersi.game.PreActionUi
 import com.bradflaugher.pokersi.game.OpponentProfile
 import com.bradflaugher.pokersi.game.QuickGameSetup
 import com.bradflaugher.pokersi.game.RunScreen
@@ -134,6 +136,33 @@ object ScreenshotScenes {
             brainLabel = "QWEN 3 1.7B",
         )
         return TableStates.fromHand(hand, extras, humanTurn = turnFor(hand))
+    }
+
+    /**
+     * The same flop a beat earlier: Captain Chip is thinking, and you have
+     * ticked CHECK in the advance-action toggles to play when your turn comes.
+     */
+    fun holdemWaiting(selected: PreAction? = PreAction.Check): TableUiState {
+        val names = listOf("You", BOB.name, DOT.name, CHIP.name)
+        val hand = stackedHand(
+            GameVariant.TEXAS_HOLDEM, names, listOf(1480, 920, 1210, 1650), button = 0,
+            holes = mapOf(0 to "Ah Kh", 1 to "9s 4d", 2 to "Qc Jd", 3 to "7c 7d"),
+            board = "Ks 7h 2h Td 3c", handNumber = 12,
+        ).script(
+            Decision.Call to null,           // Captain limps
+            Decision.RaiseTo(80) to null,    // you raise
+            Decision.Fold to "Nope.",        // Bob
+            Decision.Call to null,           // Dot
+            Decision.Call to "Let's see a card.", // Captain
+            Decision.Check to null,          // Dot (flop)
+        )
+        val extras = TableExtras(
+            profiles = listOf(null, BOB, DOT, CHIP),
+            thinkingSeat = 3,
+            brainLabel = "QWEN 3 1.7B",
+        )
+        val me = hand.snapshot(0).seats[0]
+        return TableStates.fromHand(hand, extras).copy(preAction = PreActionUi(hand.legalActions(0).toCall, me.chips, selected))
     }
 
     /** The same flop with the whole table talking at once: the bubbles stack instead of overlapping. */
@@ -360,6 +389,13 @@ object ScreenshotScenes {
     } + listOf(
         Scene("table_coach") { PixelTheme { TableScreen(holdemMidHand(), TableCallbacks(), coach = Coach.YourTurn) } },
         Scene("table_coach_hold") { PixelTheme { TableScreen(drawWithHolds(), TableCallbacks(), coach = Coach.Hold) } },
+        Scene("table_preaction") { PixelTheme { TableScreen(holdemWaiting(), TableCallbacks()) } },
+        Scene("table_preaction_bet") {
+            // Facing a raise, nothing ticked yet, with LARGER TEXT: the longest labels.
+            val base = holdemWaiting(selected = null)
+            PixelTheme(textScale = LARGER_TEXT_SCALE) { TableScreen(base.copy(preAction = base.preAction?.copy(toCall = 160, selected = PreAction.Call(160))), TableCallbacks()) }
+        },
+        Scene("table_coach_preaction") { PixelTheme { TableScreen(holdemWaiting(selected = null), TableCallbacks(), coach = Coach.PreAction) } },
         Scene("table_coach_pause") { PixelTheme { TableScreen(holdemMidHand().copy(humanTurn = null), TableCallbacks(), coach = Coach.Pause) } },
         Scene("table_coach_showdown") { PixelTheme { TableScreen(showdownWin().copy(celebrate = 0), TableCallbacks(), coach = Coach.HandOver) } },
         Scene("run_choose_coach") { PixelTheme { ChooseTableScreen(chooseTable(), {}, {}, coach = Coach.ChooseTable) } },

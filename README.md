@@ -75,6 +75,16 @@ download a model.
   rockets", the made hand, "my hand is strong") with a censor bar, so you
   see that a model blabbed but not what. Switch it off to test how leaky a
   model really is; the debug console always shows the raw reply.
+- **Act ahead while a model thinks.** While an opponent is deciding, a row
+  of toggles under your cards lets you pick your move early, like the
+  advance-action boxes of online poker: CHECK/FOLD (checks if it's free,
+  folds to a bet), CHECK or CALL n (for the bet as it stands), CALL ANY and
+  ALL IN (RAISE POT or RAISE in limit games). It plays the moment your turn
+  comes. A bet or raise first cancels a ticked CHECK or CALL, and the bar
+  says so; every pick lasts one betting round. Your turn shows what a call
+  costs against the pot ("CALL 160 TO WIN 410: NEED 28%"), the buttons
+  ignore taps for a moment after they change so a thumb meant for a toggle
+  can't land on FOLD, and a turn that comes after a long wait gives a buzz.
 - **No waiting on hands you're out of.** With FAST FOLD (on by default),
   once you fold the rest of the hand plays out at once.
 - **House Bot when there's no model.** With nothing loaded, a built-in
@@ -97,7 +107,7 @@ download a model.
   and models and help, each with a small live picture. Swipe or tap
   through, or SKIP. At the table, a one-time hint points at the right
   control the first time something comes up (your first turn, raising,
-  HOLD, the pause button, choosing your next tour table). SETTINGS > REPLAY
+  HOLD, acting ahead, the pause button, choosing your next tour table). SETTINGS > REPLAY
   TOUR (or HOW TO > TAKE THE TOUR) brings it all back.
 - **Help.** HOW TO PLAY has jump buttons (hands, games, tour, AI) and a
   QUESTIONS section: internet, slow opponents, which model, old phones,
