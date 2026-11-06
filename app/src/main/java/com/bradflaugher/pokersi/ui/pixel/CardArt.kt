@@ -9,10 +9,7 @@ import com.bradflaugher.pokersi.engine.Rank
 import com.bradflaugher.pokersi.engine.Suit
 import kotlin.math.abs
 import kotlin.math.atan2
-import kotlin.math.cos
 import kotlin.math.hypot
-import kotlin.math.roundToInt
-import kotlin.math.sin
 
 /**
  * Playing card pixel art, drawn procedurally at [W] x [H] virtual pixels
@@ -181,47 +178,16 @@ object CardArt {
      * The ace: the big suit, bevelled and outlined, on a gold medallion
      * (lit rim, shaded rim, a field of alternating rays) with sparkles.
      */
+    /** The ace: just the big suit, bevelled and outlined, in the middle of the card. */
     private fun drawAce(c: PixelCanvas, suit: Suit, p: PixelPalette) {
         val color = suitColor(suit, p)
         val cy = 31
-        val field = lerp(p.cardCream, color, 0.08f)
-        val ray = lerp(p.cardCream, p.gold, 0.45f)
-        for (y in 0 until H) for (x in 0 until W) {
-            val dx = x - CX.toDouble()
-            val dy = y - cy.toDouble()
-            val d = hypot(dx, dy)
-            if (d > 14.5) continue
-            val lit = -(dx + dy) / (d + 0.001)
-            val col = when {
-                d > 13.6 -> p.ink
-                d > 12.2 -> if (lit > 0.35) p.yellow else if (lit < -0.35) p.goldDark else p.gold
-                d > 11.3 -> p.goldDark
-                else -> {
-                    val a = atan2(dy, dx)
-                    val seg = ((a + Math.PI) / (Math.PI * 2) * 16).toInt()
-                    if (seg % 2 == 0 && d > 3) ray else field
-                }
-            }
-            c.set(x, y, col)
-        }
-        // Rivets around the rim.
-        for (i in 0 until 8) {
-            val a = i * Math.PI / 4 + Math.PI / 8
-            c.set(CX + (12.9 * cos(a)).roundToInt(), cy + (12.9 * sin(a)).roundToInt(), p.cardHighlight)
-        }
         val big = SuitArt.big(suit)
         val art = PixelCanvas(big.width + 2, big.height + 2)
         // Each part gets its own bevel, so a club's three lobes show as three balls, not one blob.
         for (part in SuitArt.bigParts(suit)) stampBeveled(art, part, 1, 1, color, lerp(color, p.white, 0.5f), lerp(color, p.ink, 0.45f))
         art.outline(p.ink)
         c.blit(art, CX - art.width / 2, cy - art.height / 2)
-        for ((sx, sy) in listOf(CX + 12 to 18, CX - 12 to 44)) sparkle(c, sx, sy, p)
-    }
-
-    private fun sparkle(c: PixelCanvas, x: Int, y: Int, p: PixelPalette) {
-        c.set(x, y - 2, p.gold); c.set(x, y + 2, p.gold); c.set(x - 2, y, p.gold); c.set(x + 2, y, p.gold)
-        c.set(x, y - 1, p.yellow); c.set(x, y + 1, p.yellow); c.set(x - 1, y, p.yellow); c.set(x + 1, y, p.yellow)
-        c.set(x, y, p.white)
     }
 
     /** Stamps [pat] with an automatic bevel: lit top/left edges, shaded bottom/right. */
