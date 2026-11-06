@@ -641,15 +641,18 @@ object SuitArt {
     private val small = mapOf(
         Suit.HEARTS to g("XX.XX", "XXXXX", "XXXXX", ".XXX.", "..X.."),
         Suit.DIAMONDS to g("..X..", ".XXX.", "XXXXX", ".XXX.", "..X.."),
-        Suit.SPADES to g("..X..", ".XXX.", "XXXXX", "XXXXX", "..X..", ".XXX."),
-        Suit.CLUBS to g(".XXX.", ".XXX.", "XXXXX", "XXXXX", "..X..", ".XXX."),
+        // Spade and club are told apart by their tops: a spade comes to a
+        // sharp point; a club is a round lobe with a waist under it, then two
+        // side lobes split by a notch.
+        Suit.SPADES to g("..X..", "..X..", ".XXX.", "XXXXX", "XXXXX", "..X..", ".XXX."),
+        Suit.CLUBS to g(".XXX.", ".XXX.", "..X..", "XXXXX", "XX.XX", "..X..", ".XXX."),
     )
 
     private val pip = mapOf(
         Suit.HEARTS to g(".XX.XX.", "XXXXXXX", "XXXXXXX", "XXXXXXX", ".XXXXX.", "..XXX..", "...X..."),
         Suit.DIAMONDS to g("...X...", "..XXX..", ".XXXXX.", "XXXXXXX", ".XXXXX.", "..XXX..", "...X..."),
-        Suit.SPADES to g("...X...", "..XXX..", ".XXXXX.", "XXXXXXX", "XXXXXXX", "XX.X.XX", "...X...", "..XXX.."),
-        Suit.CLUBS to g("..XXX..", "..XXX..", "XX.X.XX", "XXXXXXX", "XX.X.XX", "...X...", "..XXX.."),
+        Suit.SPADES to g("...X...", "...X...", "..XXX..", ".XXXXX.", "XXXXXXX", "XXXXXXX", ".XX.XX.", "...X...", "..XXX.."),
+        Suit.CLUBS to g("..XXX..", ".XXXXX.", "..XXX..", "XX.X.XX", "XXXXXXX", "XX.X.XX", "...X...", "..XXX.."),
     )
 
     private val big = mapOf(
