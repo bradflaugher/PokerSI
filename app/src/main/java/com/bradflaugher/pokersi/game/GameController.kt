@@ -742,6 +742,7 @@ class GameController(
             bigBlind = h.stakes.bigBlind,
             betThisRound = snap.bet,
             stack = snap.chips,
+            winnable = winnablePot(h),
         )
         publish()
         val decision = deferred.await()
@@ -750,6 +751,9 @@ class GameController(
         selected = emptySet()
         if (runState != null) saveForfeit(h)
     }
+
+    /** The chips a call by the human could win now ([HumanTurn.winnable]). */
+    private fun winnablePot(h: Hand): Int = winnablePot(h.snapshot(0).seats.map { it.committed }, me = 0, toCall = h.legalActions(0).toCall)
 
     /**
      * Fast fold: the player has folded this hand (and the setting is on), so
@@ -956,6 +960,16 @@ class GameController(
             val line = text.replace(Regex("\\s+"), " ").trim()
             if (line.isEmpty()) return null
             return if (line.length <= SAY_MAX) line else line.take(SAY_MAX - 1).trimEnd() + "…"
+        }
+
+        /**
+         * What a call of [toCall] by seat [me] could win, given every seat's
+         * [committed] chips this hand: the others' chips only up to what [me]
+         * will have in after calling, plus [me]'s own (not counting the call).
+         */
+        fun winnablePot(committed: List<Int>, me: Int, toCall: Int): Int {
+            val cap = committed[me] + toCall
+            return committed.indices.sumOf { if (it == me) committed[it] else minOf(committed[it], cap) }
         }
 
         /** Video poker courtesy: pre-HOLD pairs and better, else the two highest cards. */

@@ -79,4 +79,15 @@ class PreActionTest {
         assertEquals("RAISE", PreAction.AllIn.label(0, 1000, BettingStructure.FIXED_LIMIT))
         assertEquals("raise pot", PreAction.AllIn.spoken(0, BettingStructure.POT_LIMIT))
     }
+
+    @Test
+    fun potOddsCountOnlyWhatACallCanWin() {
+        // You have 50 left after 10 in; the opponent shoves 100 on top of their 10. Calling 50 can win
+        // their 10 + 50 matched (not the unmatched 50) plus your own 10.
+        assertEquals(70, GameController.winnablePot(listOf(10, 110), me = 0, toCall = 50))
+        // Covered: the whole pot.
+        assertEquals(30, GameController.winnablePot(listOf(10, 20), me = 0, toCall = 10))
+        val turn = HumanTurn(LegalActions(true, false, 50, null, null), pot = 120, bigBlind = 10, betThisRound = 0, stack = 50, winnable = 70)
+        assertEquals(50f / 120f, turn.callShare, 1e-6f)
+    }
 }

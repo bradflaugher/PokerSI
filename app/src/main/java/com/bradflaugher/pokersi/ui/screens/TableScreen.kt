@@ -132,6 +132,8 @@ class TableCallbacks(
     val onRaising: (Boolean) -> Unit = {},
     /** An advance-action toggle was tapped while waiting ([PreAction]). */
     val onPreAction: (PreAction) -> Unit = {},
+    /** False while the action bar's tap guard is up ([guarded]): for taps that only change the screen, like opening the raise panel. */
+    val isArmed: () -> Boolean = { true },
     /** Keep the header's top right free for the debug console's "~" ([ConsoleToggle]); the setting is on. */
     val consoleSlot: Boolean = false,
 ) {
@@ -149,6 +151,7 @@ class TableCallbacks(
         onPause = onPause,
         onRaising = onRaising,
         onPreAction = { if (armed()) onPreAction(it) },
+        isArmed = armed,
         consoleSlot = consoleSlot,
     )
 }
@@ -891,7 +894,7 @@ private fun TurnLine(state: TableUiState, turn: HumanTurn) {
         legal.canCheck -> "YOUR MOVE. CHECKING IS FREE." to p.cardCream
         else -> {
             val need = (turn.callShare * 100).toInt().coerceIn(1, 99)
-            "CALL ${formatChips(legal.toCall)} TO WIN ${formatChips(turn.pot)}: NEED $need%" to p.cardCream
+            "CALL ${formatChips(legal.toCall)} TO WIN ${formatChips(turn.winnable)}: NEED $need%" to p.cardCream
         }
     }
     PixelText(text, Modifier.fillMaxWidth(), style = PixelType.Small.copy(fontSize = 9.sp), color = color, textAlign = TextAlign.Center, maxLines = 1)
@@ -946,7 +949,7 @@ private fun BettingBar(state: TableUiState, callbacks: TableCallbacks) {
                 if (min == max) {
                     PixelButton("$word\n${formatChips(min)}", { callbacks.onAct(Decision.RaiseTo(min)) }, Modifier.weight(1.2f), variant = PixelButtonVariant.Bet, textStyle = PixelType.Small, sound = Sfx.Chip)
                 } else {
-                    PixelButton(if (raising) "$word..." else word, { raising = !raising }, Modifier.weight(1.2f), variant = PixelButtonVariant.Bet, textStyle = PixelType.Small)
+                    PixelButton(if (raising) "$word..." else word, { if (callbacks.isArmed()) raising = !raising }, Modifier.weight(1.2f), variant = PixelButtonVariant.Bet, textStyle = PixelType.Small)
                 }
             }
         }

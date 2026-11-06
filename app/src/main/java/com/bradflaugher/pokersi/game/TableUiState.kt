@@ -55,11 +55,17 @@ data class HumanTurn(
     /** Chips already in front of the human this round (raise totals include them). */
     val betThisRound: Int,
     val stack: Int,
+    /**
+     * The part of [pot] a call could win: each seat's chips only up to what the
+     * human will have in after calling (a short stack can't win the unmatched
+     * part of an overbet, which goes back or to a side pot).
+     */
+    val winnable: Int = pot,
 ) {
     val isDiscard: Boolean get() = legal.discard != null
 
     /** Calling's share of the pot it would win: the equity a call needs to break even (0 when checking is free). */
-    val callShare: Float get() = if (legal.toCall <= 0) 0f else legal.toCall.toFloat() / (pot + legal.toCall)
+    val callShare: Float get() = if (legal.toCall <= 0) 0f else legal.toCall.toFloat() / (winnable + legal.toCall)
 }
 
 /** The big announcement at the end of a hand. */

@@ -53,6 +53,8 @@ class CoachMarksTest {
         assertEquals(listOf(Coach.PreAction, Coach.Pause), CoachMarks.forTable(waiting, raising = false))
         assertEquals(Coach.Pause, CoachMarks.next(CoachMarks.forTable(waiting, raising = false), setOf(Coach.PreAction)))
         assertEquals(listOf(Coach.Pause), CoachMarks.forTable(waiting.copy(preAction = null), raising = false))
+        // From the very first hand, unlike PAUSE.
+        assertEquals(listOf(Coach.PreAction), CoachMarks.forTable(waiting.copy(handNumber = 1), raising = false))
     }
 
     @Test

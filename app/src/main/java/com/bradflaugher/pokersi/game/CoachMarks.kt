@@ -54,9 +54,10 @@ object CoachMarks {
                 add(Coach.YourTurn)
             }
             table.phase == TablePhase.HandOver && table.banner != null -> add(Coach.HandOver)
-            table.phase == TablePhase.Playing && table.handNumber >= 2 && table.human?.folded != true -> {
+            table.phase == TablePhase.Playing && table.human?.folded != true -> {
+                // The advance-action toggles get their hint the first time they show.
                 if (table.preAction != null) add(Coach.PreAction)
-                add(Coach.Pause)
+                if (table.handNumber >= 2) add(Coach.Pause)
             }
         }
     }
