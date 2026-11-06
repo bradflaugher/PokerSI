@@ -67,8 +67,15 @@ data class HumanTurn(
     /** Calling's share of the pot it would win: the equity a call needs to break even (0 when checking is free). */
     val callShare: Float get() = if (legal.toCall <= 0) 0f else legal.toCall.toFloat() / (winnable + legal.toCall)
 
-    /** [callShare] as a whole percent, rounded up (41.7% needed must not read as 41%), 1 to 99. */
-    val needPercent: Int get() = kotlin.math.ceil(callShare * 100.0 - 1e-6).toInt().coerceIn(1, 99)
+    /**
+     * [callShare] as a whole percent, rounded up (41.7% needed must not read
+     * as 41%), 1 to 99. Integer math, so an exact 30% stays 30%.
+     */
+    val needPercent: Int get() {
+        if (legal.toCall <= 0) return 1
+        val whole = (winnable + legal.toCall).toLong()
+        return ((100L * legal.toCall + whole - 1) / whole).toInt().coerceIn(1, 99)
+    }
 }
 
 /** The big announcement at the end of a hand. */

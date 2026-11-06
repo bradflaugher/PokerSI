@@ -97,5 +97,10 @@ class PreActionTest {
         assertEquals(50f / 120f, turn.callShare, 1e-6f)
         assertEquals("41.7% rounds up", 42, turn.needPercent)
         assertEquals("exact stays", 25, turn.copy(winnable = 150).needPercent)
+        // Exact thresholds a Float would push over: 30/100, 27/100, 33/100, 36/100.
+        for (pct in listOf(27, 30, 33, 36)) {
+            val t = HumanTurn(LegalActions(true, false, pct, null, null), pot = 100, bigBlind = 10, betThisRound = 0, stack = 1000, winnable = 100 - pct)
+            assertEquals("exactly $pct%", pct, t.needPercent)
+        }
     }
 }
